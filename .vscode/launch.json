@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "debugpy",
+            "request": "launch",
+            "name": "Run Tshepong Dashboard",
+            "program": "${workspaceFolder}/run_web.py",
+            "console": "integratedTerminal",
+            "env": {
+                "DB_DATABASE": "STPTM4000"
+            },
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
