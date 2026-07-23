@@ -15,6 +15,8 @@ import traceback
 
 from flask import Flask, render_template, jsonify, request
 from web import queries as q
+from web import target_store as ts
+from web import scenario_store as ss
 
 log = logging.getLogger(__name__)
 
@@ -129,5 +131,68 @@ def create_app() -> Flask:
         p_from = int(request.args.get("from", 202507))
         p_to   = int(request.args.get("to",   202606))
         return jsonify(q.get_gang_production_detail(gang, p_from, p_to))
+
+    @app.route("/api/section_ranking")
+    def api_section_ranking():
+        p_from = int(request.args.get("from", 202507))
+        p_to   = int(request.args.get("to",   202606))
+        return jsonify(q.get_section_ranking(p_from, p_to))
+
+    @app.route("/api/bonus_rule_data")
+    def api_bonus_rule_data():
+        p_from  = int(request.args.get("from",    202507))
+        p_to    = int(request.args.get("to",      202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_bonus_rule_data(p_from, p_to, section))
+
+    # ── Target persistence (local, not the SQL Server reporting DB) ─────────────
+
+    @app.route("/api/targets", methods=["GET"])
+    def api_targets_get():
+        return jsonify(ts.get_current_targets())
+
+    @app.route("/api/targets", methods=["POST"])
+    def api_targets_set():
+        body = request.get_json(force=True, silent=True) or {}
+        key   = body.get("key")
+        value = body.get("value")
+        if not key or value is None:
+            return jsonify({"error": "'key' and 'value' are required"}), 400
+        saved = ts.set_target(key, value)
+        return jsonify(saved)
+
+    @app.route("/api/targets/history")
+    def api_targets_history():
+        key = request.args.get("key", "")
+        if not key:
+            return jsonify({"error": "'key' query param is required"}), 400
+        return jsonify(ts.get_target_history(key))
+
+    # ── Bonus policy scenarios (local, not the SQL Server reporting DB) ─────────
+
+    @app.route("/api/bonus_scenarios", methods=["GET"])
+    def api_bonus_scenarios_list():
+        return jsonify(ss.list_scenarios())
+
+    @app.route("/api/bonus_scenarios", methods=["POST"])
+    def api_bonus_scenarios_save():
+        body = request.get_json(force=True, silent=True) or {}
+        name = body.get("name")
+        if not name:
+            return jsonify({"error": "'name' is required"}), 400
+        saved = ss.save_scenario(
+            name=name,
+            period_from=body.get("period_from"),
+            period_to=body.get("period_to"),
+            section=body.get("section", "ALL"),
+            params=body.get("params", {}),
+            results=body.get("results", {}),
+        )
+        return jsonify(saved)
+
+    @app.route("/api/bonus_scenarios/<int:scenario_id>", methods=["DELETE"])
+    def api_bonus_scenarios_delete(scenario_id):
+        ss.delete_scenario(scenario_id)
+        return jsonify({"deleted": scenario_id})
 
     return app

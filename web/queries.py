@@ -52,6 +52,23 @@ def _build_period_list(period_from: int, period_to: int) -> list[int]:
             m, y = 1, y + 1
     return periods
 
+
+def _prior_period_range(period_from: int, period_to: int) -> tuple[int, int]:
+    """Return the period range of the same length immediately before (period_from, period_to)."""
+    n = len(_build_period_list(period_from, period_to))
+    # prior_to = one month before period_from
+    y, m = period_from // 100, period_from % 100
+    m -= 1
+    if m == 0:
+        m, y = 12, y - 1
+    prior_to = y * 100 + m
+    # prior_from = n-1 months before prior_to
+    m -= (n - 1)
+    while m <= 0:
+        m += 12
+        y -= 1
+    return y * 100 + m, prior_to
+
 # ── Filter builders ────────────────────────────────────────────────────────────
 
 def _section_filter(section: str) -> str:
@@ -145,7 +162,9 @@ def get_kpi_summary(period_from: int, period_to: int,
     """Top-level KPIs: total m², total bonus (with breakdown), gang count, avg m²/gang, R/m²."""
     sf = _section_filter(section)
 
-    # SQM from GANGPRODUCTIONDETAIL (STOPE BREAKING, deduplicated by gang)
+    # SQM from GANGPRODUCTIONDETAIL (STOPE BREAKING, deduplicated by gang).
+    # LEN(CREWNO)>=8 matches the filter used by get_rands_per_sqm / get_gang_detail so
+    # the KPI denominator is consistent with every breakdown tab.
     sqm_df = read_sql(f"""
         SELECT section, period, gang, MAX(sqm) AS sqm
         FROM (
@@ -157,6 +176,7 @@ def get_kpi_summary(period_from: int, period_to: int,
             FROM [GANGPRODUCTIONDETAIL]
             WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
               AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
               {sf}
         ) AS q
         GROUP BY section, period, gang
@@ -177,6 +197,33 @@ def get_kpi_summary(period_from: int, period_to: int,
     r_per_sqm           = total_bonus / total_sqm if total_sqm > 0 else 0
     periods_seen        = sqm_df["period"].nunique()
 
+    # Prior-period comparison (best-effort — None fields if prior data unavailable)
+    prior_total_sqm = prior_total_bonus = prior_r_per_sqm = None
+    try:
+        pr_from, pr_to = _prior_period_range(period_from, period_to)
+        pr_sqm_df = read_sql(f"""
+            SELECT section, period, gang, MAX(sqm) AS sqm
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(SECTION)) AS section,
+                    LTRIM(RTRIM(PERIOD))  AS period,
+                    LTRIM(RTRIM(GANG))    AS gang,
+                    TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm
+                FROM [GANGPRODUCTIONDETAIL]
+                WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+                  AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {pr_from} AND {pr_to}
+                  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+                  {sf}
+            ) AS q
+            GROUP BY section, period, gang
+        """)
+        pr_bonus_df       = _get_participants_bonus(pr_from, pr_to, section)
+        prior_total_sqm   = float(pr_sqm_df["sqm"].sum())        if not pr_sqm_df.empty   else 0.0
+        prior_total_bonus = float(pr_bonus_df["total_bonus"].sum()) if not pr_bonus_df.empty else 0.0
+        prior_r_per_sqm   = prior_total_bonus / prior_total_sqm  if prior_total_sqm > 0   else 0.0
+    except Exception:
+        pass  # prior comparison is non-critical; don't break the main KPI response
+
     return {
         "total_sqm":           round(total_sqm, 0),
         "total_bonus":         round(total_bonus, 2),
@@ -187,6 +234,9 @@ def get_kpi_summary(period_from: int, period_to: int,
         "avg_sqm_per_gang":    round(avg_sqm, 1),
         "r_per_sqm":           round(r_per_sqm, 2),
         "periods":             periods_seen,
+        "prior_total_sqm":     round(prior_total_sqm,  0)  if prior_total_sqm  is not None else None,
+        "prior_total_bonus":   round(prior_total_bonus, 2)  if prior_total_bonus is not None else None,
+        "prior_r_per_sqm":     round(prior_r_per_sqm,  2)  if prior_r_per_sqm  is not None else None,
     }
 
 
@@ -194,6 +244,7 @@ def get_production_trend(period_from: int, period_to: int,
                           section: str = "ALL") -> dict:
     """Monthly total adjusted m² (STOPE BREAKING) by section — for trend chart."""
     sf = _section_filter(section)
+    # LEN(CREWNO)>=8 added to match get_kpi_summary so the trend total equals the KPI total.
     df = read_sql(f"""
         SELECT section, period, gang, MAX(sqm) AS sqm
         FROM (
@@ -205,6 +256,7 @@ def get_production_trend(period_from: int, period_to: int,
             FROM [GANGPRODUCTIONDETAIL]
             WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
               AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
               {sf}
         ) AS q
         GROUP BY section, period, gang
@@ -473,27 +525,27 @@ def get_sqm_range_analysis(period_from: int, period_to: int,
                            section: str = "ALL") -> dict:
     """Gang SQM range distribution with bonus breakdown from PARTICIPANTSDETAIL."""
     sf = _section_filter(section)
-    # Get gang-level SQM + labour
+    # Group by gang (not crewno) so each gang appears once per period.
+    # This prevents bonus double-counting when a gang has multiple CREWNO rows
+    # in GANGPRODUCTIONDETAIL: the PARTICIPANTSDETAIL bonus merge is on gang key,
+    # so multiple crewno rows for the same gang would each receive the full gang
+    # bonus and inflate the range-bucket totals.
     df = read_sql(f"""
-        SELECT section, period, crewno,
-               MAX(gang)   AS gang,
-               MAX(sqm)    AS sqm,
-               MAX(labour) AS labour
-        FROM (
-            SELECT
-                LTRIM(RTRIM(SECTION))  AS section,
-                LTRIM(RTRIM(PERIOD))   AS period,
-                LTRIM(RTRIM(GANG))     AS gang,
-                LTRIM(RTRIM(CREWNO))   AS crewno,
-                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm,
-                TRY_CAST(GANGLABOUR           AS FLOAT) AS labour
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              AND UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              {sf}
-        ) AS q
-        GROUP BY section, period, crewno
+        SELECT
+            LTRIM(RTRIM(SECTION)) AS section,
+            LTRIM(RTRIM(PERIOD))  AS period,
+            LTRIM(RTRIM(GANG))    AS gang,
+            MAX(TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT)) AS sqm,
+            MAX(TRY_CAST(GANGLABOUR           AS FLOAT)) AS labour
+        FROM [GANGPRODUCTIONDETAIL]
+        WHERE TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+          AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+          AND UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+          {sf}
+        GROUP BY
+            LTRIM(RTRIM(SECTION)),
+            LTRIM(RTRIM(PERIOD)),
+            LTRIM(RTRIM(GANG))
     """)
     if df.empty:
         return {"ranges": [], "rows": [], "chart": {}, "period_rows": []}
@@ -520,7 +572,7 @@ def get_sqm_range_analysis(period_from: int, period_to: int,
 
     # Aggregate summary across all periods
     agg = df.groupby("sqm_range").agg(
-        crew_count    = ("crewno",             "count"),
+        crew_count    = ("gang",               "count"),
         avg_labour    = ("labour",             "mean"),
         avg_sqm       = ("sqm",               "mean"),
         total_stm     = ("total_stm_bonus",   "sum"),
@@ -551,7 +603,7 @@ def get_sqm_range_analysis(period_from: int, period_to: int,
         })
 
     # Per-period distribution for trend chart
-    period_pivot = df.groupby(["period", "sqm_range"])["crewno"].nunique().reset_index()
+    period_pivot = df.groupby(["period", "sqm_range"])["gang"].nunique().reset_index()
     period_pivot.columns = ["period", "sqm_range", "count"]
     period_order_list = sorted(df["period"].unique())
     period_labels     = [_period_label(int(p)) for p in period_order_list]
@@ -1194,3 +1246,162 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
             "m2_variance":      round(float(row["m2_variance"]       or 0), 2),
         })
     return records
+
+
+def get_section_ranking(period_from: int, period_to: int) -> list[dict]:
+    """
+    Per-section STOPE BREAKING summary for the Section Performance Ranking table.
+    Sorted by R/m² descending (highest bonus earned per m² first).
+    SQM from GANGPRODUCTIONDETAIL; bonus from PARTICIPANTSDETAIL (canonical).
+    """
+    sqm_df = read_sql(f"""
+        SELECT section, period, gang, MAX(sqm) AS sqm
+        FROM (
+            SELECT
+                LTRIM(RTRIM(SECTION)) AS section,
+                LTRIM(RTRIM(PERIOD))  AS period,
+                LTRIM(RTRIM(GANG))    AS gang,
+                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm
+            FROM [GANGPRODUCTIONDETAIL]
+            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+        ) AS q
+        GROUP BY section, period, gang
+    """)
+    if sqm_df.empty:
+        return []
+
+    sqm_df["sqm"] = sqm_df["sqm"].fillna(0).astype(float)
+
+    sec_agg = sqm_df.groupby("section").agg(
+        total_sqm  = ("sqm",  "sum"),
+        gang_count = ("gang", "nunique"),
+    ).reset_index()
+
+    bonus_df = _get_participants_bonus(period_from, period_to)
+    if not bonus_df.empty:
+        sec_bonus = bonus_df.groupby("section").agg(
+            total_bonus = ("total_bonus", "sum")
+        ).reset_index()
+    else:
+        sec_bonus = pd.DataFrame(columns=["section", "total_bonus"])
+
+    merged = sec_agg.merge(sec_bonus, on="section", how="left")
+    merged["total_bonus"] = merged["total_bonus"].fillna(0).astype(float)
+    merged["r_per_sqm"] = merged.apply(
+        lambda r: r["total_bonus"] / r["total_sqm"] if r["total_sqm"] > 0 else 0.0, axis=1
+    )
+    merged["avg_sqm_per_gang"] = merged.apply(
+        lambda r: r["total_sqm"] / r["gang_count"] if r["gang_count"] > 0 else 0.0, axis=1
+    )
+    merged = merged.sort_values("r_per_sqm", ascending=False).reset_index(drop=True)
+
+    return [
+        {
+            "section":          str(row["section"]),
+            "total_sqm":        round(float(row["total_sqm"]), 0),
+            "total_bonus":      round(float(row["total_bonus"]), 2),
+            "r_per_sqm":        round(float(row["r_per_sqm"]), 2),
+            "gang_count":       int(row["gang_count"]),
+            "avg_sqm_per_gang": round(float(row["avg_sqm_per_gang"]), 1),
+        }
+        for _, row in merged.iterrows()
+    ]
+
+
+def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """Per-gang STOPE BREAKING bonus data for the Bonus Policy Simulator tab.
+
+    Tshepong schema has four bonus components: break, driller, sweepings, safety.
+    Adj SQM from GANGTOTALSQMADJUSTED; pre-adj from SUM(WORKPLACETOTALSQM) per gang/period.
+    Bonus columns are per-person in the DB — multiplied by GANGLABOUR for gang totals.
+    """
+    sf = _section_filter(section)
+    period_filter = f"TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}"
+    _empty: dict = {"gangs": [], "summary": {}}
+
+    df = read_sql(f"""
+        SELECT
+            section, period, gang, crewno,
+            MAX(adj_sqm)     AS sqm,
+            SUM(wp_sqm)      AS sqm_preadj,
+            MAX(labour)      AS labour,
+            MAX(break_bonus) AS break_bonus,
+            MAX(drill_bonus) AS drill_bonus,
+            MAX(sweep_bonus) AS sweep_bonus,
+            MAX(safety_bonus)AS safety_bonus
+        FROM (
+            SELECT
+                LTRIM(RTRIM(SECTION))   AS section,
+                LTRIM(RTRIM(PERIOD))    AS period,
+                LTRIM(RTRIM(GANG))      AS gang,
+                LTRIM(RTRIM(CREWNO))    AS crewno,
+                TRY_CAST(GANGTOTALSQMADJUSTED    AS FLOAT) AS adj_sqm,
+                TRY_CAST(WORKPLACETOTALSQM       AS FLOAT) AS wp_sqm,
+                TRY_CAST(GANGLABOUR              AS FLOAT) AS labour,
+                TRY_CAST(GANGFINALBREAKBONUS     AS FLOAT) AS break_bonus,
+                TRY_CAST(GANGDRILLERBONUS        AS FLOAT) AS drill_bonus,
+                TRY_CAST(GANGFINALSWEEPINGSBONUS AS FLOAT) AS sweep_bonus,
+                TRY_CAST(GANGFINALSAFETYBONUS    AS FLOAT) AS safety_bonus
+            FROM [GANGPRODUCTIONDETAIL]
+            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+              AND {period_filter}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+              {sf}
+        ) AS raw
+        GROUP BY section, period, gang, crewno
+    """)
+    if df.empty:
+        return _empty
+
+    df["period"]    = df["period"].astype(str)
+    df["sqm"]       = df["sqm"].fillna(0).astype(float)
+    df["sqm_preadj"]= df["sqm_preadj"].fillna(0).astype(float)
+    labour = df["labour"].fillna(0).astype(float)
+
+    for bc in ["break_bonus", "drill_bonus", "sweep_bonus", "safety_bonus"]:
+        df[bc] = df[bc].fillna(0).astype(float) * labour
+
+    total_sqm_adj    = float(df["sqm"].sum())
+    total_sqm_preadj = float(df["sqm_preadj"].sum())
+    total_break  = float(df["break_bonus"].sum())
+    total_drill  = float(df["drill_bonus"].sum())
+    total_sweep  = float(df["sweep_bonus"].sum())
+    total_safety = float(df["safety_bonus"].sum())
+    gang_count   = len(df)
+
+    avg_break_rate_adj    = round(total_break / total_sqm_adj,    4) if total_sqm_adj    > 0 else 0.0
+    avg_break_rate_preadj = round(total_break / total_sqm_preadj, 4) if total_sqm_preadj > 0 else 0.0
+
+    gangs = [
+        {
+            "section":      row["section"],
+            "period":       _period_label(int(row["period"])),
+            "gang":         row["gang"],
+            "sqm_adj":      round(float(row["sqm"] or 0), 0),
+            "sqm_preadj":   round(float(row["sqm_preadj"] or 0), 0),
+            "labour":       round(float(row["labour"] or 0) if not pd.isna(row["labour"]) else 0, 2),
+            "break_bonus":  round(float(row["break_bonus"] or 0), 2),
+            "drill_bonus":  round(float(row["drill_bonus"] or 0), 2),
+            "sweep_bonus":  round(float(row["sweep_bonus"] or 0), 2),
+            "safety_bonus": round(float(row["safety_bonus"] or 0), 2),
+        }
+        for _, row in df.iterrows()
+    ]
+
+    return {
+        "gangs": gangs,
+        "summary": {
+            "total_break":        round(total_break, 2),
+            "total_drill":        round(total_drill, 2),
+            "total_sweep":        round(total_sweep, 2),
+            "total_safety":       round(total_safety, 2),
+            "total_bonus":        round(total_break + total_drill + total_sweep + total_safety, 2),
+            "total_sqm_adj":      round(total_sqm_adj, 0),
+            "total_sqm_preadj":   round(total_sqm_preadj, 0),
+            "gang_count":         gang_count,
+            "avg_break_rate_adj":    avg_break_rate_adj,
+            "avg_break_rate_preadj": avg_break_rate_preadj,
+        },
+    }

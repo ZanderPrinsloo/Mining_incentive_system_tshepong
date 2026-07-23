@@ -78,6 +78,15 @@
     .badge-ancillary     { background:#607D8B; }
     .empty-state { color:#adb5bd; font-size:.9rem; padding:2rem; text-align:center; }
 
+    /* ── Bonus Policy Simulator ── */
+    .brs-param-card { border-top: 3px solid var(--hg-gold); }
+    .brs-delta-good { color: #198754; font-weight: 700; }
+    .brs-delta-warn { color: #dc3545; font-weight: 700; }
+    .brs-intro-card { background: linear-gradient(135deg, var(--hg-dark) 0%, var(--hg-mid) 100%); }
+    .brs-intro-card .section-header { color: #fff; border-left-color: var(--hg-gold); }
+    .brs-intro-card p.text-muted { color: #cdd3e0 !important; }
+    .brs-intro-card #btn-brs-export-pdf { background: var(--hg-gold); border: none; color: #111; font-weight: 600; }
+
     /* ── Gang Detail column filters ── */
     #dt-col-filters th { background: #f0f4f8; padding: .25rem .4rem; }
     .dt-col-input {
@@ -86,6 +95,20 @@
       background: #fff;
     }
     .dt-col-input:focus { outline: none; border-color: var(--hg-gold); box-shadow: 0 0 0 2px #D4A01733; }
+
+    /* ── Gang Detail outlier rows ── */
+    .gd-outlier-row td { background-color: #fff3e0 !important; }
+
+    /* ── Executive Summary panel ── */
+    .exec-kpi-lbl   { font-size: .70rem; color: #6c757d; text-transform: uppercase; letter-spacing: .5px; }
+    .exec-kpi-val   { font-size: 1.35rem; font-weight: 700; color: var(--hg-dark); line-height: 1.1; }
+    .exec-kpi-delta { font-size: .78rem; font-weight: 600; }
+    .delta-good { color: #198754; }
+    .delta-warn { color: #dc3545; }
+
+    /* ── Section Performance Ranking ── */
+    .sec-rank-best td  { background-color: #d4edda !important; }
+    .sec-rank-worst td { background-color: #f8d7da !important; }
   </style>
 </head>
 <body>
@@ -235,12 +258,69 @@
       <i class="bi bi-table me-1"></i>Forecast</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-projection">
       <i class="bi bi-graph-up-arrow me-1"></i>Projection</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-bonus-rule">
+      <i class="bi bi-gear-wide-connected me-1"></i>Bonus Policy Simulator</a></li>
   </ul>
 
   <div class="tab-content">
 
     <!-- ══ TAB 1: Overview ════════════════════════════════════════════════════ -->
     <div class="tab-pane fade show active" id="tab-overview">
+
+      <!-- Executive Summary -->
+      <div class="card shadow-sm mb-3" id="card-exec-summary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="section-header mb-0">Executive Summary</div>
+            <button class="btn btn-sm btn-outline-secondary" id="btn-download-pdf">
+              <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+            </button>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="exec-kpi-lbl">Total Bonus</div>
+              <div class="exec-kpi-val" id="exec-total-bonus">—</div>
+              <div class="exec-kpi-delta" id="exec-bonus-delta"></div>
+            </div>
+            <div class="col-md-4">
+              <div class="exec-kpi-lbl">R/m²</div>
+              <div class="exec-kpi-val" id="exec-r-per-sqm">—</div>
+              <div class="exec-kpi-delta" id="exec-rsqm-delta"></div>
+            </div>
+            <div class="col-md-4">
+              <div class="exec-kpi-lbl">Total m²</div>
+              <div class="exec-kpi-val" id="exec-total-sqm">—</div>
+            </div>
+          </div>
+          <div id="exec-narrative" class="small text-muted" style="line-height:1.7"></div>
+        </div>
+      </div>
+
+      <!-- Section Performance Ranking -->
+      <div class="card shadow-sm mb-3" id="card-section-ranking">
+        <div class="card-body">
+          <div class="section-header mb-1">Section Performance Ranking</div>
+          <p class="small text-muted mb-2">Sorted by R/m² — highest (best bonus earned per m²) to lowest. Stope Breaking only.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0" id="tbl-section-ranking">
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  <th class="text-end">Total m²</th>
+                  <th class="text-end">Total Bonus</th>
+                  <th class="text-end">R/m²</th>
+                  <th class="text-end">Gangs</th>
+                  <th class="text-end">Avg m²/Gang</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-section-ranking-body">
+                <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="section-header mb-3">Monthly Adj m² Trend — Stope Breaking</div>
@@ -401,6 +481,15 @@
               <button class="btn btn-sm btn-outline-secondary" id="btn-gd-refresh" title="Refresh data">
                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
               </button>
+              <div class="d-flex align-items-center gap-1">
+                <div class="form-check form-check-inline mb-0">
+                  <input class="form-check-input" type="checkbox" id="cb-gd-outliers">
+                  <label class="form-check-label small fw-semibold d-flex align-items-center gap-1" for="cb-gd-outliers" style="color:#fd7e14">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Outliers only
+                  </label>
+                </div>
+                <span id="gd-outlier-info-wrap"></span>
+              </div>
               <label class="small fw-semibold mb-0" for="gd-sqm-range-filter">m² Range:</label>
               <select id="gd-sqm-range-filter" class="form-select form-select-sm" style="width:auto">
                 <option value="">All Ranges</option>
@@ -487,7 +576,7 @@
                   <th class="text-end">Pre Adj Stope m²</th>
                   <th class="text-end">Pre Adj Total m²</th>
                   <th class="text-end">Extra m²</th>
-                  <th class="text-end">Wide Raise Factor</th>
+                  <th class="text-end">Dip Factor</th>
                   <th class="text-end">Total m²</th>
                   <th class="text-end">m² Variance</th>
                 </tr>
@@ -1185,7 +1274,7 @@
                   <th class="text-end">Pre Adj Stope m²</th>
                   <th class="text-end">Pre Adj Total m²</th>
                   <th class="text-end">Extra m²</th>
-                  <th class="text-end">Wide Raise Factor</th>
+                  <th class="text-end">Dip Factor</th>
                   <th class="text-end">Total m²</th>
                   <th class="text-end">m² Variance</th>
                 </tr>
@@ -1390,6 +1479,260 @@
 
     </div><!-- /tab-forecast -->
 
+    <!-- ══ TAB: Bonus Policy Simulator ═════════════════════════════════════ -->
+    <div class="tab-pane fade" id="tab-bonus-rule">
+
+      <div class="card shadow-sm mb-3 brs-intro-card">
+        <div class="card-body py-3">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <div class="section-header mb-1">Bonus Policy Simulator</div>
+              <p class="small text-muted mb-0" style="max-width:820px">
+                Model the cost impact of changing production bonus rules before implementing them.
+                Adjust the % sliders below to model rate changes across all four bonus components,
+                see the impact on total payout by section, save proposals for comparison, and export for review.
+              </p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="btn-brs-export-pdf">
+              <i class="bi bi-file-earmark-pdf me-1"></i>Export Proposal (PDF)
+            </button>
+          </div>
+          <details class="mt-2">
+            <summary class="small" style="color:#cdd3e0;cursor:pointer">How this model works</summary>
+            <div class="small mt-2 p-2 rounded" style="background:rgba(255,255,255,.08);color:#e8eaf0">
+              <strong>Method — % adjustment on real numbers:</strong> every gang starts from its actual paid bonus
+              (the same figures shown in Gang Detail). Each slider scales the real numbers by that %:
+              0% on all sliders always reproduces exactly what was actually paid.
+              <strong>Result: at every default/Reset position this reproduces your real numbers exactly (0.0%)</strong> —
+              any gap you see is 100% attributable to the specific change you made.
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div id="brs-report">
+
+        <div class="section-header mb-2">Impact vs Current Policy — Stope Breaking</div>
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+              <span id="brs-scenario-badge" class="badge">Proposed Policy: —</span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="small fw-semibold text-muted">m² basis:</span>
+                <div class="btn-group btn-group-sm" role="group">
+                  <input type="radio" class="btn-check" name="brs-sqm-basis" id="brs-sqm-basis-adj" value="adj" checked>
+                  <label class="btn btn-outline-secondary" for="brs-sqm-basis-adj">Adjusted</label>
+                  <input type="radio" class="btn-check" name="brs-sqm-basis" id="brs-sqm-basis-preadj" value="preadj">
+                  <label class="btn btn-outline-secondary" for="brs-sqm-basis-preadj">Pre-Adjustment</label>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" id="btn-brs-reset">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Current Policy
+                </button>
+              </div>
+            </div>
+            <p class="small text-muted mb-3">
+              <i class="bi bi-exclamation-circle me-1"></i>All figures on this tab are <strong>Stope Breaking gangs only</strong>.
+              They will not match the "Total Bonus" KPI at the top of the page, which covers every gang type plus
+              Stores bonus — that's a different, wider scope by design.
+            </p>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6 col-xl-3">
+                <div class="card kpi-card shadow-sm h-100">
+                  <div class="card-body">
+                    <div class="kpi-lbl">Proposed Total Bonus <span class="text-muted fw-normal" style="text-transform:none;letter-spacing:normal">(Stope Breaking)</span></div>
+                    <div class="kpi-val" id="brs-kpi-total">—</div>
+                    <div class="small" id="brs-kpi-total-delta">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-3">
+                <div class="card kpi-card shadow-sm h-100">
+                  <div class="card-body">
+                    <div class="kpi-lbl">Proposed R/m² <span class="text-muted fw-normal" style="text-transform:none;letter-spacing:normal">(Stope Breaking)</span></div>
+                    <div class="kpi-val" id="brs-kpi-rsqm">—</div>
+                    <div class="small" id="brs-kpi-rsqm-delta">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-3">
+                <div class="card kpi-card shadow-sm h-100">
+                  <div class="card-body">
+                    <div class="kpi-lbl">Proposed Break Bonus</div>
+                    <div class="kpi-val" id="brs-kpi-break">—</div>
+                    <div class="small" id="brs-kpi-break-delta">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-3">
+                <div class="card kpi-card shadow-sm h-100">
+                  <div class="card-body">
+                    <div class="kpi-lbl">Drill + Sweep + Safety</div>
+                    <div class="kpi-val" id="brs-kpi-other">—</div>
+                    <div class="small" id="brs-kpi-other-delta">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p-3 rounded" id="brs-annualized-callout" style="background:var(--hg-light);border:1px solid var(--hg-border)">
+              <div class="small fw-semibold text-muted mb-1">
+                <i class="bi bi-calendar-range me-1"></i>Annualized impact — Stope Breaking (extrapolated from the selected period to a 12-month run rate)
+              </div>
+              <div id="brs-annualized-body">—</div>
+            </div>
+          </div>
+        </div>
+
+      <div class="section-header mb-2">Policy Parameters</div>
+      <div class="d-flex flex-column gap-3 mb-3">
+          <div class="card shadow-sm brs-param-card">
+            <div class="card-body">
+              <div class="section-header mb-1">Break Bonus</div>
+              <p class="small text-muted mb-2">
+                Paid as a rate per m² (current policy avg: <span id="brs-break-actual-label" class="fw-semibold">—</span>).
+                Adjust the % below to model a rate change — every gang's real Break Bonus is scaled by this %, so 0% always reproduces exactly what was actually paid.
+              </p>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range" id="brs-break-adj-range" min="-50" max="100" step="1" value="0">
+                <div class="input-group input-group-sm" style="width:100px">
+                  <input type="number" class="form-control text-end" id="brs-break-adj-num" min="-50" max="100" step="1" value="0">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+              <div class="small text-muted mt-2">Proposed break total: <strong id="brs-break-proj-label">—</strong></div>
+            </div>
+          </div>
+          <div class="card shadow-sm brs-param-card">
+            <div class="card-body">
+              <div class="section-header mb-1">Driller Bonus</div>
+              <p class="small text-muted mb-2">
+                Adjust % to model a driller bonus rate change. 0% reproduces exactly what was actually paid.
+              </p>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range" id="brs-drill-adj-range" min="-50" max="100" step="1" value="0">
+                <div class="input-group input-group-sm" style="width:100px">
+                  <input type="number" class="form-control text-end" id="brs-drill-adj-num" min="-50" max="100" step="1" value="0">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+              <div class="small text-muted mt-2">Proposed driller total: <strong id="brs-drill-proj-label">—</strong></div>
+            </div>
+          </div>
+          <div class="card shadow-sm brs-param-card">
+            <div class="card-body">
+              <div class="section-header mb-1">Sweepings Bonus</div>
+              <p class="small text-muted mb-2">
+                Adjust % to model a sweepings bonus rate change. 0% reproduces exactly what was actually paid.
+              </p>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range" id="brs-sweep-adj-range" min="-50" max="100" step="1" value="0">
+                <div class="input-group input-group-sm" style="width:100px">
+                  <input type="number" class="form-control text-end" id="brs-sweep-adj-num" min="-50" max="100" step="1" value="0">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+              <div class="small text-muted mt-2">Proposed sweepings total: <strong id="brs-sweep-proj-label">—</strong></div>
+            </div>
+          </div>
+          <div class="card shadow-sm brs-param-card">
+            <div class="card-body">
+              <div class="section-header mb-1">Safety Bonus</div>
+              <p class="small text-muted mb-2">
+                Adjust % to model a safety bonus rate change. 0% reproduces exactly what was actually paid.
+              </p>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range" id="brs-safety-adj-range" min="-50" max="100" step="1" value="0">
+                <div class="input-group input-group-sm" style="width:100px">
+                  <input type="number" class="form-control text-end" id="brs-safety-adj-num" min="-50" max="100" step="1" value="0">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+              <div class="small text-muted mt-2">Proposed safety total: <strong id="brs-safety-proj-label">—</strong></div>
+            </div>
+          </div>
+      </div>
+
+        <div class="section-header mb-2">Section &amp; Component Breakdown</div>
+        <div class="row g-3 mb-3">
+          <div class="col-xl-7">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="section-header mb-3">Section Breakdown — Current vs Proposed Policy</div>
+                <div class="table-wrap">
+                  <table class="table table-sm table-bordered table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th rowspan="2" class="align-middle">Section</th>
+                        <th colspan="2" class="text-center">Break</th>
+                        <th colspan="2" class="text-center">Driller</th>
+                        <th colspan="2" class="text-center">Sweepings</th>
+                        <th colspan="2" class="text-center">Safety</th>
+                        <th colspan="2" class="text-center">Total</th>
+                      </tr>
+                      <tr>
+                        <th class="text-end">Current</th><th class="text-end">Proposed</th>
+                        <th class="text-end">Current</th><th class="text-end">Proposed</th>
+                        <th class="text-end">Current</th><th class="text-end">Proposed</th>
+                        <th class="text-end">Current</th><th class="text-end">Proposed</th>
+                        <th class="text-end">Current</th><th class="text-end">Proposed</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbl-brs-section-body">
+                      <tr><td colspan="11" class="empty-state">Open Bonus Policy Simulator tab to load.</td></tr>
+                    </tbody>
+                    <tfoot id="tbl-brs-section-foot" class="table-light fw-bold"></tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-5">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="section-header mb-3">Bonus Components — Current vs Proposed Policy</div>
+                <div class="chart-wrap"><canvas id="chart-brs-components"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /brs-report -->
+
+      <div class="section-header mb-2">Save &amp; Compare Proposals</div>
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+            <input type="text" class="form-control form-control-sm" id="brs-scenario-name"
+                   placeholder="Proposal name, e.g. &quot;Cut break rate 10%&quot;" style="max-width:320px">
+            <button class="btn btn-sm btn-primary" id="btn-brs-save-scenario" style="background:var(--hg-gold);border:none;color:#111">
+              <i class="bi bi-save me-1"></i>Save Proposal
+            </button>
+            <span class="small text-muted" id="brs-scenario-save-status"></span>
+          </div>
+          <div class="table-wrap" style="max-height:none">
+            <table class="table table-sm table-bordered table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Proposal</th>
+                  <th>Saved</th>
+                  <th class="text-end">Break Adj%</th>
+                  <th class="text-end">Drill Adj%</th>
+                  <th class="text-end">Sweep Adj%</th>
+                  <th class="text-end">Safety Adj%</th>
+                  <th class="text-end">Total Bonus</th>
+                  <th class="text-end">Δ vs Current</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-brs-scenarios-body">
+                <tr><td colspan="9" class="empty-state">No saved proposals yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-bonus-rule -->
+
   </div><!-- /tab-content -->
 </div><!-- /container -->
 
@@ -1399,6 +1742,8 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 // ════════════════════════════════════════════════════════════════════════════
@@ -1425,6 +1770,7 @@ let _gdAllRows = [];
 let _gdSearchCol  = null;   // null = all columns; number = column index
 let _gdSearchTerm = '';
 let _gdExtSearchRegistered = false;
+let _gdOutliersOnly = false;
 const _gdColMeta = [
   { idx: 0,  label: 'Section',        type: 'text'   },
   { idx: 1,  label: 'Period',         type: 'text'   },
@@ -1460,6 +1806,16 @@ function hideLoading()  { _loadCount = Math.max(0, _loadCount - 1); if (_loadCou
 async function api(path, params={}) {
   const qs = new URLSearchParams(params).toString();
   const r = await fetch(path + (qs ? '?' + qs : ''));
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -1569,6 +1925,9 @@ async function init() {
       _simRenderBudget(gangs);
     }
   });
+
+  // PDF download
+  document.getElementById('btn-download-pdf')?.addEventListener('click', downloadPDF);
 
   // ── Column info buttons ─────────────────────────────────────────────────
   const _gdInfo = {
@@ -1775,12 +2134,12 @@ async function applyFilters() {
 // ════════════════════════════════════════════════════════════════════════════
 //  Refresh all panels
 // ════════════════════════════════════════════════════════════════════════════
-let _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false };
+let _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false, bonusRule: false };
 let _bonusRaw   = { gt: null, sec: null };
 
 async function refreshAll() {
   const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
-  _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false };
+  _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false, bonusRule: false };
   _bonusRaw   = { gt: null, sec: null };
   _simData    = null;
   _fcData     = null;
@@ -1788,16 +2147,19 @@ async function refreshAll() {
   _fctFrom    = null;
   _fctTo      = null;
 
-  const [kpi, trend, preAdjTrend, bonusGT, bonusSec, rSqm] = await Promise.all([
-    api('/api/kpi',           p),
-    api('/api/trend',         p),
-    api('/api/pre_adj_trend', p),
-    api('/api/bonus_summary', p),
-    api('/api/section_bonus', p),
-    api('/api/r_per_sqm',     p),
+  const [kpi, trend, preAdjTrend, bonusGT, bonusSec, rSqm, secRank] = await Promise.all([
+    api('/api/kpi',              p),
+    api('/api/trend',            p),
+    api('/api/pre_adj_trend',    p),
+    api('/api/bonus_summary',    p),
+    api('/api/section_bonus',    p),
+    api('/api/r_per_sqm',        p),
+    api('/api/section_ranking',  { from: state.from, to: state.to }),
   ]);
 
   renderKpi(kpi);
+  renderExecSummary(kpi, secRank);
+  renderSectionRanking(secRank);
   renderTrend(trend);
   renderPreAdjTrend(preAdjTrend);
   renderVarianceTrend(trend, preAdjTrend);
@@ -1819,6 +2181,7 @@ async function refreshAll() {
   else if (_activeHref === '#tab-simulation') loadLazySim();
   else if (_activeHref === '#tab-forecast')   loadLazyFct();
   else if (_activeHref === '#tab-projection') loadLazyForecast();
+  else if (_activeHref === '#tab-bonus-rule') loadLazyBonusRuleSim();
 }
 
 async function loadLazyRange() {
@@ -1869,6 +2232,127 @@ function renderKpi(d) {
   document.getElementById('kpi-avg-sqm').textContent = fmtN(d.avg_sqm_per_gang, 1) + ' m²';
   document.getElementById('kpi-r-sqm').textContent   = fmtR(d.r_per_sqm) + '/m²';
   document.getElementById('kpi-periods').textContent = d.periods;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Executive Summary + Section Ranking
+// ════════════════════════════════════════════════════════════════════════════
+function renderExecSummary(kpi, secRank) {
+  if (!kpi || !kpi.total_bonus) return;
+
+  // Headline values
+  document.getElementById('exec-total-bonus').textContent = fmtR(kpi.total_bonus);
+  document.getElementById('exec-r-per-sqm').textContent   = fmtR(kpi.r_per_sqm) + '/m²';
+  document.getElementById('exec-total-sqm').textContent   = fmtN(kpi.total_sqm) + ' m²';
+
+  // % change vs prior period
+  const _pct = (cur, prior) => prior > 0 ? ((cur - prior) / prior * 100) : null;
+  const _deltaEl = (elId, pct, higherIsGood) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (pct === null) { el.textContent = ''; return; }
+    const sign = pct >= 0 ? '+' : '';
+    const cls  = (pct >= 0 ? higherIsGood : !higherIsGood) ? 'delta-good' : 'delta-warn';
+    el.innerHTML = `<span class="${cls}">${sign}${pct.toFixed(1)}% vs prior period</span>`;
+  };
+
+  const bonusPct = _pct(kpi.total_bonus,  kpi.prior_total_bonus);
+  const rsqmPct  = _pct(kpi.r_per_sqm,   kpi.prior_r_per_sqm);
+  _deltaEl('exec-bonus-delta', bonusPct, true);   // higher bonus = good
+  _deltaEl('exec-rsqm-delta',  rsqmPct,  false);  // higher R/m² = concern (cost up)
+
+  // Auto-generated narrative
+  const narEl = document.getElementById('exec-narrative');
+  if (!narEl) return;
+  const parts = [];
+  if (secRank && secRank.length >= 2) {
+    const best  = secRank[0];
+    const worst = secRank[secRank.length - 1];
+    const pctDiff = best.r_per_sqm > 0
+      ? Math.round((worst.r_per_sqm - best.r_per_sqm) / best.r_per_sqm * 100)
+      : null;
+    let secSentence = `<strong>${best.section}</strong> is the highest-earning section at ${fmtR(best.r_per_sqm)}/m²`;
+    if (pctDiff !== null) {
+      secSentence += `, while <strong>${worst.section}</strong> trails at ${fmtR(worst.r_per_sqm)}/m²`
+        + ` (${pctDiff}% ${pctDiff < 0 ? 'lower' : 'higher'} per m²).`;
+    } else {
+      secSentence += `.`;
+    }
+    parts.push(secSentence);
+  }
+  if (rsqmPct !== null) {
+    const dir  = rsqmPct > 0 ? 'up' : 'down';
+    const note = rsqmPct > 0
+      ? ' — worth checking what\'s driving the increase.'
+      : ' — cost efficiency is improving.';
+    parts.push(`R/m² is trending <strong>${dir} ${Math.abs(rsqmPct).toFixed(1)}%</strong> vs. the prior period${note}`);
+  }
+  narEl.innerHTML = parts.length ? parts.join(' ') : '';
+}
+
+function renderSectionRanking(rows) {
+  const tbody = document.getElementById('tbl-section-ranking-body');
+  if (!tbody) return;
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No data.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => {
+    const cls = i === 0 ? ' class="sec-rank-best"'
+              : i === rows.length - 1 ? ' class="sec-rank-worst"'
+              : '';
+    return `<tr${cls}>
+      <td class="fw-semibold">${r.section}</td>
+      <td class="text-end">${fmtN(r.total_sqm)}</td>
+      <td class="text-end">${fmtR(r.total_bonus)}</td>
+      <td class="text-end fw-bold">${fmtR(r.r_per_sqm)}</td>
+      <td class="text-end">${r.gang_count}</td>
+      <td class="text-end">${fmtN(r.avg_sqm_per_gang, 1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  PDF Download
+// ════════════════════════════════════════════════════════════════════════════
+async function downloadPDF() {
+  const btn = document.getElementById('btn-download-pdf');
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass me-1"></i>Generating…';
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const margin = 10;
+    let yPos = margin;
+
+    const captureCard = async (id) => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      return await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+    };
+
+    for (const cardId of ['card-exec-summary', 'card-section-ranking']) {
+      const canvas = await captureCard(cardId);
+      if (!canvas) continue;
+      const imgW  = pageW - margin * 2;
+      const imgH  = (canvas.height / canvas.width) * imgW;
+      if (yPos + imgH > pdf.internal.pageSize.getHeight() - margin && yPos > margin) {
+        pdf.addPage();
+        yPos = margin;
+      }
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, yPos, imgW, imgH);
+      yPos += imgH + 6;
+    }
+    pdf.save(`Tshepong_Summary_${state.from}_${state.to}.pdf`);
+  } catch (err) {
+    alert('PDF generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2413,6 +2897,26 @@ function renderGangDetail(rows) {
     return m[gt?.toUpperCase()] || 'bg-secondary';
   };
 
+  // ── Outlier detection: per-period average (Total Bonus ÷ m²) ─────────────
+  // Only flag when ≥ 3 rows with sqm > 0 exist in that period.
+  // A row is an outlier if its own rate is > 1.5× or < 0.5× the period average.
+  const _periodAvg = {};
+  {
+    const byPeriod = {};
+    rows.forEach(r => {
+      const sqm = r.sqm || 0;
+      if (sqm <= 0) return;
+      const tb = (r.break_bonus||0) + (r.drill_bonus||0) + (r.sweep_bonus||0) + (r.safety_bonus||0);
+      const p = r.period_raw;
+      if (!byPeriod[p]) byPeriod[p] = [];
+      byPeriod[p].push(tb / sqm);
+    });
+    Object.entries(byPeriod).forEach(([p, rates]) => {
+      if (rates.length >= 3)
+        _periodAvg[p] = rates.reduce((a, b) => a + b, 0) / rates.length;
+    });
+  }
+
   tbody.innerHTML = rows.map(r => {
     const prodBonus  = (r.break_bonus || 0) + (r.drill_bonus || 0) + (r.sweep_bonus || 0);
     const totalBonus = prodBonus + (r.safety_bonus || 0);
@@ -2420,9 +2924,24 @@ function renderGangDetail(rows) {
     const indBadge   = v => v > 0
       ? `<span class="badge bg-danger">${v}</span>`
       : `<span class="badge bg-success">0</span>`;
+
+    // Outlier flag
+    const sqm = r.sqm || 0;
+    let isOutlier = false;
+    const pAvg = _periodAvg[r.period_raw];
+    if (pAvg !== undefined && sqm > 0) {
+      const rate = totalBonus / sqm;
+      isOutlier = rate > 1.5 * pAvg || rate < 0.5 * pAvg;
+    }
+    const outlierClass = isOutlier ? ' gd-outlier-row' : '';
+    const outlierIcon  = isOutlier
+      ? ` <i class="bi bi-exclamation-triangle-fill" style="color:#fd7e14;font-size:.78rem" title="Outlier: bonus/m\xb2 is >1.5\xd7 or <0.5\xd7 the period average"></i>`
+      : '';
+
     return `
     <tr data-break="${r.break_bonus}" data-drill="${r.drill_bonus}"
-        data-sweep="${r.sweep_bonus}" data-safety="${r.safety_bonus}">
+        data-sweep="${r.sweep_bonus}" data-safety="${r.safety_bonus}"
+        data-outlier="${isOutlier ? 1 : 0}" class="${outlierClass}">
       <td>${r.section}</td>
       <td data-order="${r.period_raw}">${r.period}</td>
       <td class="fw-semibold">${r.gang}</td>
@@ -2437,7 +2956,7 @@ function renderGangDetail(rows) {
       <td class="text-end">${fmtR(r.drill_bonus)}</td>
       <td class="text-end">${fmtR(r.sweep_bonus)}</td>
       <td class="text-end">${fmtR(r.safety_bonus)}</td>
-      <td class="text-end fw-bold gd-total-cell">${totalBonus > 0 ? fmtR(totalBonus) : '—'}</td>
+      <td class="text-end fw-bold gd-total-cell">${totalBonus > 0 ? fmtR(totalBonus) + outlierIcon : '—'}</td>
       <td class="text-end">${fmtR(avgRMan)}</td>
       <td class="text-center">${indBadge(r.lti_ind)}</td>
       <td class="text-center">${indBadge(r.dress_ind)}</td>
@@ -2461,8 +2980,13 @@ function renderGangDetail(rows) {
   // ── Register ext.search (once per page load) ─────────────────────────────
   if (!_gdExtSearchRegistered) {
     _gdExtSearchRegistered = true;
-    $.fn.dataTable.ext.search.push(function(settings, data) {
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
       if (settings.nTable.id !== 'tbl-gang-detail') return true;
+      // Outliers-only filter: check data-outlier attribute on the TR
+      if (_gdOutliersOnly) {
+        const tr = settings.aoData[dataIndex]?.nTr;
+        if (!tr || tr.dataset.outlier !== '1') return false;
+      }
       if (!_gdSearchTerm) return true;
       const term = _gdSearchTerm.toLowerCase().trim();
       if (_gdSearchCol === null) {
@@ -2679,6 +3203,34 @@ function renderGangDetail(rows) {
   gangDetailTable.on('draw', _recalcGdTotalBonus);
   // Initial calculation
   _recalcGdTotalBonus();
+
+  // ── Outlier info button ───────────────────────────────────────────────
+  const _oInfoWrap = document.getElementById('gd-outlier-info-wrap');
+  if (_oInfoWrap) {
+    const _oInfoBody = 'For each period, the app averages (Total Bonus ÷ m²) across ' +
+      'all gangs with sqm > 0 in that period — but only if the period has at least 3 gangs, ' +
+      'so the average isn’t skewed by too few data points. A gang is flagged if its own ' +
+      'bonus/m² is more than 1.5× that period average (paid a lot relative to output) ' +
+      'or less than 0.5× it (paid little relative to output). ' +
+      'Flagged rows get an amber highlight and a warning icon in the Total Bonus cell; ' +
+      'tick “Outliers only” to filter down to just those rows.';
+    _oInfoWrap.innerHTML = _infoBtn('Outlier Detection', _oInfoBody);
+    _initPopovers(_oInfoWrap);
+  }
+
+  // ── Wire outliers-only checkbox ───────────────────────────────────────
+  {
+    const cbO = document.getElementById('cb-gd-outliers');
+    if (cbO) {
+      const freshCb = cbO.cloneNode(true);
+      cbO.parentNode.replaceChild(freshCb, cbO);
+      freshCb.checked = _gdOutliersOnly;
+      freshCb.addEventListener('change', () => {
+        _gdOutliersOnly = freshCb.checked;
+        gangDetailTable.draw();
+      });
+    }
+  }
 
   // ── Default Gang Type filter to STOPE BREAKING ────────────────────────
   const gtInput = document.querySelector('.dt-col-input[data-col="4"]');
@@ -5508,6 +6060,384 @@ async function loadLazyForecast() {
 // ════════════════════════════════════════════════════════════════════════════
 //  Bootstrap: re-render chart when tab becomes visible
 // ════════════════════════════════════════════════════════════════════════════
+//  Bonus Policy Simulator
+// ════════════════════════════════════════════════════════════════════════════
+let _brsData = null;
+let _brsControlsWired = false;
+let _brsSqmBasis = 'adj'; // 'adj' | 'preadj'
+let _brsLastComputed = null;
+let _brsScenarioCache = [];
+
+function _brsSqm(g) { return _brsSqmBasis === 'preadj' ? g.sqm_preadj : g.sqm_adj; }
+
+async function loadLazyBonusRuleSim() {
+  if (_lazyLoaded.bonusRule) return;
+  _lazyLoaded.bonusRule = true;
+  showLoading();
+  try {
+    const p = { from: state.from, to: state.to, section: state.section };
+    _brsData = await api('/api/bonus_rule_data', p);
+    _brsInitControls();
+    _brsWireControls();
+    _brsRender();
+    _brsLoadScenariosList();
+  } catch (e) {
+    _lazyLoaded.bonusRule = false;
+    console.error('Bonus Rule Sim load failed:', e);
+  } finally { hideLoading(); }
+}
+
+function _brsInitControls() {
+  const s = _brsData && _brsData.summary;
+  if (!s) return;
+  const breakRateLabel = (_brsSqmBasis === 'preadj' ? s.avg_break_rate_preadj : s.avg_break_rate_adj) || 0;
+  document.getElementById('brs-break-actual-label').textContent = fmtR(breakRateLabel) + '/m²';
+  ['break', 'drill', 'sweep', 'safety'].forEach(k => {
+    document.getElementById(`brs-${k}-adj-range`).value = 0;
+    document.getElementById(`brs-${k}-adj-num`).value   = 0;
+  });
+}
+
+function _brsWireControls() {
+  if (_brsControlsWired) return;
+  _brsControlsWired = true;
+  const pairs = [
+    ['brs-break-adj-range',  'brs-break-adj-num'],
+    ['brs-drill-adj-range',  'brs-drill-adj-num'],
+    ['brs-sweep-adj-range',  'brs-sweep-adj-num'],
+    ['brs-safety-adj-range', 'brs-safety-adj-num'],
+  ];
+  pairs.forEach(([rangeId, numId]) => {
+    const rangeEl = document.getElementById(rangeId);
+    const numEl   = document.getElementById(numId);
+    rangeEl.addEventListener('input', () => { numEl.value = rangeEl.value; _brsRender(); });
+    numEl.addEventListener('input',   () => { rangeEl.value = numEl.value; _brsRender(); });
+  });
+  document.getElementById('btn-brs-reset').addEventListener('click', () => {
+    _brsInitControls();
+    _brsRender();
+  });
+  document.querySelectorAll('input[name="brs-sqm-basis"]').forEach(r => {
+    r.addEventListener('change', () => {
+      _brsSqmBasis = document.querySelector('input[name="brs-sqm-basis"]:checked').value;
+      _brsInitControls();
+      _brsRender();
+    });
+  });
+  document.getElementById('btn-brs-save-scenario').addEventListener('click', _brsSaveScenario);
+  document.getElementById('btn-brs-export-pdf').addEventListener('click', _brsExportPdf);
+}
+
+function _brsCompute() {
+  const d = _brsData;
+  if (!d || !d.gangs || !d.gangs.length) return null;
+  const breakAdjPct  = parseFloat(document.getElementById('brs-break-adj-num').value)  || 0;
+  const drillAdjPct  = parseFloat(document.getElementById('brs-drill-adj-num').value)   || 0;
+  const sweepAdjPct  = parseFloat(document.getElementById('brs-sweep-adj-num').value)   || 0;
+  const safetyAdjPct = parseFloat(document.getElementById('brs-safety-adj-num').value)  || 0;
+  const breakFactor  = 1 + breakAdjPct  / 100;
+  const drillFactor  = 1 + drillAdjPct  / 100;
+  const sweepFactor  = 1 + sweepAdjPct  / 100;
+  const safetyFactor = 1 + safetyAdjPct / 100;
+  const rows = d.gangs.map(g => ({
+    g,
+    projBreak:  g.break_bonus  * breakFactor,
+    projDrill:  g.drill_bonus  * drillFactor,
+    projSweep:  g.sweep_bonus  * sweepFactor,
+    projSafety: g.safety_bonus * safetyFactor,
+  }));
+  return {
+    rows,
+    params: { breakAdjPct, drillAdjPct, sweepAdjPct, safetyAdjPct, sqmBasis: _brsSqmBasis },
+  };
+}
+
+function _brsRender() {
+  const d = _brsData;
+  const comp = _brsCompute();
+  if (!d || !comp) return;
+  const s = d.summary;
+
+  let projBreak = 0, projDrill = 0, projSweep = 0, projSafety = 0;
+  comp.rows.forEach(r => {
+    projBreak  += r.projBreak;
+    projDrill  += r.projDrill;
+    projSweep  += r.projSweep;
+    projSafety += r.projSafety;
+  });
+  const projTotal   = projBreak + projDrill + projSweep + projSafety;
+  const actualTotal = s.total_bonus;
+
+  document.getElementById('brs-break-proj-label').textContent  = fmtR(projBreak);
+  document.getElementById('brs-drill-proj-label').textContent  = fmtR(projDrill);
+  document.getElementById('brs-sweep-proj-label').textContent  = fmtR(projSweep);
+  document.getElementById('brs-safety-proj-label').textContent = fmtR(projSafety);
+
+  const pctChange = actualTotal > 0 ? (projTotal - actualTotal) / actualTotal * 100 : 0;
+  const badge = document.getElementById('brs-scenario-badge');
+  badge.textContent = `Proposed Policy: ${pctChange >= 0 ? '+' : ''}${fmtN(pctChange, 1)}% vs Current Policy`;
+  badge.className = 'badge ' + (pctChange <= 0 ? 'bg-success' : 'bg-danger');
+
+  const deltaHtml = (proj, actual, fmt, invert) => {
+    const delta = proj - actual;
+    const good  = invert ? delta <= 0 : delta >= 0;
+    const cls   = good ? 'brs-delta-good' : 'brs-delta-warn';
+    const sign  = delta >= 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${fmt(delta)}</span> vs current`;
+  };
+
+  document.getElementById('brs-kpi-total').textContent = fmtR(projTotal);
+  document.getElementById('brs-kpi-total-delta').innerHTML = deltaHtml(projTotal, actualTotal, fmtR, true);
+
+  const totalSqm   = _brsSqmBasis === 'preadj' ? s.total_sqm_preadj : s.total_sqm_adj;
+  const projRSqm   = totalSqm > 0 ? projTotal   / totalSqm : 0;
+  const actualRSqm = totalSqm > 0 ? actualTotal / totalSqm : 0;
+  document.getElementById('brs-kpi-rsqm').textContent = fmtR(projRSqm) + '/m²';
+  document.getElementById('brs-kpi-rsqm-delta').innerHTML = deltaHtml(projRSqm, actualRSqm, fmtR, true);
+
+  document.getElementById('brs-kpi-break').textContent = fmtR(projBreak);
+  document.getElementById('brs-kpi-break-delta').innerHTML = deltaHtml(projBreak, s.total_break, fmtR, true);
+
+  const projOther   = projDrill + projSweep + projSafety;
+  const actualOther = s.total_drill + s.total_sweep + s.total_safety;
+  document.getElementById('brs-kpi-other').textContent = fmtR(projOther);
+  document.getElementById('brs-kpi-other-delta').innerHTML = deltaHtml(projOther, actualOther, fmtR, true);
+
+  // Annualized impact
+  const periodsInRange   = new Set(d.gangs.map(g => g.period)).size || 1;
+  const periodsEstimated = Math.max(0, 12 - periodsInRange);
+  const annualFactor     = 12 / periodsInRange;
+  const annualCurrent    = actualTotal * annualFactor;
+  const annualProposed   = projTotal   * annualFactor;
+  const annualDelta      = annualProposed - annualCurrent;
+  const annualCls        = annualDelta <= 0 ? 'brs-delta-good' : 'brs-delta-warn';
+  const breakdownHtml = periodsEstimated > 0
+    ? `<span class="small text-muted d-block mt-1">
+         = ${fmtR(actualTotal)} actually paid (${periodsInRange} real period${periodsInRange === 1 ? '' : 's'})
+         &nbsp;+&nbsp; ${fmtR(annualCurrent - actualTotal)} assumed
+         (${periodsEstimated} period${periodsEstimated === 1 ? '' : 's'} not yet in the data)
+       </span>`
+    : '';
+  document.getElementById('brs-annualized-body').innerHTML = `
+    <span class="fs-5">Current: <strong>${fmtR(annualCurrent)}/yr</strong> &nbsp;&rarr;&nbsp;
+    Proposed: <strong>${fmtR(annualProposed)}/yr</strong></span>
+    &nbsp; <span class="${annualCls} fs-5">${annualDelta >= 0 ? '+' : ''}${fmtR(annualDelta)}/yr</span>
+    ${breakdownHtml}
+    <span class="small text-muted d-block mt-1">Extrapolated from ${periodsInRange} period${periodsInRange === 1 ? '' : 's'} — treat as an order-of-magnitude estimate.</span>
+  `;
+
+  _brsLastComputed = {
+    params:  { ...comp.params },
+    results: {
+      totalBonus: projTotal, rSqm: projRSqm,
+      actualTotalBonus: actualTotal, actualRSqm,
+      pctChangeVsActual: pctChange,
+    },
+  };
+
+  // Section breakdown table
+  const bySection = {};
+  comp.rows.forEach(r => {
+    const sec = r.g.section;
+    if (!bySection[sec]) bySection[sec] = { breakA:0, breakP:0, drillA:0, drillP:0, sweepA:0, sweepP:0, safetyA:0, safetyP:0 };
+    const b = bySection[sec];
+    b.breakA  += r.g.break_bonus;  b.breakP  += r.projBreak;
+    b.drillA  += r.g.drill_bonus;  b.drillP  += r.projDrill;
+    b.sweepA  += r.g.sweep_bonus;  b.sweepP  += r.projSweep;
+    b.safetyA += r.g.safety_bonus; b.safetyP += r.projSafety;
+  });
+  const secRows = Object.keys(bySection).map(name => {
+    const b = bySection[name];
+    return { name, ...b,
+      totalA: b.breakA + b.drillA + b.sweepA + b.safetyA,
+      totalP: b.breakP + b.drillP + b.sweepP + b.safetyP };
+  }).sort((a, b) => b.totalA - a.totalA);
+
+  const tbody = document.getElementById('tbl-brs-section-body');
+  tbody.innerHTML = secRows.length === 0
+    ? '<tr><td colspan="11" class="empty-state">No data for selected filters.</td></tr>'
+    : secRows.map((r, i) => {
+        const cls = secRows.length > 1 ? (i === 0 ? 'table-success' : (i === secRows.length - 1 ? 'table-danger' : '')) : '';
+        return `<tr class="${cls}">
+          <td class="fw-semibold">${r.name}</td>
+          <td class="text-end">${fmtR(r.breakA)}</td><td class="text-end">${fmtR(r.breakP)}</td>
+          <td class="text-end">${fmtR(r.drillA)}</td><td class="text-end">${fmtR(r.drillP)}</td>
+          <td class="text-end">${fmtR(r.sweepA)}</td><td class="text-end">${fmtR(r.sweepP)}</td>
+          <td class="text-end">${fmtR(r.safetyA)}</td><td class="text-end">${fmtR(r.safetyP)}</td>
+          <td class="text-end fw-bold">${fmtR(r.totalA)}</td><td class="text-end fw-bold">${fmtR(r.totalP)}</td>
+        </tr>`;
+      }).join('');
+
+  const sum = k => secRows.reduce((a, r) => a + r[k], 0);
+  document.getElementById('tbl-brs-section-foot').innerHTML = `<tr>
+    <th>Total</th>
+    <th class="text-end">${fmtR(sum('breakA'))}</th><th class="text-end">${fmtR(sum('breakP'))}</th>
+    <th class="text-end">${fmtR(sum('drillA'))}</th><th class="text-end">${fmtR(sum('drillP'))}</th>
+    <th class="text-end">${fmtR(sum('sweepA'))}</th><th class="text-end">${fmtR(sum('sweepP'))}</th>
+    <th class="text-end">${fmtR(sum('safetyA'))}</th><th class="text-end">${fmtR(sum('safetyP'))}</th>
+    <th class="text-end">${fmtR(sum('totalA'))}</th><th class="text-end">${fmtR(sum('totalP'))}</th>
+  </tr>`;
+
+  makeChart('chart-brs-components', {
+    type: 'bar',
+    data: {
+      labels: ['Break', 'Driller', 'Sweepings', 'Safety'],
+      datasets: [
+        { label: 'Current Policy',  data: [s.total_break, s.total_drill, s.total_sweep, s.total_safety], backgroundColor: '#1565C0' },
+        { label: 'Proposed Policy', data: [projBreak, projDrill, projSweep, projSafety],                  backgroundColor: '#D4A017' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtR(ctx.parsed.y) } }
+      },
+      scales: { y: { ticks: { callback: v => fmtR(v) } } }
+    }
+  });
+}
+
+async function _brsSaveScenario() {
+  const nameEl   = document.getElementById('brs-scenario-name');
+  const statusEl = document.getElementById('brs-scenario-save-status');
+  const name = nameEl.value.trim();
+  if (!name) {
+    statusEl.textContent = 'Enter a name for this proposal first.';
+    statusEl.className = 'small text-danger';
+    return;
+  }
+  if (!_brsLastComputed) {
+    statusEl.textContent = 'Nothing to save yet — the simulator has not finished loading.';
+    statusEl.className = 'small text-danger';
+    return;
+  }
+  try {
+    await apiPost('/api/bonus_scenarios', {
+      name,
+      period_from: state.from, period_to: state.to, section: state.section,
+      params: _brsLastComputed.params,
+      results: _brsLastComputed.results,
+    });
+    nameEl.value = '';
+    statusEl.textContent = `Saved "${name}".`;
+    statusEl.className = 'small text-success';
+    await _brsLoadScenariosList();
+  } catch (e) {
+    console.error('Failed to save proposal:', e);
+    statusEl.textContent = 'Failed to save — see console.';
+    statusEl.className = 'small text-danger';
+  }
+}
+
+async function _brsLoadScenariosList() {
+  try {
+    _brsScenarioCache = await api('/api/bonus_scenarios', {});
+  } catch (e) {
+    console.error('Failed to load saved proposals:', e);
+    return;
+  }
+  const tbody = document.getElementById('tbl-brs-scenarios-body');
+  if (!_brsScenarioCache.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No saved proposals yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _brsScenarioCache.map(sc => {
+    const p = sc.params || {}, r = sc.results || {};
+    const delta = r.pctChangeVsActual;
+    const deltaCls = delta == null ? '' : (delta <= 0 ? 'brs-delta-good' : 'brs-delta-warn');
+    const deltaTxt = delta == null ? '—' : `${delta >= 0 ? '+' : ''}${fmtN(delta, 1)}%`;
+    const fmtAdj = v => (v != null ? (v >= 0 ? '+' : '') + fmtN(v) + '%' : '—');
+    return `<tr>
+      <td class="fw-semibold">${sc.name}</td>
+      <td class="small text-muted">${new Date(sc.created_at).toLocaleString()}</td>
+      <td class="text-end">${fmtAdj(p.breakAdjPct)}</td>
+      <td class="text-end">${fmtAdj(p.drillAdjPct)}</td>
+      <td class="text-end">${fmtAdj(p.sweepAdjPct)}</td>
+      <td class="text-end">${fmtAdj(p.safetyAdjPct)}</td>
+      <td class="text-end fw-bold">${fmtR(r.totalBonus)}</td>
+      <td class="text-end fw-bold ${deltaCls}">${deltaTxt}</td>
+      <td class="text-end text-nowrap">
+        <button class="btn btn-sm btn-outline-secondary" onclick="_brsLoadScenario(${sc.id})" title="Load these parameters">
+          <i class="bi bi-box-arrow-in-down"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="_brsDeleteScenario(${sc.id})" title="Delete">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function _brsLoadScenario(id) {
+  const sc = _brsScenarioCache.find(s => s.id === id);
+  if (!sc || !sc.params) return;
+  const p = sc.params;
+  if (p.sqmBasis) {
+    _brsSqmBasis = p.sqmBasis;
+    const radio = document.getElementById(p.sqmBasis === 'preadj' ? 'brs-sqm-basis-preadj' : 'brs-sqm-basis-adj');
+    if (radio) radio.checked = true;
+  }
+  ['break', 'drill', 'sweep', 'safety'].forEach(k => {
+    const v = p[`${k}AdjPct`];
+    if (v != null) {
+      document.getElementById(`brs-${k}-adj-range`).value = v;
+      document.getElementById(`brs-${k}-adj-num`).value   = v;
+    }
+  });
+  _brsRender();
+  document.getElementById('brs-scenario-save-status').textContent =
+    `Loaded "${sc.name}" — recomputed against the currently selected period/section.`;
+  document.getElementById('brs-scenario-save-status').className = 'small text-muted';
+}
+
+async function _brsDeleteScenario(id) {
+  if (!confirm('Delete this saved proposal? This cannot be undone.')) return;
+  try {
+    await fetch(`/api/bonus_scenarios/${id}`, { method: 'DELETE' });
+    await _brsLoadScenariosList();
+  } catch (e) {
+    console.error('Failed to delete proposal:', e);
+  }
+}
+
+async function _brsExportPdf() {
+  const btn    = document.getElementById('btn-brs-export-pdf');
+  const report = document.getElementById('brs-report');
+  if (!report || !window.html2canvas || !window.jspdf) {
+    alert('PDF export library failed to load — check your internet connection and try again.');
+    return;
+  }
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating…';
+  try {
+    const canvas = await html2canvas(report, { scale: 2, backgroundColor: '#ffffff' });
+    const { jsPDF } = window.jspdf;
+    const pdf   = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const y     = 46;
+    const imgW  = pageW - 40;
+    const imgH  = Math.min(canvas.height * (imgW / canvas.width), pageH - y - 20);
+    pdf.setFontSize(14);
+    pdf.text('Tshepong Bonus Policy Proposal', 20, 25);
+    pdf.setFontSize(9);
+    pdf.setTextColor(120);
+    pdf.text(`Generated ${new Date().toLocaleString()} · Period ${state.from}–${state.to} · Section ${state.section}`, 20, 38);
+    pdf.setTextColor(0);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 20, y, imgW, imgH);
+    pdf.save(`bonus-policy-proposal-${new Date().toISOString().slice(0, 10)}.pdf`);
+  } catch (e) {
+    console.error('PDF export failed:', e);
+    alert('PDF export failed — see console for details.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
   tab.addEventListener('shown.bs.tab', e => {
     Object.values(charts).forEach(c => c.resize());
@@ -5517,6 +6447,7 @@ document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
     if (target === '#tab-simulation') loadLazySim();
     if (target === '#tab-forecast')   loadLazyFct();
     if (target === '#tab-projection') loadLazyForecast();
+    if (target === '#tab-bonus-rule') loadLazyBonusRuleSim();
   });
 });
 
