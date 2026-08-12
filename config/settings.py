@@ -4,6 +4,13 @@ settings.py
 Central configuration loader for the Tshepong Mining Incentive System.
 Reads config.yaml and exposes typed dataclasses.
 Environment variables override any YAML value (12-factor app pattern).
+
+.env: on import, this module loads <repo root>/.env (if present) into the process
+environment via python-dotenv, before anything reads os.environ. Real OS/service-level
+environment variables always win (load_dotenv's default override=False) — .env is only a
+convenience for values nobody has set another way. See .env.example for the variables this
+reads (DB_SERVER / DB_DATABASE / DB_DRIVER / DB_USERNAME / DB_PASSWORD) and how to point a
+deployment at a different SQL Server instance without touching config.yaml or any code.
 """
 
 from __future__ import annotations
@@ -14,9 +21,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
+from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "config" / "config.yaml"
+
+load_dotenv(ROOT_DIR / ".env")
 
 
 @dataclass
