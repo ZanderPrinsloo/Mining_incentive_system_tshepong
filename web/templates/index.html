@@ -401,7 +401,7 @@
               <input class="form-check-input" type="checkbox" id="bonus-filter-driller" checked>
               <label class="form-check-label small fw-semibold" for="bonus-filter-driller">Driller Bonus</label>
             </div>
-            <span class="text-muted small ms-2" style="font-style:italic">Break, Drill &amp; Sweep breakdown visible in Gang Detail tab</span>
+            <span class="text-muted small ms-2" style="font-style:italic">Efficiency, Drill &amp; Sweeping Penalty breakdown visible in Gang Detail tab</span>
           </div>
         </div>
       </div>
@@ -530,9 +530,9 @@
                   <th>m² Range<span id="ih-sqm-range"></span></th>
                   <th class="text-end">Labour<span id="ih-labour"></span></th>
                   <th class="text-end">m²/Man<span id="ih-sqm-man"></span></th>
-                  <th class="text-end">Break Bonus<span id="ih-break"></span></th>
+                  <th class="text-end">Efficiency Bonus<span id="ih-eff"></span></th>
                   <th class="text-end">Drill Bonus<span id="ih-drill"></span></th>
-                  <th class="text-end">Sweep Bonus<span id="ih-sweep"></span></th>
+                  <th class="text-end">Sweeping Penalty<span id="ih-sweep"></span></th>
                   <th class="text-end">Safety Bonus<span id="ih-safety"></span></th>
                   <th class="text-end">Total Bonus<span id="ih-total-gd"></span></th>
                   <th class="text-end">Avg R/Man Bonus<span id="ih-avg-r-man"></span></th>
@@ -1489,8 +1489,10 @@
               <div class="section-header mb-1">Bonus Policy Simulator</div>
               <p class="small text-muted mb-0" style="max-width:820px">
                 Model the cost impact of changing production bonus rules before implementing them.
-                Adjust the % sliders below to model rate changes across all four bonus components,
-                see the impact on total payout by section, save proposals for comparison, and export for review.
+                The Efficiency Bonus is driven by the actual policy levers (entry level, netting, B-Reef
+                stope-width, safety %) recomputed per gang from its real m²/labour/safety
+                record — not a flat % of what was paid. Driller and Sweeping Penalty remain simple rate-change sliders.
+                See the impact on total payout by section, save proposals for comparison, and export for review.
               </p>
             </div>
             <button class="btn btn-sm btn-outline-secondary" id="btn-brs-export-pdf">
@@ -1500,11 +1502,34 @@
           <details class="mt-2">
             <summary class="small" style="color:#cdd3e0;cursor:pointer">How this model works</summary>
             <div class="small mt-2 p-2 rounded" style="background:rgba(255,255,255,.08);color:#e8eaf0">
-              <strong>Method — % adjustment on real numbers:</strong> every gang starts from its actual paid bonus
-              (the same figures shown in Gang Detail). Each slider scales the real numbers by that %:
-              0% on all sliders always reproduces exactly what was actually paid.
-              <strong>Result: at every default/Reset position this reproduces your real numbers exactly (0.0%)</strong> —
-              any gap you see is 100% attributable to the specific change you made.
+              <strong>All figures are anchored to real payroll (PARTICIPANTSDETAIL), not a production-formula
+              estimate:</strong> the grand total below always matches the Stope Breaking total on the Bonus Analysis
+              tab exactly for the same period/section — earlier versions of this tool used GANGPRODUCTIONDETAIL's
+              own bonus columns directly, which are a per-person-rate × average-headcount estimate that measurably
+              diverged from what was actually paid (a 15.6% headcount-basis gap was found in one real check). Driller
+              and Safety are taken straight from real payroll; Efficiency and Sweep (bundled together in payroll as
+              one "STM" figure) are split back apart using GANGPRODUCTIONDETAIL's own efficiency:sweep ratio, since
+              only it has the per-gang levers needed to model policy changes. <strong>At the policy defaults, Current
+              and Proposed are identical, to the cent</strong> — no formula runs at all until you change a lever;
+              this tab just shows the real anchored numbers. The moment you change entry level / netting % / SW % /
+              safety %, the change is modelled by decomposing the anchored Efficiency Bonus into a lever-independent
+              base (using the real netting flag and B-Reef stope-width factor, both verified to multiply exactly
+              onto the pre-anchor estimate) and recomputing forward — from that point on you're looking at a model,
+              not a second real number, so small approximations can appear (e.g. Safety is projected as safety% ×
+              the newly-projected Efficiency Bonus, a relationship confirmed on the pre-anchor estimate but not
+              independently re-verified on the anchored figures).
+              <strong>No m² tier escalator</strong> — the older policy revision this simulator was originally built
+              against had one (an extra 5-50% for breaking 300m²+), but the current policy (Thibakotsi Stoping
+              Incentive Scheme, REV04, effective March 2026) has removed it, and checking real payout ratios across
+              39 gangs from 100m² to 600m² confirms no tier effect exists in the live data either — so it's gone
+              from this model too. <strong>Steep Stope</strong> (dip ≥35° adds 10-20% to a panel's m², REV04 §5.10-5.11)
+              is real and active, but it adjusts the square-metre figure before the bonus lookup rather than the
+              Rand amount after — so it's already reflected in every m² and bonus figure in this dashboard, and
+              isn't something this simulator can offer as a separate toggle.
+              <strong>Gangs currently earning R0</strong> (below the entry level, or a fatal-incident gang) have no
+              recoverable base and stay at R0 regardless of these levers — see the note above the levers for the count.
+              <strong>Driller and Sweeping Penalty</strong> are still simple % sliders on the actual paid amount, since we
+              don't have a verified rate breakdown for those components.
             </div>
           </details>
         </div>
@@ -1557,16 +1582,16 @@
               <div class="col-sm-6 col-xl-3">
                 <div class="card kpi-card shadow-sm h-100">
                   <div class="card-body">
-                    <div class="kpi-lbl">Proposed Break Bonus</div>
-                    <div class="kpi-val" id="brs-kpi-break">—</div>
-                    <div class="small" id="brs-kpi-break-delta">—</div>
+                    <div class="kpi-lbl">Proposed Efficiency Bonus</div>
+                    <div class="kpi-val" id="brs-kpi-eff">—</div>
+                    <div class="small" id="brs-kpi-eff-delta">—</div>
                   </div>
                 </div>
               </div>
               <div class="col-sm-6 col-xl-3">
                 <div class="card kpi-card shadow-sm h-100">
                   <div class="card-body">
-                    <div class="kpi-lbl">Drill + Sweep + Safety</div>
+                    <div class="kpi-lbl">Drill + Sweeping Penalty + Safety</div>
                     <div class="kpi-val" id="brs-kpi-other">—</div>
                     <div class="small" id="brs-kpi-other-delta">—</div>
                   </div>
@@ -1586,19 +1611,84 @@
       <div class="d-flex flex-column gap-3 mb-3">
           <div class="card shadow-sm brs-param-card">
             <div class="card-body">
-              <div class="section-header mb-1">Break Bonus</div>
+              <div class="section-header mb-1">Efficiency Bonus — Policy Levers</div>
               <p class="small text-muted mb-2">
-                Paid as a rate per m² (current policy avg: <span id="brs-break-actual-label" class="fw-semibold">—</span>).
-                Adjust the % below to model a rate change — every gang's real Break Bonus is scaled by this %, so 0% always reproduces exactly what was actually paid.
+                Per the Thibakotsi Stoping Incentive Scheme (REV04), this is efficiency-based (m²/empl), not a flat
+                rate per m² — below is not a % of what was paid, it's the actual named policy rates: the qualifying
+                efficiency gate (§5.4), the netting uplift (§5.13.4) and B-Reef stope-width uplift (§5.12) — both
+                confirmed in the written policy and verified against real gang data — and the safety percentage
+                ladder (§6.1). Effective average this period:
+                <span id="brs-eff-actual-label" class="fw-semibold">—</span>/m².
               </p>
-              <div class="d-flex align-items-center gap-2">
-                <input type="range" class="form-range" id="brs-break-adj-range" min="-50" max="100" step="1" value="0">
-                <div class="input-group input-group-sm" style="width:100px">
-                  <input type="number" class="form-control text-end" id="brs-break-adj-num" min="-50" max="100" step="1" value="0">
-                  <span class="input-group-text">%</span>
+              <div id="brs-gated-note" class="small mb-2" style="display:none"></div>
+
+              <div class="row g-2 mb-2">
+                <div class="col-sm-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-entry-threshold">Entry level (m²/empl)</label>
+                  <input type="number" class="form-control form-control-sm" id="brs-entry-threshold" min="0" step="0.5" value="14">
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-netting-pct">Netting bonus %</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-netting-pct" step="1" value="20">
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-sw-pct">B-Reef stope-width %</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-sw-pct" step="1" value="10">
+                    <span class="input-group-text">%</span>
+                  </div>
                 </div>
               </div>
-              <div class="small text-muted mt-2">Proposed break total: <strong id="brs-break-proj-label">—</strong></div>
+
+              <div class="small fw-semibold text-muted mb-1 mt-2">Safety % (applied by the gang's actual incident record)</div>
+              <div class="row g-2 mb-2">
+                <div class="col-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-safety-clean">Clean (no incidents)</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-safety-clean" step="1" value="25">
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-safety-dressing">Dressing case</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-safety-dressing" step="1" value="0">
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-safety-lti">Lost Time Injury</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-safety-lti" step="1" value="-25">
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <label class="small text-muted mb-1" for="brs-safety-fatal">Fatal incident</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control text-end" id="brs-safety-fatal" step="1" value="-100">
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+              </div>
+
+              <p class="small text-muted mt-2 mb-0" style="font-style:italic">
+                Netting, B-Reef stope-width, and the safety % ladder are all verified directly against real gang
+                payouts (including the Wide Raise exemption from the entry level), and are explicitly named in the
+                current written policy (REV04 §5.12-5.13, §6.1). The older policy revision this
+                simulator was originally built against had an additional m² tier escalator (an extra 5-50% for
+                breaking 300m²+) — the current policy (REV04) has removed that clause, and checking real payout
+                ratios confirms no tier effect exists in the data either, so it's not modelled here. Steep Stope
+                (REV04 §5.10-5.11) is real and active but adjusts the m² figure before the bonus lookup, not the
+                Rand amount after, so it's already reflected in every figure here rather than being a separate lever.
+              </p>
+              <div class="small text-muted mt-2">
+                Proposed efficiency total: <strong id="brs-eff-proj-label">—</strong>
+                &nbsp;·&nbsp; Proposed safety total (same ladder): <strong id="brs-safety-proj-label">—</strong>
+              </div>
             </div>
           </div>
           <div class="card shadow-sm brs-param-card">
@@ -1619,34 +1709,19 @@
           </div>
           <div class="card shadow-sm brs-param-card">
             <div class="card-body">
-              <div class="section-header mb-1">Sweepings Bonus</div>
+              <div class="section-header mb-1">Sweeping Penalty</div>
               <p class="small text-muted mb-2">
-                Adjust % to model a sweepings bonus rate change. 0% reproduces exactly what was actually paid.
+                Adjust % to model a change to the sweeping penalty rate. 0% reproduces exactly what was actually paid.
+                Per policy §5.12, this is normally a deduction (≤0) for failing the sweepings standard, not a bonus.
               </p>
               <div class="d-flex align-items-center gap-2">
-                <input type="range" class="form-range" id="brs-sweep-adj-range" min="-50" max="100" step="1" value="0">
+                <input type="range" class="form-range" id="brs-sweep-penalty-adj-range" min="-50" max="100" step="1" value="0">
                 <div class="input-group input-group-sm" style="width:100px">
-                  <input type="number" class="form-control text-end" id="brs-sweep-adj-num" min="-50" max="100" step="1" value="0">
+                  <input type="number" class="form-control text-end" id="brs-sweep-penalty-adj-num" min="-50" max="100" step="1" value="0">
                   <span class="input-group-text">%</span>
                 </div>
               </div>
-              <div class="small text-muted mt-2">Proposed sweepings total: <strong id="brs-sweep-proj-label">—</strong></div>
-            </div>
-          </div>
-          <div class="card shadow-sm brs-param-card">
-            <div class="card-body">
-              <div class="section-header mb-1">Safety Bonus</div>
-              <p class="small text-muted mb-2">
-                Adjust % to model a safety bonus rate change. 0% reproduces exactly what was actually paid.
-              </p>
-              <div class="d-flex align-items-center gap-2">
-                <input type="range" class="form-range" id="brs-safety-adj-range" min="-50" max="100" step="1" value="0">
-                <div class="input-group input-group-sm" style="width:100px">
-                  <input type="number" class="form-control text-end" id="brs-safety-adj-num" min="-50" max="100" step="1" value="0">
-                  <span class="input-group-text">%</span>
-                </div>
-              </div>
-              <div class="small text-muted mt-2">Proposed safety total: <strong id="brs-safety-proj-label">—</strong></div>
+              <div class="small text-muted mt-2">Proposed sweeping penalty total: <strong id="brs-sweep-penalty-proj-label">—</strong></div>
             </div>
           </div>
       </div>
@@ -1662,9 +1737,9 @@
                     <thead>
                       <tr>
                         <th rowspan="2" class="align-middle">Section</th>
-                        <th colspan="2" class="text-center">Break</th>
+                        <th colspan="2" class="text-center">Efficiency</th>
                         <th colspan="2" class="text-center">Driller</th>
-                        <th colspan="2" class="text-center">Sweepings</th>
+                        <th colspan="2" class="text-center">Sweeping Penalty</th>
                         <th colspan="2" class="text-center">Safety</th>
                         <th colspan="2" class="text-center">Total</th>
                       </tr>
@@ -1702,7 +1777,7 @@
         <div class="card-body">
           <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
             <input type="text" class="form-control form-control-sm" id="brs-scenario-name"
-                   placeholder="Proposal name, e.g. &quot;Cut break rate 10%&quot;" style="max-width:320px">
+                   placeholder="Proposal name, e.g. &quot;Cut efficiency rate 10%&quot;" style="max-width:320px">
             <button class="btn btn-sm btn-primary" id="btn-brs-save-scenario" style="background:var(--hg-gold);border:none;color:#111">
               <i class="bi bi-save me-1"></i>Save Proposal
             </button>
@@ -1714,17 +1789,18 @@
                 <tr>
                   <th>Proposal</th>
                   <th>Saved</th>
-                  <th class="text-end">Break Adj%</th>
+                  <th class="text-end">Entry m²/empl</th>
+                  <th class="text-end">Netting %</th>
+                  <th class="text-end">SW %</th>
                   <th class="text-end">Drill Adj%</th>
-                  <th class="text-end">Sweep Adj%</th>
-                  <th class="text-end">Safety Adj%</th>
+                  <th class="text-end">Sweeping Penalty Adj%</th>
                   <th class="text-end">Total Bonus</th>
                   <th class="text-end">Δ vs Current</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="tbl-brs-scenarios-body">
-                <tr><td colspan="9" class="empty-state">No saved proposals yet.</td></tr>
+                <tr><td colspan="10" class="empty-state">No saved proposals yet.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1782,9 +1858,9 @@ const _gdColMeta = [
   { idx: 7,  label: 'm² Range',       type: 'text'   },
   { idx: 8,  label: 'Labour',         type: 'number' },
   { idx: 9,  label: 'm²/Man',         type: 'number' },
-  { idx: 10, label: 'Break Bonus',    type: 'rand'   },
+  { idx: 10, label: 'Efficiency Bonus',    type: 'rand'   },
   { idx: 11, label: 'Drill Bonus',    type: 'rand'   },
-  { idx: 12, label: 'Sweep Bonus',    type: 'rand'   },
+  { idx: 12, label: 'Sweeping Penalty',    type: 'rand'   },
   { idx: 13, label: 'Safety Bonus',   type: 'rand'   },
   { idx: 14, label: 'Total Bonus',    type: 'rand'   },
   { idx: 15, label: 'Avg R/Man',      type: 'rand'   },
@@ -1792,6 +1868,17 @@ const _gdColMeta = [
   { idx: 17, label: 'Dressing Ind',   type: 'number' },
   { idx: 18, label: 'Fatal Ind',      type: 'number' },
 ];
+
+// Custom DataTables sort type: parses "R -1 082,80" / "1 234,5" / badge HTML / "—" into
+// a real number so numeric columns sort by value, not by formatted-text alphabetical order.
+$.fn.dataTable.ext.type.order['gd-num-pre'] = function (data) {
+  if (data == null) return -Infinity;
+  const s = String(data).replace(/<[^>]+>/g, '').trim();
+  if (s === '' || s === '—' || s === '-') return -Infinity;
+  const cleaned = s.replace(/^R\s*/i, '').replace(/\s/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? -Infinity : n;
+};
 
 // ════════════════════════════════════════════════════════════════════════════
 //  Loading overlay
@@ -1936,12 +2023,12 @@ async function init() {
     'ih-sqm-range':     ['m² Range',      'Bucket category based on total m² output (e.g. "300 to 400"). Determines which bonus tier applies to the gang.'],
     'ih-labour':        ['Labour',         'Number of employees in the gang for this period. Used to calculate productivity per person (m²/Man).'],
     'ih-sqm-man':       ['m²/Man',         'Productivity ratio — total m² divided by number of labourers. Higher means a more efficient gang.'],
-    'ih-break':         ['Break Bonus',    'GANGFINALBREAKBONUS — breaking bonus paid when the gang achieves their panel m² target. The primary production incentive.'],
+    'ih-eff':         ['Efficiency Bonus',    'GANGFINALBREAKBONUS — the primary production incentive. Despite the column name, this is not a flat rate per m² broken: per policy it is efficiency-based (m²/empl), gated by a qualifying entry level (Wide Raise panels excluded), looked up from a bonus table by team size, then adjusted for netting and B-Reef stope width.'],
     'ih-drill':         ['Drill Bonus',    'GANGDRILLERBONUS — additional bonus paid to the driller in the gang for meeting drilling performance criteria.'],
-    'ih-sweep':         ['Sweep Bonus',    'GANGFINALSWEEPINGSBONUS — sweepings bonus paid for maintaining clean working conditions in the stope.'],
+    'ih-sweep':         ['Sweeping Penalty',    'GANGFINALSWEEPINGSBONUS — despite the column name, this is a penalty deduction (usually ≤0) applied when the gang fails the sweepings standard for the period (policy §5.12), not a bonus for good housekeeping.'],
     'ih-safety':        ['Safety Bonus',   'GANGFINALSAFETYBONUS — paid based on the gang\'s safety record for the period. Zero LTI / fatal incidents earns the full amount.'],
-    'ih-total-gd':      ['Total Bonus',    'Sum of all bonus components — Break + Drill + Sweep + Safety — for this gang and period.'],
-    'ih-avg-r-man':     ['Avg R/Man Bonus','Production bonus per labourer. Calculated as (Break + Drill + Sweep) divided by Labour. Excludes Safety bonus. Higher = more production value per person in the gang.'],
+    'ih-total-gd':      ['Total Bonus',    'Sum of all bonus components — Efficiency + Drill + Sweeping Penalty + Safety — for this gang and period.'],
+    'ih-avg-r-man':     ['Avg R/Man Bonus','Production bonus per labourer. Calculated as (Efficiency + Drill + Sweeping Penalty) divided by Labour. Excludes Safety bonus. Higher = more production value per person in the gang.'],
     'ih-lti-ind':       ['LTI Ind',        'GANGLTIIND — Lost Time Injury indicator. Non-zero when the gang had a reportable LTI this period.'],
     'ih-dress-ind':     ['Dressing Ind',   'GANGDRESSINGIND — dressing station compliance indicator. Non-zero when the gang failed the dressing station check.'],
     'ih-fatal-ind':     ['Fatal Ind',      'GANGFATALIND — fatality indicator. Non-zero when the gang had a fatality this period.'],
@@ -1949,7 +2036,7 @@ async function init() {
     'ih-rsqm-adj':      ['Adj m²',         'Total production m² after adjustment across all Stope Breaking gangs for the period.'],
     'ih-rsqm-safety':   ['Safety Bonus',   'Total safety bonus paid across all Stope Breaking gangs for the period.'],
     'ih-rsqm-driller':  ['Driller Bonus',  'Total driller bonus paid across all Stope Breaking gangs for the period.'],
-    'ih-rsqm-stm':      ['STM Bonus',      'Stope Team Member bonus — sum of Break + Drill + Sweep bonuses across all Stope Breaking gangs.'],
+    'ih-rsqm-stm':      ['STM Bonus',      'Stope Team bonus (EMPLOYEESTOPETEAMBONUS) — sum of Efficiency + Sweeping Penalty bonuses across all Stope Breaking gangs. Excludes Driller and Safety, which PARTICIPANTSDETAIL tracks as separate additive components (verified against the raw GANGPRODUCTIONBONUS column: efficiency + sweep + safety, driller not included).'],
     'ih-rsqm-total':    ['Total Bonus',    ''],
     'ih-rsqm-startup-rate': ['Pre Adj R/m²', 'Total bonus divided by Pre Adj m². Bonus cost per square metre before any adjustments are applied.'],
     'ih-rsqm-adj-rate':   ['Adj R/m²',       'Total bonus divided by Adj m². Bonus cost per actual square metre drilled — the most accurate efficiency measure.'],
@@ -1994,7 +2081,7 @@ async function init() {
     'ih-fct-prod-gangs':      ['Gangs',             'Number of active Stope Breaking gangs counted this period.'],
     'ih-fct-prod-avg-lab':    ['Avg Labour',        'Average headcount per gang this period (total labour ÷ gang count).'],
     // ── Forecast: Cost Efficiency table ──
-    'ih-fct-cost-rman':       ['R/Man',             'STM bonus (Break + Drill + Sweep) ÷ total headcount. Rand per man per period — the key incentive cost metric for management.'],
+    'ih-fct-cost-rman':       ['R/Man',             'STM bonus (Efficiency + Drill + Sweeping Penalty) ÷ total headcount. Rand per man per period — the key incentive cost metric for management.'],
     'ih-fct-cost-tgt-rman':   ['Target R/Man',      'Budget target for R/Man set in the Target field above (default R3,300/man).'],
     'ih-fct-cost-var-rman':   ['Variance',          'R/Man minus Target R/Man. Under budget (negative) = green; over budget (positive) = red.'],
     'ih-fct-cost-rsqm':       ['R/m²',              'Total bonus ÷ total m² drilled. Bonus cost per square metre — lower is more cost-efficient.'],
@@ -2069,24 +2156,17 @@ async function loadPeriods() {
   selFrom.innerHTML = '';
   selTo.innerHTML   = '';
 
-  // Sort for display: oldest first in From, newest first in To
-  const oldest = [...periods].reverse();
-  const newest = periods;
-
-  oldest.forEach(p => {
-    const o = new Option(p.label, p.value);
-    selFrom.appendChild(o);
-  });
-  newest.forEach(p => {
-    const o = new Option(p.label, p.value);
-    selTo.appendChild(o);
+  // Both dropdowns list newest first, matching how periods come back from the API.
+  periods.forEach(p => {
+    selFrom.appendChild(new Option(p.label, p.value));
+    selTo.appendChild(new Option(p.label, p.value));
   });
 
   // Defaults: from=202507, to=202604 (or first/last available)
   const defaultFrom = 202507;
   const defaultTo   = 202604;
-  setSelectValue(selFrom, defaultFrom, oldest[0]?.value);
-  setSelectValue(selTo,   defaultTo,   newest[0]?.value);
+  setSelectValue(selFrom, defaultFrom, periods[periods.length - 1]?.value);
+  setSelectValue(selTo,   defaultTo,   periods[0]?.value);
 
   state.from = parseInt(selFrom.value);
   state.to   = parseInt(selTo.value);
@@ -2721,7 +2801,7 @@ function renderBonusSection(d) {
   const body = document.getElementById('tbl-bonus-section-body');
   const foot = document.getElementById('tbl-bonus-section-foot');
 
-  const totalInfoBtn = _infoBtn('Total Bonus', 'Sum of all bonus types (Break, Drill, Sweep, Safety, Driller) paid to all Stope Breaking gangs in this section for the period.');
+  const totalInfoBtn = _infoBtn('Total Bonus', 'Sum of all bonus types (Efficiency, Drill, Sweeping Penalty, Safety, Driller) paid to all Stope Breaking gangs in this section for the period.');
   head.innerHTML = '<th>Section</th>' + keys.map(k => `<th class="text-end">${d.periods[keys.indexOf(k)]}</th>`).join('') + `<th class="text-end">Total${totalInfoBtn}</th>`;
   _initPopovers(document.getElementById('tbl-bonus-section').tHead);
 
@@ -2779,7 +2859,7 @@ function renderSqmRange(d) {
     const foot = document.getElementById('tbl-range-combined-foot');
 
     const _rangeBonusInfo = {
-      'STM Bonus':     'Stope Team Motivation bonus (Break + Drill + Sweep combined). Source: PARTICIPANTSDETAIL actual payments.',
+      'STM Bonus':     'Stope Team bonus (EMPLOYEESTOPETEAMBONUS) — Efficiency + Sweeping Penalty combined, excludes Driller and Safety. Source: PARTICIPANTSDETAIL actual payments.',
       'Safety Bonus':  'Actual safety bonus payments per gang. Source: PARTICIPANTSDETAIL.',
       'Driller Bonus': 'Actual driller bonus payments per gang. Source: PARTICIPANTSDETAIL.',
       'Total Bonus':   'STM + Safety + Driller. Source: PARTICIPANTSDETAIL — reconciles with the Bonus Analysis tab.',
@@ -2820,9 +2900,9 @@ function renderSqmRange(d) {
 
 // Bonus column index → data attribute key on <tr>
 const _bonusColDataKey = {
-  10: 'break',
+  10: 'eff',
   11: 'drill',
-  12: 'sweep',
+  12: 'sweepPenalty',
   13: 'safety',
 };
 
@@ -2906,7 +2986,7 @@ function renderGangDetail(rows) {
     rows.forEach(r => {
       const sqm = r.sqm || 0;
       if (sqm <= 0) return;
-      const tb = (r.break_bonus||0) + (r.drill_bonus||0) + (r.sweep_bonus||0) + (r.safety_bonus||0);
+      const tb = (r.efficiency_bonus||0) + (r.drill_bonus||0) + (r.sweep_penalty||0) + (r.safety_bonus||0);
       const p = r.period_raw;
       if (!byPeriod[p]) byPeriod[p] = [];
       byPeriod[p].push(tb / sqm);
@@ -2918,7 +2998,7 @@ function renderGangDetail(rows) {
   }
 
   tbody.innerHTML = rows.map(r => {
-    const prodBonus  = (r.break_bonus || 0) + (r.drill_bonus || 0) + (r.sweep_bonus || 0);
+    const prodBonus  = (r.efficiency_bonus || 0) + (r.drill_bonus || 0) + (r.sweep_penalty || 0);
     const totalBonus = prodBonus + (r.safety_bonus || 0);
     const avgRMan    = r.labour > 0 ? prodBonus / r.labour : 0;
     const indBadge   = v => v > 0
@@ -2939,8 +3019,8 @@ function renderGangDetail(rows) {
       : '';
 
     return `
-    <tr data-break="${r.break_bonus}" data-drill="${r.drill_bonus}"
-        data-sweep="${r.sweep_bonus}" data-safety="${r.safety_bonus}"
+    <tr data-eff="${r.efficiency_bonus}" data-drill="${r.drill_bonus}"
+        data-sweep-penalty="${r.sweep_penalty}" data-safety="${r.safety_bonus}"
         data-outlier="${isOutlier ? 1 : 0}" class="${outlierClass}">
       <td>${r.section}</td>
       <td data-order="${r.period_raw}">${r.period}</td>
@@ -2952,9 +3032,9 @@ function renderGangDetail(rows) {
       <td>${r.sqm_range}</td>
       <td class="text-end">${fmtN(r.labour, 1)}</td>
       <td class="text-end">${fmtN(r.efficiency, 2)}</td>
-      <td class="text-end">${fmtR(r.break_bonus)}</td>
+      <td class="text-end">${fmtR(r.efficiency_bonus)}</td>
       <td class="text-end">${fmtR(r.drill_bonus)}</td>
-      <td class="text-end">${fmtR(r.sweep_bonus)}</td>
+      <td class="text-end">${fmtR(r.sweep_penalty)}</td>
       <td class="text-end">${fmtR(r.safety_bonus)}</td>
       <td class="text-end fw-bold gd-total-cell">${totalBonus > 0 ? fmtR(totalBonus) + outlierIcon : '—'}</td>
       <td class="text-end">${fmtR(avgRMan)}</td>
@@ -2965,6 +3045,14 @@ function renderGangDetail(rows) {
   }).join('');
 
   // ── Init DataTables ───────────────────────────────────────────────────────
+  // Numeric/Rand columns are rendered as formatted text (e.g. "R -1 082,80", en-ZA
+  // locale — currency symbol, space thousands separator, comma decimal). DataTables'
+  // built-in type auto-detection doesn't recognise that as a number and silently falls
+  // back to alphabetical string sort, which does NOT match numeric high-to-low/low-to-high
+  // order (e.g. "R -1 082,80" sorts before "R -16 019,16" as text even though it's the
+  // larger number). Register an explicit numeric parser and apply it to every non-text
+  // column so sorting is correct regardless of Rand formatting or badge HTML.
+  const _gdNumericTargets = _gdColMeta.filter(c => c.type !== 'text').map(c => c.idx);
   gangDetailTable = $('#tbl-gang-detail').DataTable({
     pageLength: 25,
     lengthMenu: [10, 25, 50, 100],
@@ -2974,6 +3062,7 @@ function renderGangDetail(rows) {
     columnDefs: [
       { targets: [5,6,8,9,10,11,12,13,14,15], className: 'text-end' },
       { targets: [16,17,18], className: 'text-center' },
+      { targets: _gdNumericTargets, type: 'gd-num' },
     ]
   });
 
@@ -3170,9 +3259,9 @@ function renderGangDetail(rows) {
     { idx: 7,  label: 'm² Range' },
     { idx: 8,  label: 'Labour' },
     { idx: 9,  label: 'm²/Man' },
-    { idx: 10, label: 'Break Bonus' },
+    { idx: 10, label: 'Efficiency Bonus' },
     { idx: 11, label: 'Drill Bonus' },
-    { idx: 12, label: 'Sweep Bonus' },
+    { idx: 12, label: 'Sweeping Penalty' },
     { idx: 13, label: 'Safety Bonus' },
     { idx: 14, label: 'Total Bonus' },
     { idx: 15, label: 'Avg R/Man Bonus' },
@@ -3297,7 +3386,7 @@ async function loadGangProdDetail(gang) {
         <td class="text-end">${fmtV(r.startup_stopesqm)}</td>
         <td class="text-end fw-semibold">${fmtV(r.startup_totalsqm)}</td>
         <td class="text-end">${fmtV(r.extram2)}</td>
-        <td class="text-end">${fmtF(r.wideraisefactor)}</td>
+        <td class="text-end">${fmtF(r.dip_factor)}</td>
         <td class="text-end fw-semibold">${fmtV(r.totalm2)}</td>
         <td class="text-end ${varClass(r.m2_variance)}">${fmtV(r.m2_variance)}</td>
       </tr>
@@ -5332,7 +5421,7 @@ async function loadFcGangProdDetail(gang) {
         <td class="text-end">${fmtV(r.startup_stopesqm)}</td>
         <td class="text-end fw-semibold">${fmtV(r.startup_totalsqm)}</td>
         <td class="text-end">${fmtV(r.extram2)}</td>
-        <td class="text-end">${fmtF(r.wideraisefactor)}</td>
+        <td class="text-end">${fmtF(r.dip_factor)}</td>
         <td class="text-end fw-semibold">${fmtV(r.totalm2)}</td>
         <td class="text-end ${varClass(r.m2_variance)}">${fmtV(r.m2_variance)}</td>
       </tr>
@@ -6089,23 +6178,43 @@ async function loadLazyBonusRuleSim() {
 
 function _brsInitControls() {
   const s = _brsData && _brsData.summary;
+  const defaults = (_brsData && _brsData.policy_defaults) || {};
   if (!s) return;
-  const breakRateLabel = (_brsSqmBasis === 'preadj' ? s.avg_break_rate_preadj : s.avg_break_rate_adj) || 0;
-  document.getElementById('brs-break-actual-label').textContent = fmtR(breakRateLabel) + '/m²';
-  ['break', 'drill', 'sweep', 'safety'].forEach(k => {
+  const efficiencyRateLabel = (_brsSqmBasis === 'preadj' ? s.avg_efficiency_rate_preadj : s.avg_efficiency_rate_adj) || 0;
+  document.getElementById('brs-eff-actual-label').textContent = fmtR(efficiencyRateLabel) + '/m²';
+
+  document.getElementById('brs-entry-threshold').value = defaults.entry_threshold ?? 14;
+  document.getElementById('brs-netting-pct').value     = defaults.netting_pct ?? 20;
+  document.getElementById('brs-sw-pct').value          = defaults.sw_pct ?? 10;
+  const sp = defaults.safety_pct || {};
+  document.getElementById('brs-safety-clean').value    = sp.clean    ?? 25;
+  document.getElementById('brs-safety-dressing').value = sp.dressing ?? 0;
+  document.getElementById('brs-safety-lti').value      = sp.lti      ?? -25;
+  document.getElementById('brs-safety-fatal').value    = sp.fatal    ?? -100;
+
+  ['drill', 'sweep-penalty'].forEach(k => {
     document.getElementById(`brs-${k}-adj-range`).value = 0;
     document.getElementById(`brs-${k}-adj-num`).value   = 0;
   });
+
+  const gatedCount = s.gated_count || 0;
+  const noteEl = document.getElementById('brs-gated-note');
+  if (gatedCount > 0) {
+    noteEl.style.display = '';
+    noteEl.innerHTML = `<i class="bi bi-info-circle me-1"></i><strong>${gatedCount}</strong> of ${s.gang_count} gangs ` +
+      `currently earn R0 Efficiency Bonus (below the entry level, or a fatal-incident gang) and have no recoverable ` +
+      `base — they stay at R0 no matter what you set these levers to.`;
+  } else {
+    noteEl.style.display = 'none';
+  }
 }
 
 function _brsWireControls() {
   if (_brsControlsWired) return;
   _brsControlsWired = true;
   const pairs = [
-    ['brs-break-adj-range',  'brs-break-adj-num'],
     ['brs-drill-adj-range',  'brs-drill-adj-num'],
-    ['brs-sweep-adj-range',  'brs-sweep-adj-num'],
-    ['brs-safety-adj-range', 'brs-safety-adj-num'],
+    ['brs-sweep-penalty-adj-range',  'brs-sweep-penalty-adj-num'],
   ];
   pairs.forEach(([rangeId, numId]) => {
     const rangeEl = document.getElementById(rangeId);
@@ -6113,6 +6222,11 @@ function _brsWireControls() {
     rangeEl.addEventListener('input', () => { numEl.value = rangeEl.value; _brsRender(); });
     numEl.addEventListener('input',   () => { rangeEl.value = numEl.value; _brsRender(); });
   });
+  const leverIds = [
+    'brs-entry-threshold', 'brs-netting-pct', 'brs-sw-pct',
+    'brs-safety-clean', 'brs-safety-dressing', 'brs-safety-lti', 'brs-safety-fatal',
+  ];
+  leverIds.forEach(id => document.getElementById(id).addEventListener('input', _brsRender));
   document.getElementById('btn-brs-reset').addEventListener('click', () => {
     _brsInitControls();
     _brsRender();
@@ -6131,24 +6245,84 @@ function _brsWireControls() {
 function _brsCompute() {
   const d = _brsData;
   if (!d || !d.gangs || !d.gangs.length) return null;
-  const breakAdjPct  = parseFloat(document.getElementById('brs-break-adj-num').value)  || 0;
-  const drillAdjPct  = parseFloat(document.getElementById('brs-drill-adj-num').value)   || 0;
-  const sweepAdjPct  = parseFloat(document.getElementById('brs-sweep-adj-num').value)   || 0;
-  const safetyAdjPct = parseFloat(document.getElementById('brs-safety-adj-num').value)  || 0;
-  const breakFactor  = 1 + breakAdjPct  / 100;
-  const drillFactor  = 1 + drillAdjPct  / 100;
-  const sweepFactor  = 1 + sweepAdjPct  / 100;
-  const safetyFactor = 1 + safetyAdjPct / 100;
-  const rows = d.gangs.map(g => ({
-    g,
-    projBreak:  g.break_bonus  * breakFactor,
-    projDrill:  g.drill_bonus  * drillFactor,
-    projSweep:  g.sweep_bonus  * sweepFactor,
-    projSafety: g.safety_bonus * safetyFactor,
-  }));
+  const defaults = d.policy_defaults || {};
+  const sp0 = defaults.safety_pct || {};
+
+  const entryThreshold = parseFloat(document.getElementById('brs-entry-threshold').value) || 0;
+  const nettingPct = parseFloat(document.getElementById('brs-netting-pct').value) || 0;
+  const swPct      = parseFloat(document.getElementById('brs-sw-pct').value)      || 0;
+  const safety = {
+    clean:    parseFloat(document.getElementById('brs-safety-clean').value)    || 0,
+    dressing: parseFloat(document.getElementById('brs-safety-dressing').value) || 0,
+    lti:      parseFloat(document.getElementById('brs-safety-lti').value)      || 0,
+    fatal:    parseFloat(document.getElementById('brs-safety-fatal').value)    || 0,
+  };
+  const drillAdjPct = parseFloat(document.getElementById('brs-drill-adj-num').value) || 0;
+  const sweepPenaltyAdjPct = parseFloat(document.getElementById('brs-sweep-penalty-adj-num').value) || 0;
+  const drillFactor = 1 + drillAdjPct / 100;
+  const sweepPenaltyFactor = 1 + sweepPenaltyAdjPct / 100;
+
+  // If every lever is still sitting at its policy-default value, skip the recompute formula
+  // entirely and pass the real actual figures straight through. This guarantees Proposed
+  // equals Current exactly (to the cent) until you actually change something. The formula
+  // does have a small (~0.3%) residual even at defaults, from real boundary noise in the
+  // entry-level data (see the info panel) — that's a property of the reconstruction model,
+  // not something that should show up before you've made any change.
+  const atDefaults =
+    entryThreshold      === (defaults.entry_threshold ?? entryThreshold) &&
+    nettingPct          === (defaults.netting_pct     ?? nettingPct) &&
+    swPct               === (defaults.sw_pct          ?? swPct) &&
+    safety.clean        === (sp0.clean    ?? safety.clean) &&
+    safety.dressing     === (sp0.dressing ?? safety.dressing) &&
+    safety.lti          === (sp0.lti      ?? safety.lti) &&
+    safety.fatal        === (sp0.fatal    ?? safety.fatal) &&
+    drillAdjPct === 0 && sweepPenaltyAdjPct === 0;
+
+  // g.actual_safety_pct tells us which ladder rung actually applied to this gang
+  // (fatal/lti/dressing/clean) — derived purely from its real incident indicators.
+  const safetyPctForGang = (g) => {
+    if (g.actual_safety_pct <= -100) return safety.fatal;
+    if (g.actual_safety_pct < 0)     return safety.lti;
+    if (g.actual_safety_pct === 0)   return safety.dressing;
+    return safety.clean;
+  };
+
+  const rows = d.gangs.map(g => {
+    if (atDefaults) {
+      return {
+        g,
+        projEfficiency:   g.efficiency_bonus,
+        projDrill:        g.drill_bonus,
+        projSweepPenalty: g.sweep_penalty,
+        projSafety:       g.safety_bonus,
+      };
+    }
+    let projEfficiency = 0;
+    let projSafety = 0;
+    if (!g.gated && (g.had_wideraise || g.efficiency >= entryThreshold)) {
+      const newSafetyPct = safetyPctForGang(g);
+      const nettingMult  = g.had_netting ? (1 + nettingPct / 100) : 1;
+      const swMult       = g.had_sw      ? (1 + swPct / 100)      : 1;
+      projEfficiency = g.raw_qualifying * nettingMult * swMult * (1 + newSafetyPct / 100);
+    }
+    // Verified against real gang rows: GANGFINALSAFETYBONUS = (actual_safety_pct/100) ×
+    // efficiency_bonus exactly (e.g. an LTI gang's safety bonus is exactly -25% of its
+    // efficiency bonus) — it's not an independent base, so recompute it directly off the
+    // freshly-projected efficiency bonus using the same new safety %. When projEfficiency
+    // is 0 (gated, or fails a raised entry threshold) this naturally comes out to 0 too.
+    projSafety = (safetyPctForGang(g) / 100) * projEfficiency;
+    return {
+      g,
+      projEfficiency,
+      projDrill:  g.drill_bonus * drillFactor,
+      projSweepPenalty:  g.sweep_penalty * sweepPenaltyFactor,
+      projSafety,
+    };
+  });
+
   return {
     rows,
-    params: { breakAdjPct, drillAdjPct, sweepAdjPct, safetyAdjPct, sqmBasis: _brsSqmBasis },
+    params: { entryThreshold, nettingPct, swPct, safety, drillAdjPct, sweepPenaltyAdjPct, sqmBasis: _brsSqmBasis },
   };
 }
 
@@ -6158,19 +6332,19 @@ function _brsRender() {
   if (!d || !comp) return;
   const s = d.summary;
 
-  let projBreak = 0, projDrill = 0, projSweep = 0, projSafety = 0;
+  let projEfficiency = 0, projDrill = 0, projSweepPenalty = 0, projSafety = 0;
   comp.rows.forEach(r => {
-    projBreak  += r.projBreak;
+    projEfficiency  += r.projEfficiency;
     projDrill  += r.projDrill;
-    projSweep  += r.projSweep;
+    projSweepPenalty  += r.projSweepPenalty;
     projSafety += r.projSafety;
   });
-  const projTotal   = projBreak + projDrill + projSweep + projSafety;
+  const projTotal   = projEfficiency + projDrill + projSweepPenalty + projSafety;
   const actualTotal = s.total_bonus;
 
-  document.getElementById('brs-break-proj-label').textContent  = fmtR(projBreak);
+  document.getElementById('brs-eff-proj-label').textContent  = fmtR(projEfficiency);
   document.getElementById('brs-drill-proj-label').textContent  = fmtR(projDrill);
-  document.getElementById('brs-sweep-proj-label').textContent  = fmtR(projSweep);
+  document.getElementById('brs-sweep-penalty-proj-label').textContent  = fmtR(projSweepPenalty);
   document.getElementById('brs-safety-proj-label').textContent = fmtR(projSafety);
 
   const pctChange = actualTotal > 0 ? (projTotal - actualTotal) / actualTotal * 100 : 0;
@@ -6195,11 +6369,11 @@ function _brsRender() {
   document.getElementById('brs-kpi-rsqm').textContent = fmtR(projRSqm) + '/m²';
   document.getElementById('brs-kpi-rsqm-delta').innerHTML = deltaHtml(projRSqm, actualRSqm, fmtR, true);
 
-  document.getElementById('brs-kpi-break').textContent = fmtR(projBreak);
-  document.getElementById('brs-kpi-break-delta').innerHTML = deltaHtml(projBreak, s.total_break, fmtR, true);
+  document.getElementById('brs-kpi-eff').textContent = fmtR(projEfficiency);
+  document.getElementById('brs-kpi-eff-delta').innerHTML = deltaHtml(projEfficiency, s.total_efficiency, fmtR, true);
 
-  const projOther   = projDrill + projSweep + projSafety;
-  const actualOther = s.total_drill + s.total_sweep + s.total_safety;
+  const projOther   = projDrill + projSweepPenalty + projSafety;
+  const actualOther = s.total_drill + s.total_sweep_penalty + s.total_safety;
   document.getElementById('brs-kpi-other').textContent = fmtR(projOther);
   document.getElementById('brs-kpi-other-delta').innerHTML = deltaHtml(projOther, actualOther, fmtR, true);
 
@@ -6239,18 +6413,18 @@ function _brsRender() {
   const bySection = {};
   comp.rows.forEach(r => {
     const sec = r.g.section;
-    if (!bySection[sec]) bySection[sec] = { breakA:0, breakP:0, drillA:0, drillP:0, sweepA:0, sweepP:0, safetyA:0, safetyP:0 };
+    if (!bySection[sec]) bySection[sec] = { efficiencyA:0, efficiencyP:0, drillA:0, drillP:0, sweepPenaltyA:0, sweepPenaltyP:0, safetyA:0, safetyP:0 };
     const b = bySection[sec];
-    b.breakA  += r.g.break_bonus;  b.breakP  += r.projBreak;
+    b.efficiencyA  += r.g.efficiency_bonus;  b.efficiencyP  += r.projEfficiency;
     b.drillA  += r.g.drill_bonus;  b.drillP  += r.projDrill;
-    b.sweepA  += r.g.sweep_bonus;  b.sweepP  += r.projSweep;
+    b.sweepPenaltyA  += r.g.sweep_penalty;  b.sweepPenaltyP  += r.projSweepPenalty;
     b.safetyA += r.g.safety_bonus; b.safetyP += r.projSafety;
   });
   const secRows = Object.keys(bySection).map(name => {
     const b = bySection[name];
     return { name, ...b,
-      totalA: b.breakA + b.drillA + b.sweepA + b.safetyA,
-      totalP: b.breakP + b.drillP + b.sweepP + b.safetyP };
+      totalA: b.efficiencyA + b.drillA + b.sweepPenaltyA + b.safetyA,
+      totalP: b.efficiencyP + b.drillP + b.sweepPenaltyP + b.safetyP };
   }).sort((a, b) => b.totalA - a.totalA);
 
   const tbody = document.getElementById('tbl-brs-section-body');
@@ -6260,9 +6434,9 @@ function _brsRender() {
         const cls = secRows.length > 1 ? (i === 0 ? 'table-success' : (i === secRows.length - 1 ? 'table-danger' : '')) : '';
         return `<tr class="${cls}">
           <td class="fw-semibold">${r.name}</td>
-          <td class="text-end">${fmtR(r.breakA)}</td><td class="text-end">${fmtR(r.breakP)}</td>
+          <td class="text-end">${fmtR(r.efficiencyA)}</td><td class="text-end">${fmtR(r.efficiencyP)}</td>
           <td class="text-end">${fmtR(r.drillA)}</td><td class="text-end">${fmtR(r.drillP)}</td>
-          <td class="text-end">${fmtR(r.sweepA)}</td><td class="text-end">${fmtR(r.sweepP)}</td>
+          <td class="text-end">${fmtR(r.sweepPenaltyA)}</td><td class="text-end">${fmtR(r.sweepPenaltyP)}</td>
           <td class="text-end">${fmtR(r.safetyA)}</td><td class="text-end">${fmtR(r.safetyP)}</td>
           <td class="text-end fw-bold">${fmtR(r.totalA)}</td><td class="text-end fw-bold">${fmtR(r.totalP)}</td>
         </tr>`;
@@ -6271,9 +6445,9 @@ function _brsRender() {
   const sum = k => secRows.reduce((a, r) => a + r[k], 0);
   document.getElementById('tbl-brs-section-foot').innerHTML = `<tr>
     <th>Total</th>
-    <th class="text-end">${fmtR(sum('breakA'))}</th><th class="text-end">${fmtR(sum('breakP'))}</th>
+    <th class="text-end">${fmtR(sum('efficiencyA'))}</th><th class="text-end">${fmtR(sum('efficiencyP'))}</th>
     <th class="text-end">${fmtR(sum('drillA'))}</th><th class="text-end">${fmtR(sum('drillP'))}</th>
-    <th class="text-end">${fmtR(sum('sweepA'))}</th><th class="text-end">${fmtR(sum('sweepP'))}</th>
+    <th class="text-end">${fmtR(sum('sweepPenaltyA'))}</th><th class="text-end">${fmtR(sum('sweepPenaltyP'))}</th>
     <th class="text-end">${fmtR(sum('safetyA'))}</th><th class="text-end">${fmtR(sum('safetyP'))}</th>
     <th class="text-end">${fmtR(sum('totalA'))}</th><th class="text-end">${fmtR(sum('totalP'))}</th>
   </tr>`;
@@ -6281,10 +6455,10 @@ function _brsRender() {
   makeChart('chart-brs-components', {
     type: 'bar',
     data: {
-      labels: ['Break', 'Driller', 'Sweepings', 'Safety'],
+      labels: ['Efficiency', 'Driller', 'Sweeping Penalty', 'Safety'],
       datasets: [
-        { label: 'Current Policy',  data: [s.total_break, s.total_drill, s.total_sweep, s.total_safety], backgroundColor: '#1565C0' },
-        { label: 'Proposed Policy', data: [projBreak, projDrill, projSweep, projSafety],                  backgroundColor: '#D4A017' },
+        { label: 'Current Policy',  data: [s.total_efficiency, s.total_drill, s.total_sweep_penalty, s.total_safety], backgroundColor: '#1565C0' },
+        { label: 'Proposed Policy', data: [projEfficiency, projDrill, projSweepPenalty, projSafety],                  backgroundColor: '#D4A017' },
       ]
     },
     options: {
@@ -6339,7 +6513,7 @@ async function _brsLoadScenariosList() {
   }
   const tbody = document.getElementById('tbl-brs-scenarios-body');
   if (!_brsScenarioCache.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No saved proposals yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No saved proposals yet.</td></tr>';
     return;
   }
   tbody.innerHTML = _brsScenarioCache.map(sc => {
@@ -6351,10 +6525,11 @@ async function _brsLoadScenariosList() {
     return `<tr>
       <td class="fw-semibold">${sc.name}</td>
       <td class="small text-muted">${new Date(sc.created_at).toLocaleString()}</td>
-      <td class="text-end">${fmtAdj(p.breakAdjPct)}</td>
+      <td class="text-end">${p.entryThreshold != null ? fmtN(p.entryThreshold, 1) : '—'}</td>
+      <td class="text-end">${fmtAdj(p.nettingPct)}</td>
+      <td class="text-end">${fmtAdj(p.swPct)}</td>
       <td class="text-end">${fmtAdj(p.drillAdjPct)}</td>
-      <td class="text-end">${fmtAdj(p.sweepAdjPct)}</td>
-      <td class="text-end">${fmtAdj(p.safetyAdjPct)}</td>
+      <td class="text-end">${fmtAdj(p.sweepPenaltyAdjPct)}</td>
       <td class="text-end fw-bold">${fmtR(r.totalBonus)}</td>
       <td class="text-end fw-bold ${deltaCls}">${deltaTxt}</td>
       <td class="text-end text-nowrap">
@@ -6378,11 +6553,20 @@ function _brsLoadScenario(id) {
     const radio = document.getElementById(p.sqmBasis === 'preadj' ? 'brs-sqm-basis-preadj' : 'brs-sqm-basis-adj');
     if (radio) radio.checked = true;
   }
-  ['break', 'drill', 'sweep', 'safety'].forEach(k => {
-    const v = p[`${k}AdjPct`];
+  if (p.entryThreshold != null) document.getElementById('brs-entry-threshold').value = p.entryThreshold;
+  if (p.nettingPct     != null) document.getElementById('brs-netting-pct').value     = p.nettingPct;
+  if (p.swPct          != null) document.getElementById('brs-sw-pct').value          = p.swPct;
+  if (p.safety) {
+    if (p.safety.clean    != null) document.getElementById('brs-safety-clean').value    = p.safety.clean;
+    if (p.safety.dressing != null) document.getElementById('brs-safety-dressing').value = p.safety.dressing;
+    if (p.safety.lti      != null) document.getElementById('brs-safety-lti').value      = p.safety.lti;
+    if (p.safety.fatal    != null) document.getElementById('brs-safety-fatal').value    = p.safety.fatal;
+  }
+  [['drill', 'drillAdjPct'], ['sweep-penalty', 'sweepPenaltyAdjPct']].forEach(([idKey, paramKey]) => {
+    const v = p[paramKey];
     if (v != null) {
-      document.getElementById(`brs-${k}-adj-range`).value = v;
-      document.getElementById(`brs-${k}-adj-num`).value   = v;
+      document.getElementById(`brs-${idKey}-adj-range`).value = v;
+      document.getElementById(`brs-${idKey}-adj-num`).value   = v;
     }
   });
   _brsRender();

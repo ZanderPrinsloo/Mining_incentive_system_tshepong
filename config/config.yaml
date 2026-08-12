@@ -3,7 +3,7 @@
 # ============================================================
 
 database:
-  server: "localhost"
+  server: "localhost\\MSSQLSERVER01"
   database: "STPTM4000"
   username: ""
   password: ""

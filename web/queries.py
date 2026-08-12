@@ -11,6 +11,15 @@ Key column notes:
   - Bonus columns in GANGPRODUCTIONDETAIL are PER-PERSON amounts.
     Multiply by GANGLABOUR to obtain total gang payout.
   - GANGPRODUCTIONBONUS = GANGFINALBREAKBONUS + GANGFINALSAFETYBONUS (production subtotal).
+    NOTE: GANGFINALBREAKBONUS is an aliased name (kept for compatibility with the shared
+    GANGPRODUCTIONDETAIL schema used across Harmony sites). At Tshepong it is NOT a flat
+    rate-per-m² breaking bonus — the source column is GANGFINALEFFICIENCYBONUS, driven by
+    GANGEFFICIENCY (m²/empl). Per the "Thibakotsi Stoping Incentive Scheme Cat 4-8" policy
+    (JB_202603_STPTEAM_REV04), teams below the
+    entry-level efficiency (Wide Raise panels excluded) earn zero on this component; above
+    it, the amount is looked up from an m²-by-team-size table and then adjusted by netting
+    (WORKPLACENETTINGRATE) and the B-Reef stope-width factor (B_REEF_SW_FACTOR). We label it
+    "Efficiency Bonus" in this app's output to match how it's actually calculated.
   - GANGTOTALSQMADJUSTED repeats across workplace rows for the same gang/period.
     Use MAX() when grouping by gang.
   - WORKPLACETOTALSQM = WPMAXLEDGESQM + WPMAXSTOPESQM per workplace — use SUM() across
@@ -299,22 +308,34 @@ def get_production_trend(period_from: int, period_to: int,
 
 def get_pre_adj_trend(period_from: int, period_to: int,
                       section: str = "ALL") -> dict:
-    """Monthly Pre-Adj m² (SUM of WORKPLACETOTALSQM per gang) by section."""
+    """Monthly Pre-Adj m² (SUM of WORKPLACETOTALSQM per gang) by section.
+
+    GANGPRODUCTIONDETAIL can carry multiple rows for the same (gang, workplace) in a
+    period — PRODUCTIONEARN has one row per production activity/blast, and WORKPLACETOTALSQM
+    repeats identically across them. We MAX() per (gang, workplace) first to collapse those
+    duplicates, then SUM across the gang's genuinely distinct workplaces — otherwise a
+    workplace with N activity rows gets counted N times and inflates Pre-Adj vs Adj.
+    """
     sf = _section_filter(section)
     df = read_sql(f"""
         SELECT section, period, gang, SUM(wp_sqm) AS sqm
         FROM (
-            SELECT
-                LTRIM(RTRIM(SECTION))  AS section,
-                LTRIM(RTRIM(PERIOD))   AS period,
-                LTRIM(RTRIM(GANG))     AS gang,
-                LTRIM(RTRIM(CREWNO))   AS crewno,
-                TRY_CAST(WORKPLACETOTALSQM AS FLOAT) AS wp_sqm
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              {sf}
+            SELECT section, period, gang, workplace, MAX(wp_sqm) AS wp_sqm
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(SECTION))   AS section,
+                    LTRIM(RTRIM(PERIOD))    AS period,
+                    LTRIM(RTRIM(GANG))      AS gang,
+                    LTRIM(RTRIM(WORKPLACE)) AS workplace,
+                    LTRIM(RTRIM(CREWNO))    AS crewno,
+                    TRY_CAST(WORKPLACETOTALSQM AS FLOAT) AS wp_sqm
+                FROM [GANGPRODUCTIONDETAIL]
+                WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+                  AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+                  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+                  {sf}
+            ) AS raw
+            GROUP BY section, period, gang, workplace
         ) AS q
         GROUP BY section, period, gang
     """)
@@ -664,12 +685,15 @@ def get_gang_detail(period_from: int, period_to: int,
                     section: str = "ALL", gangtype: str = "ALL") -> list[dict]:
     """
     Full gang-level detail — one row per (gang, crewno, gangtype) per PERIOD.
-    Tshepong-specific bonus columns: break, drill, sweep, safety (+ prod as subtotal).
+    Tshepong-specific bonus columns: efficiency, drill, sweeping penalty, safety (+ prod as subtotal).
     Safety indicators: LTI, Dressing, Fatal (not single GANGSAFETYIND).
     """
     sf = _section_filter(section)
     gf = _gangtype_filter(gangtype)
 
+    # WORKPLACETOTALSQM (startup_sqm) can repeat across multiple activity rows for the
+    # same (gang, workplace) — dedupe per workplace with an inner MAX() before summing,
+    # otherwise a workplace with several activity rows inflates startup_sqm vs adj_sqm.
     df = read_sql(f"""
         SELECT
             section, period, gang, crewno, gangtype,
@@ -677,36 +701,53 @@ def get_gang_detail(period_from: int, period_to: int,
             SUM(wp_sqm)      AS startup_sqm,
             MAX(labour)      AS labour,
             MAX(efficiency)  AS efficiency,
-            MAX(break_bonus) AS break_bonus,
+            MAX(efficiency_bonus) AS efficiency_bonus,
             MAX(drill_bonus) AS drill_bonus,
-            MAX(sweep_bonus) AS sweep_bonus,
+            MAX(sweep_penalty) AS sweep_penalty,
             MAX(safety_bonus)AS safety_bonus,
             MAX(lti_ind)     AS lti_ind,
             MAX(dress_ind)   AS dress_ind,
             MAX(fatal_ind)   AS fatal_ind
         FROM (
             SELECT
-                LTRIM(RTRIM(SECTION))   AS section,
-                LTRIM(RTRIM(PERIOD))    AS period,
-                LTRIM(RTRIM(GANG))      AS gang,
-                LTRIM(RTRIM(CREWNO))    AS crewno,
-                LTRIM(RTRIM(GANGTYPE))  AS gangtype,
-                TRY_CAST(GANGTOTALSQMADJUSTED   AS FLOAT) AS adj_sqm,
-                TRY_CAST(WORKPLACETOTALSQM      AS FLOAT) AS wp_sqm,
-                TRY_CAST(GANGLABOUR             AS FLOAT) AS labour,
-                TRY_CAST(GANGEFFICIENCY         AS FLOAT) AS efficiency,
-                TRY_CAST(GANGFINALBREAKBONUS     AS FLOAT) AS break_bonus,
-                TRY_CAST(GANGDRILLERBONUS        AS FLOAT) AS drill_bonus,
-                TRY_CAST(GANGFINALSWEEPINGSBONUS AS FLOAT) AS sweep_bonus,
-                TRY_CAST(GANGFINALSAFETYBONUS    AS FLOAT) AS safety_bonus,
-                TRY_CAST(GANGLTIIND             AS FLOAT) AS lti_ind,
-                TRY_CAST(GANGDRESSINGIND         AS FLOAT) AS dress_ind,
-                TRY_CAST(GANGFATALIND            AS FLOAT) AS fatal_ind
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              {sf} {gf}
-        ) AS raw
+                section, period, gang, crewno, gangtype, workplace,
+                MAX(adj_sqm)      AS adj_sqm,
+                MAX(wp_sqm)       AS wp_sqm,
+                MAX(labour)       AS labour,
+                MAX(efficiency)   AS efficiency,
+                MAX(efficiency_bonus) AS efficiency_bonus,
+                MAX(drill_bonus)  AS drill_bonus,
+                MAX(sweep_penalty)  AS sweep_penalty,
+                MAX(safety_bonus) AS safety_bonus,
+                MAX(lti_ind)      AS lti_ind,
+                MAX(dress_ind)    AS dress_ind,
+                MAX(fatal_ind)    AS fatal_ind
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(SECTION))   AS section,
+                    LTRIM(RTRIM(PERIOD))    AS period,
+                    LTRIM(RTRIM(GANG))      AS gang,
+                    LTRIM(RTRIM(CREWNO))    AS crewno,
+                    LTRIM(RTRIM(GANGTYPE))  AS gangtype,
+                    LTRIM(RTRIM(WORKPLACE)) AS workplace,
+                    TRY_CAST(GANGTOTALSQMADJUSTED   AS FLOAT) AS adj_sqm,
+                    TRY_CAST(WORKPLACETOTALSQM      AS FLOAT) AS wp_sqm,
+                    TRY_CAST(GANGLABOUR             AS FLOAT) AS labour,
+                    TRY_CAST(GANGEFFICIENCY         AS FLOAT) AS efficiency,
+                    TRY_CAST(GANGFINALBREAKBONUS     AS FLOAT) AS efficiency_bonus,
+                    TRY_CAST(GANGDRILLERBONUS        AS FLOAT) AS drill_bonus,
+                    TRY_CAST(GANGFINALSWEEPINGSBONUS AS FLOAT) AS sweep_penalty,
+                    TRY_CAST(GANGFINALSAFETYBONUS    AS FLOAT) AS safety_bonus,
+                    TRY_CAST(GANGLTIIND             AS FLOAT) AS lti_ind,
+                    TRY_CAST(GANGDRESSINGIND         AS FLOAT) AS dress_ind,
+                    TRY_CAST(GANGFATALIND            AS FLOAT) AS fatal_ind
+                FROM [GANGPRODUCTIONDETAIL]
+                WHERE TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+                  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+                  {sf} {gf}
+            ) AS raw
+            GROUP BY section, period, gang, crewno, gangtype, workplace
+        ) AS byworkplace
         GROUP BY section, period, gang, crewno, gangtype
         ORDER BY section, period, gang
     """)
@@ -716,7 +757,7 @@ def get_gang_detail(period_from: int, period_to: int,
     df["period"] = df["period"].astype(str)
 
     # Multiply per-person bonus columns by labour to get gang-level totals
-    for bc in ["break_bonus", "drill_bonus", "sweep_bonus", "safety_bonus"]:
+    for bc in ["efficiency_bonus", "drill_bonus", "sweep_penalty", "safety_bonus"]:
         df[bc] = df[bc].fillna(0) * df["labour"].fillna(0)
 
     df["efficiency"] = df["efficiency"].fillna(0)
@@ -724,9 +765,9 @@ def get_gang_detail(period_from: int, period_to: int,
 
     records = []
     for _, row in df.iterrows():
-        total_bonus = (float(row["break_bonus"]  or 0) +
+        total_bonus = (float(row["efficiency_bonus"]  or 0) +
                        float(row["drill_bonus"]   or 0) +
-                       float(row["sweep_bonus"]   or 0) +
+                       float(row["sweep_penalty"]   or 0) +
                        float(row["safety_bonus"]  or 0))
         records.append({
             "section":      row["section"],
@@ -740,9 +781,9 @@ def get_gang_detail(period_from: int, period_to: int,
             "sqm_range":    row["sqm_range"],
             "labour":       round(float(row["labour"]      or 0), 2),
             "efficiency":   round(float(row["efficiency"]  or 0), 2),
-            "break_bonus":  round(float(row["break_bonus"] or 0), 2),
+            "efficiency_bonus":  round(float(row["efficiency_bonus"] or 0), 2),
             "drill_bonus":  round(float(row["drill_bonus"] or 0), 2),
-            "sweep_bonus":  round(float(row["sweep_bonus"] or 0), 2),
+            "sweep_penalty":  round(float(row["sweep_penalty"] or 0), 2),
             "safety_bonus": round(float(row["safety_bonus"]or 0), 2),
             "total_bonus":  round(total_bonus, 2),
             "lti_ind":      int(row["lti_ind"]   or 0),
@@ -757,21 +798,29 @@ def get_rands_per_sqm(period_from: int, period_to: int,
     """R/m² trend — STOPE BREAKING only with bonus breakdown."""
     sf = _section_filter(section)
 
+    # Dedupe WORKPLACETOTALSQM per (gang, workplace) before summing — see get_pre_adj_trend.
     raw_df = read_sql(f"""
         SELECT period, gang,
                MAX(adj_sqm) AS adj_sqm,
                SUM(wp_sqm)  AS startup_sqm
         FROM (
-            SELECT
-                LTRIM(RTRIM(PERIOD)) AS period,
-                LTRIM(RTRIM(GANG))   AS gang,
-                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS adj_sqm,
-                TRY_CAST(WORKPLACETOTALSQM    AS FLOAT) AS wp_sqm
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              {sf}
+            SELECT period, gang, workplace,
+                   MAX(adj_sqm) AS adj_sqm,
+                   MAX(wp_sqm)  AS wp_sqm
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(PERIOD))    AS period,
+                    LTRIM(RTRIM(GANG))      AS gang,
+                    LTRIM(RTRIM(WORKPLACE)) AS workplace,
+                    TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS adj_sqm,
+                    TRY_CAST(WORKPLACETOTALSQM    AS FLOAT) AS wp_sqm
+                FROM [GANGPRODUCTIONDETAIL]
+                WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+                  AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+                  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+                  {sf}
+            ) AS raw
+            GROUP BY period, gang, workplace
         ) AS q
         GROUP BY period, gang
     """)
@@ -786,9 +835,23 @@ def get_rands_per_sqm(period_from: int, period_to: int,
         startup =("startup_sqm","sum"),
     ).reset_index()
 
-    bonus_df  = _get_participants_bonus(period_from, period_to, section)
+    # Scope bonus to the same STOPE BREAKING (period, gang) keys as adj_sqm/startup_sqm —
+    # _get_participants_bonus() on its own returns every gang type, which would silently mix
+    # STOPE CLEANING/CENTRE GULLY/etc. bonus into a chart and table both labelled "Stope
+    # Breaking" (see the chart title above). Match the merge-on-gang-keys pattern already
+    # used correctly in get_simulation_data/get_forecast_data. raw_df has no section column,
+    # so key on (period, gang) — gang codes are section-prefixed and already unique.
+    bonus_df = _get_participants_bonus(period_from, period_to, section)
     if not bonus_df.empty:
-        bonus_agg = bonus_df.groupby("period")[
+        sb_keys = raw_df[["period", "gang"]].drop_duplicates()
+        bonus_sb = sb_keys.merge(
+            bonus_df[["period", "gang", "total_bonus", "total_stm_bonus",
+                      "total_safety_bonus", "total_driller_bonus"]],
+            on=["period", "gang"], how="left"
+        )
+        for col in ["total_bonus", "total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
+            bonus_sb[col] = bonus_sb[col].fillna(0).astype(float)
+        bonus_agg = bonus_sb.groupby("period")[
             ["total_bonus", "total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]
         ].sum().reset_index()
     else:
@@ -1109,20 +1172,30 @@ def get_period_performance(period_from: int, period_to: int,
     period_order  = sorted(sqm_df["period"].unique())
     period_labels = [_period_label(int(p)) for p in period_order]
 
-    # Pre-Adj SQM: SUM(WORKPLACETOTALSQM) per gang, then sum across gangs per period
+    # Pre-Adj SQM: dedupe WORKPLACETOTALSQM per (gang, workplace) first — GANGPRODUCTIONDETAIL
+    # can carry multiple activity rows per workplace/period, each repeating the same
+    # WORKPLACETOTALSQM value, which would otherwise inflate this total vs the Adj figure.
     wp_df = read_sql(f"""
         SELECT period, SUM(startup_sqm) AS startup_sqm
         FROM (
             SELECT
                 LTRIM(RTRIM(PERIOD)) AS period,
                 LTRIM(RTRIM(GANG))   AS gang,
-                SUM(TRY_CAST(WORKPLACETOTALSQM AS FLOAT)) AS startup_sqm
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              {sf}
-            GROUP BY LTRIM(RTRIM(PERIOD)), LTRIM(RTRIM(GANG))
+                SUM(wp_sqm) AS startup_sqm
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(PERIOD))    AS period,
+                    LTRIM(RTRIM(GANG))      AS gang,
+                    LTRIM(RTRIM(WORKPLACE)) AS workplace,
+                    MAX(TRY_CAST(WORKPLACETOTALSQM AS FLOAT)) AS wp_sqm
+                FROM [GANGPRODUCTIONDETAIL]
+                WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+                  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+                  AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+                  {sf}
+                GROUP BY LTRIM(RTRIM(PERIOD)), LTRIM(RTRIM(GANG)), LTRIM(RTRIM(WORKPLACE))
+            ) AS byworkplace
+            GROUP BY period, gang
         ) AS q
         GROUP BY period
     """)
@@ -1189,7 +1262,9 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
       WPMAXSTOPESQM  → startup_stopesqm
       WPPRETOTALM2   → startup_totalsqm
       WPTOTALM2      → totalm2 (adjusted)
-      DIP_FACTOR     → wideraisefactor
+      DIP_FACTOR     → dip_factor (down-dip stope-geometry adjustment; previously mislabelled
+                                    "wideraisefactor" — unrelated to the separate Wide Raise
+                                    bonus category, which is its own WORKPLACERATETYPE)
       WPTOTALM2 - WPPRETOTALM2 → extram2 / m2_variance
     """
     if not gang:
@@ -1207,7 +1282,7 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
             MAX(ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0)) AS startup_totalsqm,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0)
               - ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0))  AS extram2,
-            MAX(ISNULL(TRY_CAST(p.DIP_FACTOR    AS FLOAT), 0))  AS wideraisefactor,
+            MAX(ISNULL(TRY_CAST(p.DIP_FACTOR    AS FLOAT), 0))  AS dip_factor,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0))  AS totalm2,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0)
               - ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0))  AS m2_variance
@@ -1241,7 +1316,7 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
             "startup_stopesqm": round(float(row["startup_stopesqm"] or 0), 2),
             "startup_totalsqm": round(float(row["startup_totalsqm"] or 0), 2),
             "extram2":          round(float(row["extram2"]           or 0), 2),
-            "wideraisefactor":  round(float(row["wideraisefactor"]   or 0), 4),
+            "dip_factor":  round(float(row["dip_factor"]   or 0), 4),
             "totalm2":          round(float(row["totalm2"]           or 0), 2),
             "m2_variance":      round(float(row["m2_variance"]       or 0), 2),
         })
@@ -1279,9 +1354,20 @@ def get_section_ranking(period_from: int, period_to: int) -> list[dict]:
         gang_count = ("gang", "nunique"),
     ).reset_index()
 
+    # Scope bonus to the same STOPE BREAKING (section, period, gang) keys as total_sqm —
+    # _get_participants_bonus() on its own returns every gang type for the section, which
+    # would silently mix STOPE CLEANING/CENTRE GULLY/etc. bonus into a ratio the UI labels
+    # "Stope Breaking only" (see the section-header caption). Match the merge-on-gang-keys
+    # pattern already used correctly in get_simulation_data/get_forecast_data.
     bonus_df = _get_participants_bonus(period_from, period_to)
     if not bonus_df.empty:
-        sec_bonus = bonus_df.groupby("section").agg(
+        sb_keys = sqm_df[["section", "period", "gang"]].drop_duplicates()
+        bonus_sb = sb_keys.merge(
+            bonus_df[["section", "period", "gang", "total_bonus"]],
+            on=["section", "period", "gang"], how="left"
+        )
+        bonus_sb["total_bonus"] = bonus_sb["total_bonus"].fillna(0).astype(float)
+        sec_bonus = bonus_sb.groupby("section").agg(
             total_bonus = ("total_bonus", "sum")
         ).reset_index()
     else:
@@ -1310,46 +1396,176 @@ def get_section_ranking(period_from: int, period_to: int) -> list[dict]:
     ]
 
 
+# Policy defaults for the Bonus Policy Simulator's real levers — see the "Thibakotsi Stoping
+# Incentive Scheme Cat 4-8" policy, JB_202603_STPTEAM_REV04 (effective March 2026): §5.3/§5.13
+# netting, §5.12 B-Reef stoping width, §6.1.3-6.1.6 safety ladder — and the empirically-verified
+# netting/B-Reef-SW multiplier found in GANGFULLSTOPINGBONUS → GANGFINALBREAKBONUS.
+#
+# NOTE on the old m² tier escalator: REV02 (June 2024, the policy this simulator was
+# originally built against) had a §5.3 clause paying an extra 5/10/20/30/50% on top of the
+# qualifying bonus for teams breaking 300+/400+/500+/600+/700+m². That clause does not exist
+# in REV04 — the current policy has no m² tier escalator at all. This matches the database:
+# checked GANGFULLSTOPINGBONUS → GANGFINALBREAKBONUS across 39 real gangs spanning every old
+# tier band (100m² to 600m²) and the ratio equals netting × B-Reef-SW exactly regardless of
+# which band a gang falls in — there is no trace of a tier multiplier being applied. So this
+# simulator no longer includes one; it would model a lever that doesn't exist in current policy.
+#
+# NOTE on Steep Stope (REV04 §5.10/§5.11, new vs REV02): panels with a dip of 35-44° get +10%
+# added to their m², and ≥45° get +20% — confirmed directly against PRODUCTIONWPDETAIL, where
+# WPTOTALM2 = WPPRETOTALM2 × DIP_FACTOR exactly (e.g. 279 × 1.2 = 334.8). This is a real,
+# active mechanism, but unlike netting/SW it operates on the square-metre figure BEFORE the
+# efficiency/bonus-table lookup, not as a multiplier on the final Rand bonus. That means it's
+# already fully reflected in GANGTOTALSQMADJUSTED (and therefore in every bonus figure derived
+# from it) everywhere in this dashboard — no separate lever is needed or possible here, because
+# modelling "what if we changed the Steep Stope %" would require re-running the changed m²
+# through the underlying bonus-table lookup, which lives in an external calc engine this
+# database doesn't expose (only a 2018-dated and a 2026-dated snapshot of the printed tables).
+BONUS_POLICY_DEFAULTS = {
+    "entry_threshold": 14.0,          # §5.4 — m²/empl qualifying gate
+    "netting_pct":     20.0,          # §5.13.4 — WORKPLACENETTINGRATE observed as 1.2
+    "sw_pct":          10.0,          # §5.12 — B-Reef stoping width ≥1.60m; FACTORS.MINEBREEF_SW_RATE observed as 1.1
+    "safety_pct": {                   # §6.1.3-6.1.6 — ladder by incident indicator (NOT the
+                                       # §6.1.1/§6.1.2 Physical Conditions Rating — see note below)
+        "clean":    25.0,
+        "dressing":  0.0,
+        "lti":     -25.0,
+        "fatal":  -100.0,
+    },
+}
+
+
 def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") -> dict:
     """Per-gang STOPE BREAKING bonus data for the Bonus Policy Simulator tab.
 
-    Tshepong schema has four bonus components: break, driller, sweepings, safety.
+    Tshepong schema has four bonus components: efficiency, driller, sweeping penalty, safety.
+    sweep_penalty is signed (usually ≤0) — GANGFINALSWEEPINGSBONUS is a penalty deduction for
+    failing the sweepings standard (policy §5.14), not an actual bonus, despite the column name.
     Adj SQM from GANGTOTALSQMADJUSTED; pre-adj from SUM(WORKPLACETOTALSQM) per gang/period.
-    Bonus columns are per-person in the DB — multiplied by GANGLABOUR for gang totals.
+
+    IMPORTANT — dollar totals are anchored to PARTICIPANTSDETAIL, not GANGPRODUCTIONDETAIL:
+    GANGPRODUCTIONDETAIL's bonus columns are per-person rates that, multiplied by GANGLABOUR
+    (a rounded-up *average* headcount used for the efficiency calc), only ever produce an
+    ESTIMATE of the gang's total payout — not the real amount paid to real individuals. That
+    estimate was found to diverge from PARTICIPANTSDETAIL (the canonical payroll source, also
+    what "Bonus Analysis"/Bonus by Gang Type is built from) by double digits of a percent: for
+    one real period range, GANGLABOUR summed to 3,650 "labour units" against 4,220 real
+    employee-period records in PARTICIPANTSDETAIL for the identical gangs. So every gang row
+    here is re-anchored: Driller and Safety take PARTICIPANTSDETAIL's own EMPLOYEEDRILLERBONUS/
+    EMPLOYEESAFETYBONUS totals directly (already isolated there); Efficiency and Sweep are
+    bundled into one real figure in PARTICIPANTSDETAIL (EMPLOYEESTOPETEAMBONUS / "STM" —
+    confirmed empirically: the raw GANGPRODUCTIONBONUS column equals efficiency + sweep +
+    safety, driller excluded), so they're split back out of the real STM total using the
+    GANGPRODUCTIONDETAIL estimate's own efficiency:sweep ratio as weights. This means the
+    grand total this function returns matches "Bonus by Gang Type"'s Stope Breaking total for
+    the same period/section exactly (both ultimately sum PARTICIPANTSDETAIL for the same gang
+    keys) — only the split between components, and the lever mechanics, come from the
+    GANGPRODUCTIONDETAIL-side estimate, because only it has the raw ingredients (efficiency,
+    netting flag, B-Reef factor, safety indicators) the simulator's levers need.
+
+    The (now anchored) Efficiency Bonus is decomposed into a lever-independent "raw_qualifying"
+    amount so the simulator can recompute it under different policy parameters instead of just
+    scaling the actual paid figure:
+        efficiency_bonus_anchored = raw_qualifying × netting_mult × sw_mult × safety_mult
+    netting_mult/sw_mult are empirically verified to multiply exactly onto the *estimate*
+    (WORKPLACENETTINGRATE and B_REEF_SW_FACTOR multiply exactly onto GANGFULLSTOPINGBONUS to
+    produce GANGFINALBREAKBONUS, checked across 39 gangs spanning 100m² to 600m² — also
+    confirming there is no tier effect; see BONUS_POLICY_DEFAULTS comment above for why the
+    old tier escalator is gone from both the current policy and this model). Applying those
+    same verified ratios to the anchored dollar figure is an extrapolation, not something
+    independently re-verified against real anchored data — flagged in the simulator UI.
+    The entry-level gate is applied separately (a hard cutoff, not a multiplier), using the
+    real GANGEFFICIENCY (m²/empl) figure, which the anchoring doesn't touch. Wide Raise
+    workplaces (WORKPLACERATETYPE) are exempted from it per policy §5.4, confirmed against
+    real low-efficiency Wide Raise gangs that still earn a nonzero efficiency bonus.
+    Gangs that already earn $0 (gated below the entry level, or a fatal incident zeroed them
+    out) cannot be reconstructed upward — there is no data signal to recover what they would
+    have qualified for, so they are flagged "gated" and held at $0 regardless of lever changes.
+
+    Not modelled here (see BONUS_POLICY_DEFAULTS comment for why): the §5.10/§5.11 Steep
+    Stope m² uplift (real, active, but already baked into GANGTOTALSQMADJUSTED upstream of
+    this data, not a separate Rand lever) and the §6.1.1/§6.1.2 Physical Conditions Rating
+    safety forfeiture (searched PRODUCTIONEARN/GANGLINKEARN/RATES for any CONDITION/RATING/
+    INSPECT column — none exists, so there's no data to drive it; every "clean" gang in a
+    full year of data got exactly the full +25%, zero exceptions, so it either hasn't
+    triggered yet or isn't wired into this data source).
     """
     sf = _section_filter(section)
+    # Qualified with g. — this query LEFT JOINs PRODUCTIONWPDETAIL (alias p), which also has
+    # a SECTION column, so the unqualified filter from _section_filter() would be ambiguous.
+    sf_g = sf.replace("SECTION", "g.SECTION") if sf else ""
     period_filter = f"TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}"
-    _empty: dict = {"gangs": [], "summary": {}}
+    _empty: dict = {"gangs": [], "summary": {}, "policy_defaults": BONUS_POLICY_DEFAULTS}
 
+    # Dedupe WORKPLACETOTALSQM (and the other repeating gang-level columns) per (gang,
+    # workplace) before summing/collapsing — see get_pre_adj_trend for why this matters.
     df = read_sql(f"""
         SELECT
             section, period, gang, crewno,
             MAX(adj_sqm)     AS sqm,
             SUM(wp_sqm)      AS sqm_preadj,
             MAX(labour)      AS labour,
-            MAX(break_bonus) AS break_bonus,
+            MAX(efficiency)  AS efficiency,
+            MAX(efficiency_bonus) AS efficiency_bonus,
             MAX(drill_bonus) AS drill_bonus,
-            MAX(sweep_bonus) AS sweep_bonus,
-            MAX(safety_bonus)AS safety_bonus
+            MAX(sweep_penalty) AS sweep_penalty,
+            MAX(safety_bonus)AS safety_bonus,
+            MAX(netting_rate)AS netting_rate,
+            MAX(sw_factor)   AS sw_factor,
+            MAX(lti_ind)     AS lti_ind,
+            MAX(dress_ind)   AS dress_ind,
+            MAX(fatal_ind)   AS fatal_ind,
+            MAX(is_wideraise)AS is_wideraise
         FROM (
             SELECT
-                LTRIM(RTRIM(SECTION))   AS section,
-                LTRIM(RTRIM(PERIOD))    AS period,
-                LTRIM(RTRIM(GANG))      AS gang,
-                LTRIM(RTRIM(CREWNO))    AS crewno,
-                TRY_CAST(GANGTOTALSQMADJUSTED    AS FLOAT) AS adj_sqm,
-                TRY_CAST(WORKPLACETOTALSQM       AS FLOAT) AS wp_sqm,
-                TRY_CAST(GANGLABOUR              AS FLOAT) AS labour,
-                TRY_CAST(GANGFINALBREAKBONUS     AS FLOAT) AS break_bonus,
-                TRY_CAST(GANGDRILLERBONUS        AS FLOAT) AS drill_bonus,
-                TRY_CAST(GANGFINALSWEEPINGSBONUS AS FLOAT) AS sweep_bonus,
-                TRY_CAST(GANGFINALSAFETYBONUS    AS FLOAT) AS safety_bonus
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              AND {period_filter}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              {sf}
-        ) AS raw
+                section, period, gang, crewno, workplace,
+                MAX(adj_sqm)      AS adj_sqm,
+                MAX(wp_sqm)       AS wp_sqm,
+                MAX(labour)       AS labour,
+                MAX(efficiency)   AS efficiency,
+                MAX(efficiency_bonus) AS efficiency_bonus,
+                MAX(drill_bonus)  AS drill_bonus,
+                MAX(sweep_penalty)  AS sweep_penalty,
+                MAX(safety_bonus) AS safety_bonus,
+                MAX(netting_rate) AS netting_rate,
+                MAX(sw_factor)    AS sw_factor,
+                MAX(lti_ind)      AS lti_ind,
+                MAX(dress_ind)    AS dress_ind,
+                MAX(fatal_ind)    AS fatal_ind,
+                MAX(is_wideraise) AS is_wideraise
+            FROM (
+                SELECT
+                    LTRIM(RTRIM(g.SECTION))   AS section,
+                    LTRIM(RTRIM(g.PERIOD))    AS period,
+                    LTRIM(RTRIM(g.GANG))      AS gang,
+                    LTRIM(RTRIM(g.CREWNO))    AS crewno,
+                    LTRIM(RTRIM(g.WORKPLACE)) AS workplace,
+                    TRY_CAST(g.GANGTOTALSQMADJUSTED    AS FLOAT) AS adj_sqm,
+                    TRY_CAST(g.WORKPLACETOTALSQM       AS FLOAT) AS wp_sqm,
+                    TRY_CAST(g.GANGLABOUR              AS FLOAT) AS labour,
+                    TRY_CAST(g.GANGEFFICIENCY          AS FLOAT) AS efficiency,
+                    TRY_CAST(g.GANGFINALBREAKBONUS     AS FLOAT) AS efficiency_bonus,
+                    TRY_CAST(g.GANGDRILLERBONUS        AS FLOAT) AS drill_bonus,
+                    TRY_CAST(g.GANGFINALSWEEPINGSBONUS AS FLOAT) AS sweep_penalty,
+                    TRY_CAST(g.GANGFINALSAFETYBONUS    AS FLOAT) AS safety_bonus,
+                    TRY_CAST(g.WORKPLACENETTINGRATE    AS FLOAT) AS netting_rate,
+                    TRY_CAST(g.B_REEF_SW_FACTOR        AS FLOAT) AS sw_factor,
+                    TRY_CAST(g.GANGLTIIND              AS FLOAT) AS lti_ind,
+                    TRY_CAST(g.GANGDRESSINGIND         AS FLOAT) AS dress_ind,
+                    TRY_CAST(g.GANGFATALIND            AS FLOAT) AS fatal_ind,
+                    CASE WHEN UPPER(LTRIM(RTRIM(p.WORKPLACERATETYPE))) = 'WIDE RAISE BONUS'
+                         THEN 1 ELSE 0 END AS is_wideraise
+                FROM [GANGPRODUCTIONDETAIL] g
+                LEFT JOIN [PRODUCTIONWPDETAIL] p
+                       ON LTRIM(RTRIM(g.SECTION))   = LTRIM(RTRIM(p.SECTION))
+                      AND LTRIM(RTRIM(g.PERIOD))    = LTRIM(RTRIM(p.PERIOD))
+                      AND LTRIM(RTRIM(g.WORKPLACE)) = LTRIM(RTRIM(p.WORKPLACE))
+                WHERE UPPER(LTRIM(RTRIM(g.GANGTYPE))) = 'STOPE BREAKING'
+                  AND TRY_CAST(g.PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+                  AND LEN(LTRIM(RTRIM(g.CREWNO))) >= 8
+                  {sf_g}
+            ) AS raw
+            GROUP BY section, period, gang, crewno, workplace
+        ) AS byworkplace
         GROUP BY section, period, gang, crewno
     """)
     if df.empty:
@@ -1358,21 +1574,126 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
     df["period"]    = df["period"].astype(str)
     df["sqm"]       = df["sqm"].fillna(0).astype(float)
     df["sqm_preadj"]= df["sqm_preadj"].fillna(0).astype(float)
+    df["efficiency"]= df["efficiency"].fillna(0).astype(float)
+    df["had_wideraise"] = df["is_wideraise"].fillna(0).astype(float) > 0
     labour = df["labour"].fillna(0).astype(float)
 
-    for bc in ["break_bonus", "drill_bonus", "sweep_bonus", "safety_bonus"]:
+    for bc in ["efficiency_bonus", "drill_bonus", "sweep_penalty", "safety_bonus"]:
         df[bc] = df[bc].fillna(0).astype(float) * labour
+
+    # Anchor to PARTICIPANTSDETAIL — the canonical record of what was actually paid to real
+    # individuals (this is what "Bonus Analysis"/Bonus by Gang Type is built from). Without
+    # this, GANGPRODUCTIONDETAIL's bonus columns are a production-formula ESTIMATE (per-person
+    # rate × GANGLABOUR, a rounded-up average headcount) that measurably diverges from real
+    # payroll: checked one real period range where GANGLABOUR summed to 3,650 "labour units"
+    # against 4,220 real employee-period records in PARTICIPANTSDETAIL for the identical
+    # gangs — a 15.6% headcount-basis gap, which is why the Simulator's totals didn't match
+    # Bonus Analysis's Stope Breaking total for the same period/section.
+    # PARTICIPANTSDETAIL tracks Driller and Safety independently (EMPLOYEEDRILLERBONUS,
+    # EMPLOYEESAFETYBONUS), so those anchor directly. Efficiency and Sweep are bundled into
+    # one real figure there (EMPLOYEESTOPETEAMBONUS / "STM" — confirmed empirically: the raw
+    # GANGPRODUCTIONBONUS column equals efficiency + sweep + safety, driller excluded), so
+    # they're split back out using the GANGPRODUCTIONDETAIL estimate's own efficiency:sweep
+    # ratio as weights — this preserves the formula's relative split (which only
+    # GANGPRODUCTIONDETAIL can estimate, since it alone has the per-gang levers) while
+    # anchoring the absolute total to real payroll.
+    participants = _get_participants_bonus(period_from, period_to, section)
+    if not participants.empty:
+        keys = df[["section", "period", "gang"]].drop_duplicates()
+        real = keys.merge(
+            participants[["section", "period", "gang",
+                          "total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]],
+            on=["section", "period", "gang"], how="left"
+        )
+    else:
+        real = df[["section", "period", "gang"]].drop_duplicates()
+        real["total_stm_bonus"] = 0.0
+        real["total_safety_bonus"] = 0.0
+        real["total_driller_bonus"] = 0.0
+    for col in ["total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
+        real[col] = real[col].fillna(0).astype(float)
+    df = df.merge(real, on=["section", "period", "gang"], how="left")
+    for col in ["total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
+        df[col] = df[col].fillna(0).astype(float)
+
+    def _anchor(row):
+        est_eff, est_sweep = float(row["efficiency_bonus"]), float(row["sweep_penalty"])
+        est_stm, real_stm = est_eff + est_sweep, float(row["total_stm_bonus"])
+        if abs(est_stm) > 1e-9:
+            ratio = real_stm / est_stm
+            return est_eff * ratio, est_sweep * ratio
+        # No estimate signal to split by (e.g. a gated gang) — if real payroll shows
+        # something anyway, there's no basis to allocate it between efficiency/sweep,
+        # so keep the whole real figure on efficiency rather than lose it from the total.
+        return real_stm, 0.0
+
+    anchored = df.apply(_anchor, axis=1, result_type="expand")
+    df["efficiency_bonus"] = anchored[0]
+    df["sweep_penalty"]    = anchored[1]
+    df["drill_bonus"]      = df["total_driller_bonus"]
+    df["safety_bonus"]     = df["total_safety_bonus"]
+
+    # netting_rate / sw_factor come through as 1.0 (no uplift) or the applied multiplier
+    # (e.g. 1.2, 1.1) — default missing values to 1.0 (no uplift), never 0, to keep the
+    # decomposition division-safe.
+    df["netting_rate"] = df["netting_rate"].fillna(1.0).astype(float).replace(0, 1.0)
+    df["sw_factor"]    = df["sw_factor"].fillna(1.0).astype(float).replace(0, 1.0)
+    df["lti_ind"]      = df["lti_ind"].fillna(0).astype(float)
+    df["dress_ind"]    = df["dress_ind"].fillna(0).astype(float)
+    df["fatal_ind"]    = df["fatal_ind"].fillna(0).astype(float)
+
+    defaults = BONUS_POLICY_DEFAULTS
+    safety_defaults = defaults["safety_pct"]
+
+    def _decompose(row) -> tuple[float, float, bool]:
+        """Return (raw_qualifying, actual_safety_pct, gated).
+
+        actual_safety_pct is derived purely from the gang's real incident indicators —
+        independent of whether the efficiency bonus happens to be gated to zero, since a
+        gang can be efficiency-gated (e.g. below the entry level) while still having a
+        genuine non-clean safety record and a real, separate GANGFINALSAFETYBONUS payout.
+        `gated` only describes whether raw_qualifying (the efficiency component) can be
+        reconstructed — it does not apply to the safety bonus recompute in the frontend,
+        which checks the gang's own safety_bonus value independently.
+        """
+        if row["fatal_ind"] >= 1:
+            safety_pct = safety_defaults["fatal"]
+        elif row["lti_ind"] >= 1:
+            safety_pct = safety_defaults["lti"]
+        elif row["dress_ind"] >= 1:
+            safety_pct = safety_defaults["dressing"]
+        else:
+            safety_pct = safety_defaults["clean"]
+
+        actual_bonus = float(row["efficiency_bonus"])
+        if actual_bonus <= 0:
+            return 0.0, safety_pct, True  # gated: no signal to recover a base for this component
+
+        combined_mult = (
+            float(row["netting_rate"]) * float(row["sw_factor"]) * (1 + safety_pct / 100)
+        )
+        if combined_mult <= 1e-9:
+            return 0.0, safety_pct, True
+        return actual_bonus / combined_mult, safety_pct, False
+
+    decomposed = df.apply(_decompose, axis=1, result_type="expand")
+    df["raw_qualifying"], df["actual_safety_pct"], df["gated"] = (
+        decomposed[0], decomposed[1], decomposed[2]
+    )
+    df["had_netting"] = df["netting_rate"] > 1.0001
+    df["had_sw"]      = df["sw_factor"]    > 1.0001
 
     total_sqm_adj    = float(df["sqm"].sum())
     total_sqm_preadj = float(df["sqm_preadj"].sum())
-    total_break  = float(df["break_bonus"].sum())
+    total_efficiency  = float(df["efficiency_bonus"].sum())
     total_drill  = float(df["drill_bonus"].sum())
-    total_sweep  = float(df["sweep_bonus"].sum())
+    total_sweep_penalty  = float(df["sweep_penalty"].sum())
     total_safety = float(df["safety_bonus"].sum())
     gang_count   = len(df)
+    gated_count  = int(df["gated"].sum())
 
-    avg_break_rate_adj    = round(total_break / total_sqm_adj,    4) if total_sqm_adj    > 0 else 0.0
-    avg_break_rate_preadj = round(total_break / total_sqm_preadj, 4) if total_sqm_preadj > 0 else 0.0
+    avg_efficiency_rate_adj    = round(total_efficiency / total_sqm_adj,    4) if total_sqm_adj    > 0 else 0.0
+    avg_efficiency_rate_preadj = round(total_efficiency / total_sqm_preadj, 4) if total_sqm_preadj > 0 else 0.0
 
     gangs = [
         {
@@ -1382,10 +1703,17 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
             "sqm_adj":      round(float(row["sqm"] or 0), 0),
             "sqm_preadj":   round(float(row["sqm_preadj"] or 0), 0),
             "labour":       round(float(row["labour"] or 0) if not pd.isna(row["labour"]) else 0, 2),
-            "break_bonus":  round(float(row["break_bonus"] or 0), 2),
+            "efficiency":   round(float(row["efficiency"] or 0), 2),
+            "efficiency_bonus":  round(float(row["efficiency_bonus"] or 0), 2),
             "drill_bonus":  round(float(row["drill_bonus"] or 0), 2),
-            "sweep_bonus":  round(float(row["sweep_bonus"] or 0), 2),
+            "sweep_penalty":  round(float(row["sweep_penalty"] or 0), 2),
             "safety_bonus": round(float(row["safety_bonus"] or 0), 2),
+            "raw_qualifying": round(float(row["raw_qualifying"] or 0), 2),
+            "had_netting":  bool(row["had_netting"]),
+            "had_sw":       bool(row["had_sw"]),
+            "had_wideraise": bool(row["had_wideraise"]),
+            "gated":        bool(row["gated"]),
+            "actual_safety_pct": round(float(row["actual_safety_pct"]), 2),
         }
         for _, row in df.iterrows()
     ]
@@ -1393,15 +1721,17 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
     return {
         "gangs": gangs,
         "summary": {
-            "total_break":        round(total_break, 2),
+            "total_efficiency":        round(total_efficiency, 2),
             "total_drill":        round(total_drill, 2),
-            "total_sweep":        round(total_sweep, 2),
+            "total_sweep_penalty":        round(total_sweep_penalty, 2),
             "total_safety":       round(total_safety, 2),
-            "total_bonus":        round(total_break + total_drill + total_sweep + total_safety, 2),
+            "total_bonus":        round(total_efficiency + total_drill + total_sweep_penalty + total_safety, 2),
             "total_sqm_adj":      round(total_sqm_adj, 0),
             "total_sqm_preadj":   round(total_sqm_preadj, 0),
             "gang_count":         gang_count,
-            "avg_break_rate_adj":    avg_break_rate_adj,
-            "avg_break_rate_preadj": avg_break_rate_preadj,
+            "gated_count":        gated_count,
+            "avg_efficiency_rate_adj":    avg_efficiency_rate_adj,
+            "avg_efficiency_rate_preadj": avg_efficiency_rate_preadj,
         },
+        "policy_defaults": defaults,
     }

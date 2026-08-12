@@ -98,3 +98,6 @@ logs/
 
 # Ruff
 .ruff_cache/
+
+# Claude Code local session state
+.claude/
