@@ -576,7 +576,6 @@
                   <th class="text-end">Pre Adj Stope m²</th>
                   <th class="text-end">Pre Adj Total m²</th>
                   <th class="text-end">Extra m²</th>
-                  <th class="text-end">Dip Factor</th>
                   <th class="text-end">Total m²</th>
                   <th class="text-end">m² Variance</th>
                 </tr>
@@ -1274,7 +1273,6 @@
                   <th class="text-end">Pre Adj Stope m²</th>
                   <th class="text-end">Pre Adj Total m²</th>
                   <th class="text-end">Extra m²</th>
-                  <th class="text-end">Dip Factor</th>
                   <th class="text-end">Total m²</th>
                   <th class="text-end">m² Variance</th>
                 </tr>
@@ -3386,7 +3384,6 @@ async function loadGangProdDetail(gang) {
         <td class="text-end">${fmtV(r.startup_stopesqm)}</td>
         <td class="text-end fw-semibold">${fmtV(r.startup_totalsqm)}</td>
         <td class="text-end">${fmtV(r.extram2)}</td>
-        <td class="text-end">${fmtF(r.dip_factor)}</td>
         <td class="text-end fw-semibold">${fmtV(r.totalm2)}</td>
         <td class="text-end ${varClass(r.m2_variance)}">${fmtV(r.m2_variance)}</td>
       </tr>
@@ -5421,7 +5418,6 @@ async function loadFcGangProdDetail(gang) {
         <td class="text-end">${fmtV(r.startup_stopesqm)}</td>
         <td class="text-end fw-semibold">${fmtV(r.startup_totalsqm)}</td>
         <td class="text-end">${fmtV(r.extram2)}</td>
-        <td class="text-end">${fmtF(r.dip_factor)}</td>
         <td class="text-end fw-semibold">${fmtV(r.totalm2)}</td>
         <td class="text-end ${varClass(r.m2_variance)}">${fmtV(r.m2_variance)}</td>
       </tr>
@@ -6339,7 +6335,9 @@ function _brsRender() {
     projSweepPenalty  += r.projSweepPenalty;
     projSafety += r.projSafety;
   });
-  const projTotal   = projEfficiency + projDrill + projSweepPenalty + projSafety;
+  // projTotal mirrors the backend's total_bonus (efficiency + sweep only — drill and
+  // safety are informational breakdowns, not additive; see queries.py get_bonus_rule_data).
+  const projTotal   = projEfficiency + projSweepPenalty;
   const actualTotal = s.total_bonus;
 
   document.getElementById('brs-eff-proj-label').textContent  = fmtR(projEfficiency);
@@ -6422,9 +6420,11 @@ function _brsRender() {
   });
   const secRows = Object.keys(bySection).map(name => {
     const b = bySection[name];
+    // total = efficiency + sweep only — drill/safety are informational breakdowns,
+    // not additive (matches the backend total_bonus formula).
     return { name, ...b,
-      totalA: b.efficiencyA + b.drillA + b.sweepPenaltyA + b.safetyA,
-      totalP: b.efficiencyP + b.drillP + b.sweepPenaltyP + b.safetyP };
+      totalA: b.efficiencyA + b.sweepPenaltyA,
+      totalP: b.efficiencyP + b.sweepPenaltyP };
   }).sort((a, b) => b.totalA - a.totalA);
 
   const tbody = document.getElementById('tbl-brs-section-body');

@@ -94,12 +94,85 @@ def _gangtype_filter(gangtype: str) -> str:
 
 # ── PARTICIPANTSDETAIL bonus helper ───────────────────────────────────────────
 
+# PARTICIPANTSDETAIL's own view definition LEFT JOINs GANGLINKEARN on (SECTION, PERIOD, GANG)
+# only, with no WORKPLACE in the join condition — but GANGLINKEARN has one row per (gang,
+# workplace, period), so any gang that worked more than one workplace in a period fans every
+# one of its employees' rows out once per extra workplace. Confirmed on real data: period
+# 202606 had 1,503 raw rows in the view vs 1,333 truly distinct ones, inflating that period's
+# STM+Safety+Driller total by ~16.5% (R3,931,563.43 shown vs R3,374,177.18 correct). This is a
+# bug in the shared database view itself (same flaw found independently in a sibling site's
+# database), not something introduced by this app — but since the view can't safely be
+# rewritten from here (shared object, other consumers may depend on it), every query that
+# reads PARTICIPANTSDETAIL directly must dedupe first.
+#
+# The duplicate rows are byte-for-byte identical except for CREWNO (the one column the join
+# actually contributes) — a narrower dedup key like EMPLOYEE_NO alone is NOT safe: 66
+# employees in that same period genuinely have more than one row because they transferred
+# gangs mid-period (policy §10.5), and a coarser key would silently merge those real,
+# distinct payments. (SECTION, PERIOD, EMPLOYEE_NO, GANG, WAGECODE) is confirmed to reproduce
+# the true row count exactly (1,333) against the same period — a plain SELECT DISTINCT across
+# all columns gives the same correct count but is far more expensive (a wide multi-column
+# distinct over the full multi-period UNION ALL the view is built from — timed out at 120s+
+# on real queries); GROUP BY on this narrower key with MAX() on the remaining columns is the
+# same dedup, cheaper, because MAX() is safe here — every column being maxed comes from
+# PARTICIPANTSEARN (the non-duplicated side of the join), so it's identical across all
+# fanned-out copies of a given real row; only CREWNO (from the join) can rarely differ, and
+# it isn't used in any bonus calculation, only as a filter elsewhere.
+#
+# Takes the caller's period filter and applies it BEFORE the GROUP BY, not after — the view
+# is a 12-months-and-growing UNION ALL, so deduping the whole thing on every call (then
+# filtering the result) meant even a single-period query cost as much as an all-history one.
+# Pushing the filter in first cut a full endpoint sweep from 120s+ back close to baseline.
+def _participants_dedup_sql(period_filter: str) -> str:
+    return f"""(
+        SELECT
+            SECTION, PERIOD, EMPLOYEE_NO, GANG, WAGECODE,
+            MAX(BUSSUNIT) AS BUSSUNIT, MAX(CREWNO) AS CREWNO, MAX(GANGTYPE) AS GANGTYPE,
+            MAX(WAGE_DESCRIPTION) AS WAGE_DESCRIPTION,
+            MAX(EMPLOYEESUPERVISIONRATE) AS EMPLOYEESUPERVISIONRATE,
+            MAX(EMPLOYEESTOPETEAMBONUS) AS EMPLOYEESTOPETEAMBONUS,
+            MAX(EMPLOYEESAFETYBONUS) AS EMPLOYEESAFETYBONUS,
+            MAX(EMPLOYEEDRILLERBONUS) AS EMPLOYEEDRILLERBONUS,
+            MAX(EMPLOYEEAWOPPENALTY) AS EMPLOYEEAWOPPENALTY
+        FROM [PARTICIPANTSDETAIL]
+        WHERE {period_filter}
+        GROUP BY SECTION, PERIOD, EMPLOYEE_NO, GANG, WAGECODE
+    )"""
+
+
 def _get_participants_bonus(period_from: int, period_to: int,
                             section: str = "ALL") -> pd.DataFrame:
     """
     Total bonus per (section, period, gang) from PARTICIPANTSDETAIL.
     Returns separate STM, safety, and driller bonus columns.
     Filter: gang != 'xxx' AND crewno != '-'
+
+    total_bonus = SUM(EMPLOYEESTOPETEAMBONUS) ONLY. Verified per-employee against the source
+    system's own EMPLOYEETOTALBONUS column (not exposed by this view), across three periods
+    spanning Dec 2025 - Jun 2026 (202512, 202601, 202606): dedupe raw PARTICIPANTSEARN{period}
+    to one row per EMPLOYEE_NO (MAX(EMPLOYEETOTALBONUS) — confirmed constant across all of an
+    employee's rows in a period, i.e. it's a period-level broadcast, not a per-row figure) and
+    SUM — that matches SUM(EMPLOYEESTOPETEAMBONUS) across every raw row with NO dedup needed
+    (202606: R2,659,911.34 = R2,659,911.34; 202512: R5,103,029.14 = R5,103,029.14) to the cent.
+    EMPLOYEESAFETYBONUS is consistently exactly 20% of EMPLOYEESTOPETEAMBONUS (it's a reported
+    breakdown already inside STM, not an addition), and EMPLOYEEDRILLERBONUS is a reference
+    rate that does not add to the employee's real payout — even for employees whose
+    WAGE_DESCRIPTION is a driller role, EMPLOYEETOTALBONUS still equals just their STM figure.
+    Adding safety/driller on top (the old formula) double/triple-counted and was the root
+    cause of the 1.20x-2.23x overstatement found when cross-checking against EMPLOYEETOTALBONUS.
+    total_safety_bonus/total_driller_bonus are kept as separate informational fields only —
+    never sum them into total_bonus.
+
+    KNOWN RESIDUAL (documented, not silently absorbed): 202601 had one row with a nonzero
+    EMPLOYEEPENALTY (-694.84, i.e. a credit) that EMPLOYEETOTALBONUS nets against STM but
+    EMPLOYEESTOPETEAMBONUS alone does not — EMPLOYEEPENALTY is NOT exposed by PARTICIPANTSDETAIL
+    (confirmed via INFORMATION_SCHEMA.COLUMNS: only EMPLOYEEAWOPPENALTY is), so netting it would
+    require bypassing the view and reading raw PARTICIPANTSEARN{period} tables directly —
+    a real architecture change to recover a column that was nonzero in only 1 of 1,113 employees
+    in the one period it appeared (0 in the other two periods checked), worth ~0.05% of that
+    period's total. A separate, unrelated one-off was also found in 202601 (employee Z9150639:
+    two same-period rows on different gangs, with the real payout sitting on a zero-STM row) —
+    a source-data anomaly, not a formula gap; ~R707 on ~R1.35M for that period.
     """
     sf = _section_filter(section)
     period_filter = (f"TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}"
@@ -113,15 +186,10 @@ def _get_participants_bonus(period_from: int, period_to: int,
             SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS total_stm_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS    AS FLOAT), 0)) AS total_safety_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS   AS FLOAT), 0)) AS total_driller_bonus,
-            SUM(
-                ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0) +
-                ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS    AS FLOAT), 0) +
-                ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS   AS FLOAT), 0)
-            ) AS total_bonus
-        FROM [PARTICIPANTSDETAIL]
+            SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS total_bonus
+        FROM {_participants_dedup_sql(period_filter)} AS pd
         WHERE LTRIM(RTRIM(GANG))   != 'xxx'
           AND LTRIM(RTRIM(CREWNO)) != '-'
-          AND {period_filter}
           {sf}
         GROUP BY
             LTRIM(RTRIM(SECTION)),
@@ -377,7 +445,11 @@ def get_pre_adj_trend(period_from: int, period_to: int,
 
 def get_bonus_by_gangtype(period_from: int, period_to: int,
                           section: str = "ALL") -> dict:
-    """Total bonus by GANGTYPE and period — from PARTICIPANTSDETAIL with breakdown."""
+    """Total bonus by GANGTYPE and period — from PARTICIPANTSDETAIL with breakdown.
+
+    total_bonus = SUM(EMPLOYEESTOPETEAMBONUS) only — see _get_participants_bonus docstring
+    for the per-employee reconciliation against EMPLOYEETOTALBONUS that verifies this.
+    """
     sf = _section_filter(section)
     df = read_sql(f"""
         SELECT
@@ -386,15 +458,10 @@ def get_bonus_by_gangtype(period_from: int, period_to: int,
             SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS stm_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS    AS FLOAT), 0)) AS safety_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS   AS FLOAT), 0)) AS driller_bonus,
-            SUM(
-                ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0) +
-                ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS    AS FLOAT), 0) +
-                ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS   AS FLOAT), 0)
-            ) AS total_bonus
-        FROM [PARTICIPANTSDETAIL]
+            SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS total_bonus
+        FROM {_participants_dedup_sql(f"TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}")} AS pd
         WHERE LTRIM(RTRIM(GANG))   != 'xxx'
           AND LTRIM(RTRIM(CREWNO)) != '-'
-          AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
           {sf}
         GROUP BY LTRIM(RTRIM(GANGTYPE)), LTRIM(RTRIM(PERIOD))
     """)
@@ -1262,10 +1329,12 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
       WPMAXSTOPESQM  → startup_stopesqm
       WPPRETOTALM2   → startup_totalsqm
       WPTOTALM2      → totalm2 (adjusted)
-      DIP_FACTOR     → dip_factor (down-dip stope-geometry adjustment; previously mislabelled
-                                    "wideraisefactor" — unrelated to the separate Wide Raise
-                                    bonus category, which is its own WORKPLACERATETYPE)
       WPTOTALM2 - WPPRETOTALM2 → extram2 / m2_variance
+
+    DIP_FACTOR (the Steep Stope geometry uplift, policy §5.10/§5.11) is deliberately not
+    exposed here — it's already fully baked into WPTOTALM2/totalm2 (WPTOTALM2 = WPPRETOTALM2
+    × DIP_FACTOR, confirmed exactly against real data), so showing it as its own column would
+    just be restating information already visible in Total m², not new information.
     """
     if not gang:
         return []
@@ -1282,7 +1351,6 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
             MAX(ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0)) AS startup_totalsqm,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0)
               - ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0))  AS extram2,
-            MAX(ISNULL(TRY_CAST(p.DIP_FACTOR    AS FLOAT), 0))  AS dip_factor,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0))  AS totalm2,
             MAX(ISNULL(TRY_CAST(p.WPTOTALM2     AS FLOAT), 0)
               - ISNULL(TRY_CAST(p.WPPRETOTALM2  AS FLOAT), 0))  AS m2_variance
@@ -1316,7 +1384,6 @@ def get_gang_production_detail(gang: str, period_from: int, period_to: int) -> l
             "startup_stopesqm": round(float(row["startup_stopesqm"] or 0), 2),
             "startup_totalsqm": round(float(row["startup_totalsqm"] or 0), 2),
             "extram2":          round(float(row["extram2"]           or 0), 2),
-            "dip_factor":  round(float(row["dip_factor"]   or 0), 4),
             "totalm2":          round(float(row["totalm2"]           or 0), 2),
             "m2_variance":      round(float(row["m2_variance"]       or 0), 2),
         })
@@ -1725,7 +1792,14 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
             "total_drill":        round(total_drill, 2),
             "total_sweep_penalty":        round(total_sweep_penalty, 2),
             "total_safety":       round(total_safety, 2),
-            "total_bonus":        round(total_efficiency + total_drill + total_sweep_penalty + total_safety, 2),
+            # total_bonus = efficiency + sweep only (the anchored STM reconstruction).
+            # drill_bonus and safety_bonus are informational breakdowns, not additive —
+            # verified against the source system's own EMPLOYEETOTALBONUS: a real employee's
+            # total payout equals their STM figure alone, even when they hold a driller
+            # role with a nonzero EMPLOYEEDRILLERBONUS, and EMPLOYEESAFETYBONUS is always
+            # exactly 20% of STM (already counted inside it, not on top). See
+            # _get_participants_bonus's docstring for the per-employee reconciliation.
+            "total_bonus":        round(total_efficiency + total_sweep_penalty, 2),
             "total_sqm_adj":      round(total_sqm_adj, 0),
             "total_sqm_preadj":   round(total_sqm_preadj, 0),
             "gang_count":         gang_count,
