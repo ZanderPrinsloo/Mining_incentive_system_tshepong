@@ -1718,10 +1718,29 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
         actual_safety_pct is derived purely from the gang's real incident indicators —
         independent of whether the efficiency bonus happens to be gated to zero, since a
         gang can be efficiency-gated (e.g. below the entry level) while still having a
-        genuine non-clean safety record and a real, separate GANGFINALSAFETYBONUS payout.
+        genuine non-clean safety record and a real, separate safety payout. It's also the
+        gang's own real (default-policy) safety percentage, used by the frontend as the
+        "old %" baseline to ratio-scale FROM when the Safety % lever changes — see the
+        Simulator's projSafety comment for why that's a ratio scale of the real figure,
+        not a recompute through efficiency.
         `gated` only describes whether raw_qualifying (the efficiency component) can be
-        reconstructed — it does not apply to the safety bonus recompute in the frontend,
-        which checks the gang's own safety_bonus value independently.
+        reconstructed — it does not apply to the safety bonus, which is scaled directly
+        off the gang's own real safety_bonus independent of gating.
+
+        combined_mult does NOT include a safety term. It used to (netting_rate * sw_factor
+        * (1 + safety_pct/100)), on the assumption that a real gang's efficiency_bonus had
+        the safety ladder multiplicatively baked in — checked against the anchored real
+        data (PARTICIPANTSDETAIL, not the old GANGPRODUCTIONDETAIL estimate) and that's
+        false: grouping all 541 real gang-periods by their assigned tier, "clean" gangs'
+        real safety_bonus is ~20.0% of real STM (533 samples, tight), not the policy's 25%;
+        LTI real ratio is ~-38% (only 6 samples) vs the assumed -25%; a fatal-tier gang
+        carried a real penalty despite R0 STM (1 sample), meaning it isn't a multiplier on
+        efficiency at all for that tier either. Baking that false 25%-for-clean assumption
+        into combined_mult made raw_qualifying — and therefore the whole efficiency
+        reconstruction — only reproduce the real number at the exact default value by
+        construction (division and re-multiplication by the same wrong constant cancel out),
+        and diverge the moment any lever moved. Efficiency and safety are independent real
+        payout figures; only netting_rate/sw_factor legitimately scale efficiency.
         """
         if row["fatal_ind"] >= 1:
             safety_pct = safety_defaults["fatal"]
@@ -1736,9 +1755,7 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
         if actual_bonus <= 0:
             return 0.0, safety_pct, True  # gated: no signal to recover a base for this component
 
-        combined_mult = (
-            float(row["netting_rate"]) * float(row["sw_factor"]) * (1 + safety_pct / 100)
-        )
+        combined_mult = float(row["netting_rate"]) * float(row["sw_factor"])
         if combined_mult <= 1e-9:
             return 0.0, safety_pct, True
         return actual_bonus / combined_mult, safety_pct, False

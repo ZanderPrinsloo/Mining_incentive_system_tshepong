@@ -1674,9 +1674,15 @@
               </div>
 
               <p class="small text-muted mt-2 mb-0" style="font-style:italic">
-                Netting, B-Reef stope-width, and the safety % ladder are all verified directly against real gang
-                payouts (including the Wide Raise exemption from the entry level), and are explicitly named in the
-                current written policy (REV04 §5.12-5.13, §6.1). The older policy revision this
+                Netting and B-Reef stope-width are verified directly against real gang payouts (including the Wide
+                Raise exemption from the entry level), and are explicitly named in the current written policy
+                (REV04 §5.12-5.13). The Safety % ladder works differently: real gang data shows there's no single
+                trustworthy "% of what" to build a ratio on (real "clean" gangs run anywhere from ~20% to ~33% of
+                STM depending on their sweep penalty). So each Safety % lever instead adds the point-change you
+                dial in (new % minus that gang's own real %) directly onto that gang's own real STM and real safety
+                figure — applying only to gangs that actually earned/incurred that tier's bonus or penalty, sized to
+                what they actually got, and moving Total Bonus by exactly that increment (no change at the lever's
+                own default). The older policy revision this
                 simulator was originally built against had an additional m² tier escalator (an extra 5-50% for
                 breaking 300m²+) — the current policy (REV04) has removed that clause, and checking real payout
                 ratios confirms no tier effect exists in the data either, so it's not modelled here. Steep Stope
@@ -6258,21 +6264,19 @@ function _brsCompute() {
   const drillFactor = 1 + drillAdjPct / 100;
   const sweepPenaltyFactor = 1 + sweepPenaltyAdjPct / 100;
 
-  // If every lever is still sitting at its policy-default value, skip the recompute formula
-  // entirely and pass the real actual figures straight through. This guarantees Proposed
-  // equals Current exactly (to the cent) until you actually change something. The formula
-  // does have a small (~0.3%) residual even at defaults, from real boundary noise in the
-  // entry-level data (see the info panel) — that's a property of the reconstruction model,
-  // not something that should show up before you've made any change.
-  const atDefaults =
-    entryThreshold      === (defaults.entry_threshold ?? entryThreshold) &&
-    nettingPct          === (defaults.netting_pct     ?? nettingPct) &&
-    swPct               === (defaults.sw_pct          ?? swPct) &&
-    safety.clean        === (sp0.clean    ?? safety.clean) &&
-    safety.dressing     === (sp0.dressing ?? safety.dressing) &&
-    safety.lti          === (sp0.lti      ?? safety.lti) &&
-    safety.fatal        === (sp0.fatal    ?? safety.fatal) &&
-    drillAdjPct === 0 && sweepPenaltyAdjPct === 0;
+  // Each lever family gets its OWN "still at default" check — NOT one shared boolean —
+  // so touching a Safety % field can't leak unrelated noise into Efficiency/Total Bonus.
+  // Only Efficiency needs this shortcut at all: its reconstruction (raw_qualifying divided
+  // back out through netting/B-Reef) carries a small (~0.3-0.4%) residual from real boundary
+  // noise even when the levers are unchanged, so passing the real figure straight through
+  // avoids showing that noise before anything has actually changed. Safety (ratio scale of
+  // the gang's own real value) and Drill/Sweep (real value × 1 at 0% adjustment) are already
+  // exact at their own defaults, so they don't need a shortcut — they always use their live
+  // formula, which is a no-op until you actually move that specific lever.
+  const effAtDefaults =
+    entryThreshold === (defaults.entry_threshold ?? entryThreshold) &&
+    nettingPct     === (defaults.netting_pct     ?? nettingPct) &&
+    swPct          === (defaults.sw_pct          ?? swPct);
 
   // g.actual_safety_pct tells us which ladder rung actually applied to this gang
   // (fatal/lti/dressing/clean) — derived purely from its real incident indicators.
@@ -6284,35 +6288,44 @@ function _brsCompute() {
   };
 
   const rows = d.gangs.map(g => {
-    if (atDefaults) {
-      return {
-        g,
-        projEfficiency:   g.efficiency_bonus,
-        projDrill:        g.drill_bonus,
-        projSweepPenalty: g.sweep_penalty,
-        projSafety:       g.safety_bonus,
-      };
+    let projEfficiency;
+    if (effAtDefaults) {
+      projEfficiency = g.efficiency_bonus;
+    } else {
+      projEfficiency = 0;
+      if (!g.gated && (g.had_wideraise || g.efficiency >= entryThreshold)) {
+        const nettingMult = g.had_netting ? (1 + nettingPct / 100) : 1;
+        const swMult      = g.had_sw      ? (1 + swPct / 100)      : 1;
+        projEfficiency = g.raw_qualifying * nettingMult * swMult;
+      }
     }
-    let projEfficiency = 0;
-    let projSafety = 0;
-    if (!g.gated && (g.had_wideraise || g.efficiency >= entryThreshold)) {
-      const newSafetyPct = safetyPctForGang(g);
-      const nettingMult  = g.had_netting ? (1 + nettingPct / 100) : 1;
-      const swMult       = g.had_sw      ? (1 + swPct / 100)      : 1;
-      projEfficiency = g.raw_qualifying * nettingMult * swMult * (1 + newSafetyPct / 100);
-    }
-    // Verified against real gang rows: GANGFINALSAFETYBONUS = (actual_safety_pct/100) ×
-    // efficiency_bonus exactly (e.g. an LTI gang's safety bonus is exactly -25% of its
-    // efficiency bonus) — it's not an independent base, so recompute it directly off the
-    // freshly-projected efficiency bonus using the same new safety %. When projEfficiency
-    // is 0 (gated, or fails a raised entry threshold) this naturally comes out to 0 too.
-    projSafety = (safetyPctForGang(g) / 100) * projEfficiency;
+    // Safety is an ADDITIVE increment on the gang's own real STM, not a ratio or a recompute
+    // through efficiency. Checked against real anchored data: "safety = a fixed % of STM" is
+    // NOT one universal number (real "clean" gangs with negligible sweep run ~20% of STM, but
+    // gangs with a real sweep penalty run ~33%, because the sweep split itself is only an
+    // estimate) — so there's no single trustworthy "true %" to build a ratio-scale on. Instead:
+    // take the % POINT change the lever represents (new % minus the gang's own real/default %),
+    // apply that change directly to the gang's own real STM, and add it to what they already
+    // received. This only needs the SIZE of the change, not any assumed universal formula, and
+    // it only touches gangs that actually earned/incurred that tier's bonus/penalty in the first
+    // place (their own real STM is the base). It's a true no-op at the lever's own default (0
+    // point change), and works cleanly even for the 0%-baseline dressing case (no division
+    // involved, so no "no signal to scale from" edge case). It's also independent of efficiency
+    // gating — a gang gated to R0 efficiency still has a real, separate safety payout that
+    // should still shift with the lever.
+    const oldSafetyPct  = g.actual_safety_pct;
+    const newSafetyPct  = safetyPctForGang(g);
+    const deltaPct      = newSafetyPct - oldSafetyPct;
+    const realStm       = g.efficiency_bonus + g.sweep_penalty;
+    const safetyDelta   = realStm * deltaPct / 100;
+    const projSafety    = g.safety_bonus + safetyDelta;
     return {
       g,
       projEfficiency,
       projDrill:  g.drill_bonus * drillFactor,
       projSweepPenalty:  g.sweep_penalty * sweepPenaltyFactor,
       projSafety,
+      safetyDelta,
     };
   });
 
@@ -6328,16 +6341,22 @@ function _brsRender() {
   if (!d || !comp) return;
   const s = d.summary;
 
-  let projEfficiency = 0, projDrill = 0, projSweepPenalty = 0, projSafety = 0;
+  let projEfficiency = 0, projDrill = 0, projSweepPenalty = 0, projSafety = 0, safetyDeltaTotal = 0;
   comp.rows.forEach(r => {
     projEfficiency  += r.projEfficiency;
     projDrill  += r.projDrill;
     projSweepPenalty  += r.projSweepPenalty;
     projSafety += r.projSafety;
+    safetyDeltaTotal += r.safetyDelta;
   });
-  // projTotal mirrors the backend's total_bonus (efficiency + sweep only — drill and
-  // safety are informational breakdowns, not additive; see queries.py get_bonus_rule_data).
-  const projTotal   = projEfficiency + projSweepPenalty;
+  // projTotal = real STM (efficiency + sweep, from their own levers) + the SAFETY INCREMENT
+  // only (not the full new safety figure) — the original safety amount is already folded into
+  // real STM (verified: real EMPLOYEETOTALBONUS = STM alone), so adding the full new safety
+  // figure on top would double-count it. The increment alone is the policy CHANGE's net effect
+  // on real pay, so at the lever's own default (increment = 0) this is exactly real STM, and it
+  // moves by exactly what the safety lever changes. Drill stays excluded — it's a reference
+  // rate that isn't actually paid even to real drillers (see queries.py get_bonus_rule_data).
+  const projTotal   = projEfficiency + projSweepPenalty + safetyDeltaTotal;
   const actualTotal = s.total_bonus;
 
   document.getElementById('brs-eff-proj-label').textContent  = fmtR(projEfficiency);
@@ -6411,20 +6430,22 @@ function _brsRender() {
   const bySection = {};
   comp.rows.forEach(r => {
     const sec = r.g.section;
-    if (!bySection[sec]) bySection[sec] = { efficiencyA:0, efficiencyP:0, drillA:0, drillP:0, sweepPenaltyA:0, sweepPenaltyP:0, safetyA:0, safetyP:0 };
+    if (!bySection[sec]) bySection[sec] = { efficiencyA:0, efficiencyP:0, drillA:0, drillP:0, sweepPenaltyA:0, sweepPenaltyP:0, safetyA:0, safetyP:0, safetyDelta:0 };
     const b = bySection[sec];
     b.efficiencyA  += r.g.efficiency_bonus;  b.efficiencyP  += r.projEfficiency;
     b.drillA  += r.g.drill_bonus;  b.drillP  += r.projDrill;
     b.sweepPenaltyA  += r.g.sweep_penalty;  b.sweepPenaltyP  += r.projSweepPenalty;
     b.safetyA += r.g.safety_bonus; b.safetyP += r.projSafety;
+    b.safetyDelta += r.safetyDelta;
   });
   const secRows = Object.keys(bySection).map(name => {
     const b = bySection[name];
-    // total = efficiency + sweep only — drill/safety are informational breakdowns,
-    // not additive (matches the backend total_bonus formula).
+    // Current total = efficiency + sweep only (drill/safety are informational breakdowns
+    // already folded into real STM, not additive). Proposed total also adds the safety
+    // INCREMENT (the policy change's net effect), matching _brsRender's projTotal.
     return { name, ...b,
       totalA: b.efficiencyA + b.sweepPenaltyA,
-      totalP: b.efficiencyP + b.sweepPenaltyP };
+      totalP: b.efficiencyP + b.sweepPenaltyP + b.safetyDelta };
   }).sort((a, b) => b.totalA - a.totalA);
 
   const tbody = document.getElementById('tbl-brs-section-body');
