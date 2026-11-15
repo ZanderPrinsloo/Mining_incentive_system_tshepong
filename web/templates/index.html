@@ -29,6 +29,7 @@
     .navbar .badge-period { background: var(--hg-gold); color: #111; font-size: .7rem; }
 
     /* ── Filter bar ── */
+    #sticky-top { position: sticky; top: 0; z-index: 1020; background: var(--hg-light); box-shadow: 0 2px 4px rgba(0,0,0,.06); }
     #filter-bar { background: var(--hg-mid); border-bottom: 3px solid var(--hg-gold); }
     #filter-bar label { color: #ccd; font-size: .78rem; font-weight: 600; margin-bottom: 2px; }
     #filter-bar select { font-size: .82rem; }
@@ -37,13 +38,48 @@
 
     /* ── KPI cards ── */
     .kpi-card { border-left: 4px solid var(--hg-gold); border-radius: 8px; }
-    .kpi-val  { font-size: 1.45rem; font-weight: 700; color: var(--hg-dark); line-height: 1.1; }
+    .kpi-val  { font-size: 1.45rem; font-weight: 700; color: var(--hg-dark); line-height: 1.1; white-space: nowrap; }
+    .kpi-val.kpi-long { font-size: 1.2rem; }
     .kpi-lbl  { font-size: .73rem; color: #6c757d; text-transform: uppercase; letter-spacing: .5px; }
     .kpi-icon { font-size: 1.6rem; color: var(--hg-gold); opacity: .8; }
+    .kpi-delta { font-size: .72rem; font-weight: 600; margin-top: 2px; }
+
+    /* Compact pinned area (keep it under a third of the screen when scrolled) */
+    #sticky-top .navbar { padding-top: .2rem !important; padding-bottom: .2rem !important; }
+    #sticky-top .navbar-brand { font-size: 1rem; padding: 0; }
+    #sticky-top #filter-bar { padding-top: .25rem !important; padding-bottom: .3rem !important; }
+    #sticky-top #filter-bar label { font-size: .7rem; margin-bottom: 0; }
+    #sticky-top #filter-bar select, #sticky-top #filter-bar .btn, #sticky-top #btn-gangtype { font-size: .75rem; padding-top: .1rem; padding-bottom: .1rem; }
+    #sticky-top #filter-bar .mt-3 { margin-top: .9rem !important; }
+    #sticky-top > .container-fluid { padding-top: .4rem !important; }
+    #kpi-row { --bs-gutter-y: .4rem; --bs-gutter-x: .6rem; margin-bottom: .4rem !important; }
+    #kpi-row .card-body { padding: .3rem .6rem; gap: .6rem !important; }
+    #kpi-row .kpi-val { font-size: 1.05rem; }
+    #kpi-row .kpi-val.kpi-long { font-size: .95rem; }
+    #kpi-row .kpi-lbl { font-size: .65rem; }
+    #kpi-row .kpi-icon { font-size: 1.15rem; }
+    #kpi-row .kpi-delta:empty { display: none; }
+    #scope-note { padding: .2rem .6rem !important; margin-bottom: .4rem; font-size: .7rem; line-height: 1.35; }
+    #mainTabs .nav-link { padding: .3rem .8rem; font-size: .78rem; }
 
     /* ── Tabs ── */
     .nav-tabs .nav-link { color: var(--hg-mid); font-weight: 600; font-size: .82rem; }
     .nav-tabs .nav-link.active { color: var(--hg-dark); border-bottom: 3px solid var(--hg-gold); }
+
+    /* ── Sub-tab pills, Mponeng-style (simple flat pills, used for Overview) ── */
+    .sub-tabs .nav-link { font-size: .8rem; padding: .3rem .9rem; color: var(--hg-mid); font-weight: 600; }
+    .sub-tabs .nav-link.active { background: var(--hg-dark); color: #fff; }
+
+    /* ── Policy discrepancy cards (Bonus Policy Simulator sub-tab 2) ── */
+    .disc-item { border-left: 4px solid #fd7e14; background: #fff8f0; border-radius: 6px; padding: .6rem .9rem; margin-bottom: .6rem; }
+    .disc-item.disc-ok { border-left-color: #198754; background: #f3faf5; }
+    .disc-item.disc-unknown { border-left-color: #adb5bd; background: #f8f9fa; }
+    .disc-item .disc-title { font-weight: 700; color: var(--hg-dark); font-size: .86rem; }
+    .disc-item .disc-body { font-size: .8rem; color: #495057; }
+    .comp-sec-toggle { font-size: .75rem; padding: .15rem .6rem; border-radius: 999px; border: 1px solid var(--hg-border); background: #fff; color: var(--hg-mid); font-weight: 600; }
+    .comp-sec-toggle.active { background: var(--hg-dark); color: #fff; border-color: var(--hg-dark); }
+    .subtab-placeholder { padding: 3rem 1rem; text-align: center; color: #9aa1b5; }
+    .subtab-placeholder i { font-size: 2rem; display: block; margin-bottom: .5rem; }
 
     /* ── Tables ── */
     .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
@@ -116,17 +152,18 @@
 <!-- ══ Loading overlay ══════════════════════════════════════════════════════ -->
 <div id="loading-overlay"><div class="spinner-ring"></div></div>
 
-<!-- ══ Navbar ═══════════════════════════════════════════════════════════════ -->
+<!-- ══ Navbar ═══════════════════════════════════════ -->
+<div id="sticky-top">
 <nav class="navbar navbar-expand-lg py-2 shadow-sm">
   <div class="container-fluid">
     <span class="navbar-brand">
       <i class="bi bi-gem logo-dot"></i>&nbsp; Tshepong Stoping Analysis
     </span>
-    <span class="ms-auto text-white-50 small" id="nav-subtitle">Harmony Gold · STPTM4000</span>
+    <span class="ms-auto text-white-50 small" id="nav-subtitle">Harmony Gold · STPTM4000 · Policy REV04 Thibakotsi + REV07 Quality Drilling · Stope Breaking crews</span>
   </div>
 </nav>
 
-<!-- ══ Filter bar ═══════════════════════════════════════════════════════════ -->
+<!-- ══ Filter bar ═══════════════════════════════════════ -->
 <div id="filter-bar" class="py-2 px-3">
   <div class="d-flex flex-wrap align-items-end gap-3">
     <div>
@@ -148,18 +185,23 @@
       </select>
     </div>
     <div>
-      <label for="sel-gangtype">Gang Type</label>
-      <select id="sel-gangtype" class="form-select form-select-sm" style="min-width:150px">
-        <option value="ALL">All Types</option>
-        <option value="STOPE BREAKING">Stope Breaking</option>
-        <option value="STOPE CLEANING">Stope Cleaning</option>
-        <option value="CENTRE GULLY">Centre Gully</option>
-        <option value="STOPING">Stoping</option>
-        <option value="SURFACE ASSISTANT">Surface Assistant</option>
-        <option value="ANCILLARY">Ancillary</option>
-      </select>
+      <label for="btn-gangtype">Gang Types</label>
+      <div class="dropdown">
+        <button class="form-select form-select-sm text-start" type="button" id="btn-gangtype"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                style="min-width:170px">All Types</button>
+        <div class="dropdown-menu p-2" id="gangtype-menu" style="min-width:200px"></div>
+      </div>
     </div>
-    <div class="ms-auto">
+    <div class="ms-auto d-flex gap-2">
+      <button id="btn-audit-pack" class="btn btn-sm btn-outline-light mt-3" onclick="exportAuditPack()"
+              title="Download an Excel workbook showing exactly how every value for the current filters was computed, with an independent SQL check for each one you can run yourself in SSMS">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Audit Pack
+      </button>
+      <button id="btn-reload" class="btn btn-sm btn-outline-light mt-3" onclick="applyFilters()"
+              title="Tshepong queries SQL fresh on every Apply -- there is no cache to invalidate, so this re-runs the same query Apply does">
+        <i class="bi bi-arrow-clockwise me-1"></i> Reload data
+      </button>
       <button id="btn-apply" class="btn btn-sm px-4 mt-3" onclick="applyFilters()">
         <i class="bi bi-funnel-fill me-1"></i> Apply
       </button>
@@ -167,107 +209,91 @@
   </div>
 </div>
 
-<!-- ══ Main content ══════════════════════════════════════════════════════════ -->
-<div class="container-fluid py-3 px-4">
+<!-- ══ Pinned summary (KPI cards, scope note, tabs) ═════════════════════ -->
+<div class="container-fluid pt-3 px-4">
 
   <!-- KPI Cards -->
   <div class="row g-3 mb-3" id="kpi-row">
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-grid-3x3-gap kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-sqm">—</div>
-            <div class="kpi-lbl">Total m²</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-grid-3x3-gap kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-sqm">—</div><div class="kpi-lbl">Total m²</div><div class="kpi-delta" id="kpi-sqm-d"></div></div>
+      </div></div>
     </div>
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-cash-coin kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-bonus">—</div>
-            <div class="kpi-lbl">Total Bonus</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-cash-coin kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-bonus">—</div><div class="kpi-lbl">Total Bonus</div><div class="kpi-delta" id="kpi-bonus-d"></div></div>
+      </div></div>
     </div>
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-people kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-gangs">—</div>
-            <div class="kpi-lbl">Distinct Crew Count</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-people kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-gangs">—</div><div class="kpi-lbl">Distinct Crew Count</div><div class="kpi-delta" id="kpi-gangs-d"></div></div>
+      </div></div>
     </div>
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-bar-chart kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-avg-sqm">—</div>
-            <div class="kpi-lbl">Avg m² / Gang</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-bar-chart kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-avg-sqm">—</div><div class="kpi-lbl">Avg m² / Gang</div><div class="kpi-delta" id="kpi-avg-sqm-d"></div></div>
+      </div></div>
     </div>
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-currency-exchange kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-r-sqm">—</div>
-            <div class="kpi-lbl">R / m²</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-currency-exchange kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-r-sqm">—</div><div class="kpi-lbl">R / m²</div><div class="kpi-delta" id="kpi-r-sqm-d"></div></div>
+      </div></div>
     </div>
     <div class="col-sm-6 col-xl-2">
-      <div class="card kpi-card shadow-sm h-100">
-        <div class="card-body d-flex align-items-center gap-3">
-          <i class="bi bi-calendar3 kpi-icon"></i>
-          <div>
-            <div class="kpi-val" id="kpi-periods">—</div>
-            <div class="kpi-lbl">Periods</div>
-          </div>
-        </div>
-      </div>
+      <div class="card kpi-card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-calendar3 kpi-icon"></i>
+        <div><div class="kpi-val" id="kpi-periods">—</div><div class="kpi-lbl">Periods</div><div class="kpi-delta text-muted" id="kpi-periods-d"></div></div>
+      </div></div>
     </div>
   </div>
 
+  <div class="alert alert-light border py-2 small d-flex align-items-start gap-2" id="scope-note">
+    <i class="bi bi-info-circle-fill text-primary mt-1"></i>
+    <div><div><strong>INCLUDED:</strong> <strong>Stope Breaking crews only</strong> — stope breaking gangs
+      (production m² and STM bonus, policy REV04 Thibakotsi Stoping Incentive Scheme).</div>
+      <div id="scope-excluded"></div></div>
+  </div>
+
   <!-- Tabs -->
-  <ul class="nav nav-tabs mb-3" id="mainTabs">
+  <ul class="nav nav-tabs mb-0" id="mainTabs">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-overview">
       <i class="bi bi-graph-up me-1"></i>Overview</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-bonus">
       <i class="bi bi-cash-stack me-1"></i>Bonus Analysis</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-range">
-      <i class="bi bi-distribute-vertical me-1"></i>m² Range</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-detail">
-      <i class="bi bi-table me-1"></i>Gang Detail</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-rsqm">
-      <i class="bi bi-currency-dollar me-1"></i>R per m²</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-simulation">
-      <i class="bi bi-sliders me-1"></i>Simulation</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-gang-analysis">
+      <i class="bi bi-distribute-vertical me-1"></i>Gang Analysis</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-labour">
+      <i class="bi bi-people me-1"></i>Labour Analysis</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-forecast">
       <i class="bi bi-table me-1"></i>Forecast</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-projection">
-      <i class="bi bi-graph-up-arrow me-1"></i>Projection</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-bonus-rule">
       <i class="bi bi-gear-wide-connected me-1"></i>Bonus Policy Simulator</a></li>
   </ul>
+</div>
+</div><!-- /#sticky-top -->
+
+<!-- ══ Main content ══════════════════════════════════════════════════════════ -->
+<div class="container-fluid pb-3 px-4">
 
   <div class="tab-content">
 
-    <!-- ══ TAB 1: Overview ════════════════════════════════════════════════════ -->
-    <div class="tab-pane fade show active" id="tab-overview">
+<!-- ══ TAB 1: Overview ═══════════════════════════════════════ -->
+    <div class="tab-pane fade show active pt-3" id="tab-overview">
 
-      <!-- Executive Summary -->
+      <ul class="nav nav-pills mb-3 sub-tabs" id="ovTabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#ov-exec">1. Executive Summary</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#ov-prod">2. Production Performance</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#ov-preadj">3. Adj vs Pre-Adj m²</button></li>
+      </ul>
+      <div class="tab-content">
+
+      <!-- ov-exec: Executive Summary -->
+      <div class="tab-pane fade show active" id="ov-exec">
       <div class="card shadow-sm mb-3" id="card-exec-summary">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -277,22 +303,38 @@
             </button>
           </div>
           <div class="row g-3 mb-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="exec-kpi-lbl">Total Bonus</div>
               <div class="exec-kpi-val" id="exec-total-bonus">—</div>
               <div class="exec-kpi-delta" id="exec-bonus-delta"></div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="exec-kpi-lbl">R/m²</div>
               <div class="exec-kpi-val" id="exec-r-per-sqm">—</div>
               <div class="exec-kpi-delta" id="exec-rsqm-delta"></div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="exec-kpi-lbl">Total m²</div>
               <div class="exec-kpi-val" id="exec-total-sqm">—</div>
             </div>
+            <div class="col-md-3">
+              <div class="exec-kpi-lbl">Driller Bonus (REV07)</div>
+              <div class="exec-kpi-val" id="exec-split">—</div>
+              <div class="exec-kpi-delta text-muted" id="exec-recov"></div>
+            </div>
           </div>
           <div id="exec-narrative" class="small text-muted" style="line-height:1.7"></div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3" id="card-section-rsqm-chart">
+        <div class="card-body">
+          <div class="section-header mb-1">Monthly Bonus Cost per m² by Section</div>
+          <p class="small text-muted mb-2">Each line is one section's STM bonus ÷ its actual m² for that month, Stope Breaking only.
+            The dashed gold line is the whole mine. The shaded band shows the spread between the cheapest and most expensive
+            section each month. Hover a month to see every section's R/m², bonus and m², ranked. Click a name in the legend to
+            hide or show it.</p>
+          <div class="chart-wrap" style="height:380px"><canvas id="chart-section-rsqm"></canvas></div>
         </div>
       </div>
 
@@ -320,7 +362,10 @@
           </div>
         </div>
       </div>
+      </div><!-- /#ov-exec -->
 
+      <!-- ov-prod: Production Performance -->
+      <div class="tab-pane fade" id="ov-prod">
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="section-header mb-3">Monthly Adj m² Trend — Stope Breaking</div>
@@ -339,6 +384,10 @@
           </div>
         </div>
       </div>
+      </div><!-- /#ov-prod -->
+
+      <!-- ov-preadj: Adj vs Pre-Adj m2 -->
+      <div class="tab-pane fade" id="ov-preadj">
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="section-header mb-3">Monthly Pre-Adj m² Trend — Stope Breaking</div>
@@ -357,7 +406,7 @@
           </div>
         </div>
       </div>
-      <!-- Variance: Adj − Pre-Adj -->
+      <!-- Variance: Adj minus Pre-Adj -->
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="section-header mb-3">Monthly Adj − Pre-Adj Variance — Stope Breaking</div>
@@ -380,9 +429,12 @@
           </div>
         </div>
       </div>
+      </div><!-- /#ov-preadj -->
+
+      </div><!-- /ov tab-content -->
     </div>
 
-    <!-- ══ TAB 2: Bonus Analysis ══════════════════════════════════════════════ -->
+    <!-- ══ TAB: Bonus Analysis (merged: Section/Gang Type/Component/R-per-m2/Outcomes) ══ -->
     <div class="tab-pane fade" id="tab-bonus">
       <!-- Bonus Type Filter -->
       <div class="card shadow-sm mb-3">
@@ -405,30 +457,22 @@
           </div>
         </div>
       </div>
-      <!-- Bonus by Gang Type -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-3">Total Bonus by Gang Type &amp; Period</div>
-          <div class="row">
-            <div class="col-lg-7">
-              <div class="chart-wrap"><canvas id="chart-bonus-gangtype"></canvas></div>
-            </div>
-            <div class="col-lg-5">
-              <div class="table-wrap mt-2">
-                <table class="table table-sm table-bordered table-hover mb-0" id="tbl-bonus-gangtype">
-                  <thead><tr id="tbl-bonus-gangtype-head"></tr></thead>
-                  <tbody id="tbl-bonus-gangtype-body"></tbody>
-                  <tfoot><tr id="tbl-bonus-gangtype-foot"></tr></tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+      <ul class="nav nav-pills mb-3 sub-tabs" id="bonusSubtabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#bsub-section">1. Bonus by Section</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bsub-gangtype">2. Bonus by Gang Type</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bsub-component">3. Bonus by Component</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bsub-rsqm">4. Bonus per m²</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bsub-outcomes">5. Bonus by Parameter</button></li>
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="bsub-section">
       <!-- Bonus by Section -->
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="section-header mb-3">Total Bonus by Section &amp; Period</div>
+          <div class="chart-wrap mb-3" style="height:340px"><canvas id="chart-bonus-section"></canvas></div>
           <div class="table-wrap">
             <table class="table table-sm table-bordered table-hover mb-0" id="tbl-bonus-section">
               <thead><tr id="tbl-bonus-section-head"></tr></thead>
@@ -438,10 +482,158 @@
           </div>
         </div>
       </div>
-    </div>
+        </div>
+        <div class="tab-pane fade" id="bsub-gangtype">
+      <!-- Bonus by Gang Type -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-3">Total Bonus by Gang Type &amp; Period</div>
+          <div class="chart-wrap mb-3" style="height:340px"><canvas id="chart-bonus-gangtype"></canvas></div>
+          <div class="table-wrap">
+            <table class="table table-sm table-bordered table-hover mb-0" id="tbl-bonus-gangtype">
+              <thead><tr id="tbl-bonus-gangtype-head"></tr></thead>
+              <tbody id="tbl-bonus-gangtype-body"></tbody>
+              <tfoot><tr id="tbl-bonus-gangtype-foot"></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+        </div><!-- /#bsub-gangtype -->
+        <div class="tab-pane fade" id="bsub-component">
+      <!-- What the Bonus Is Made Of -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-1">Bonus per Bonus Component</div>
+          <p class="small text-muted mb-3">Tshepong's paid STM Bonus is not a flat sum of the schema's bonus columns. The Efficiency
+            part is built multiplicatively &mdash; Raw Qualifying Bonus &times; Netting &times; B-Reef stope-width &mdash; and the
+            Safety ladder and Sweeping Penalty are then added inside the same STM figure (REV04). Every step below is exact and
+            lands on the real paid total. Driller (REV07) and AWOP are shown for reference only &mdash; never added on top.<span id="ih-comp-about"></span></p>
+          <div class="row">
+            <div class="col-lg-6"><div class="chart-wrap" style="height:480px"><canvas id="chart-bonus-composition"></canvas></div></div>
+            <div class="col-lg-6">
+              <div class="table-wrap" style="max-height:480px">
+                <table class="table table-sm table-bordered mb-0">
+                  <thead><tr><th>Component<span id="ih-comp-comp"></span></th><th class="text-end">Rand<span id="ih-comp-rand"></span></th><th class="text-end">% of Raw Base<span id="ih-comp-pct"></span></th><th>Policy Rule (REV04)<span id="ih-comp-rule"></span></th></tr></thead>
+                  <tbody id="tbl-bonus-comp-body"><tr><td colspan="4" class="empty-state">Loading&hellip;</td></tr></tbody>
+                </table>
+              </div>
+              <div class="small text-muted mt-2" id="bonus-comp-note"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card shadow-sm mb-3" id="card-comp-section">
+        <div class="card-body">
+          <div class="section-header mb-1">Bonus by Component per Section &amp; Period</div>
+          <p class="small text-muted mb-2">The same components as above, month by month. Click a section to switch it on or off;
+            the graph and the table add up only the sections that are on.</p>
+          <div class="d-flex flex-wrap gap-2 mb-2" id="comp-sec-toggles"></div>
+          <div class="chart-wrap mb-3" style="height:340px"><canvas id="chart-comp-section"></canvas></div>
+          <div class="table-wrap">
+            <table class="table table-sm table-bordered table-hover mb-0">
+              <thead><tr id="tbl-comp-sec-head"></tr></thead>
+              <tbody id="tbl-comp-sec-body"></tbody>
+              <tfoot><tr id="tbl-comp-sec-foot"></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+        </div><!-- /#bsub-component -->
+        <div class="tab-pane fade" id="bsub-rsqm">
+      <!-- Bonus type filter -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-4 flex-wrap">
+            <span class="fw-semibold small text-muted">Include in Total Bonus:</span>
+            <div class="form-check form-check-inline m-0">
+              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-safety"  value="safety"  checked>
+              <label class="form-check-label small" for="cb-rsqm-safety">Safety Bonus</label>
+            </div>
+            <div class="form-check form-check-inline m-0">
+              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-driller" value="driller" checked>
+              <label class="form-check-label small" for="cb-rsqm-driller">Driller Bonus</label>
+            </div>
+            <div class="form-check form-check-inline m-0">
+              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-stm"     value="stm"     checked>
+              <label class="form-check-label small" for="cb-rsqm-stm">STM Bonus</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-3">Rand per m² Trend — Stope Breaking</div>
+          <div class="chart-wrap"><canvas id="chart-rsqm"></canvas></div>
+        </div>
+      </div>
+      <!-- Summary table -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-3">R/m² Summary Table</div>
+          <div class="table-wrap">
+            <table class="table table-sm table-bordered table-hover mb-0" id="tbl-rsqm">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th class="text-end">Pre Adj m²<span id="ih-rsqm-startup"></span></th>
+                  <th class="text-end">Adj m²<span id="ih-rsqm-adj"></span></th>
+                  <th class="text-end" id="rsqm-th-safety">Safety Bonus<span id="ih-rsqm-safety"></span></th>
+                  <th class="text-end" id="rsqm-th-driller">Driller Bonus<span id="ih-rsqm-driller"></span></th>
+                  <th class="text-end" id="rsqm-th-stm">STM Bonus<span id="ih-rsqm-stm"></span></th>
+                  <th class="text-end">Total Bonus<span id="ih-rsqm-total"></span></th>
+                  <th class="text-end">Pre Adj R/m²<span id="ih-rsqm-startup-rate"></span></th>
+                  <th class="text-end">Adj R/m²<span id="ih-rsqm-adj-rate"></span></th>
+                  <th class="text-end">Variance (vs Avg)</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-rsqm-body"></tbody>
+              <tfoot><tr id="tbl-rsqm-foot"></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="tab-pane fade" id="bsub-outcomes">
+      <!-- Who Earned What -->
+      <div class="card shadow-sm mb-3" id="card-outcomes">
+        <div class="card-body">
+          <div class="section-header mb-1">Who Earned What &mdash; Gang-Periods per Bonus Outcome</div>
+          <p class="small text-muted mb-3">Each Stope Breaking gang-period, classified by what it earned on the entry level, Netting,
+            B-Reef stope-width, the Safety ladder and AWOP. The Rand for each outcome adds back exactly to the matching row in
+            Bonus per Bonus Component. "Gang-periods" counts gang-months: a gang active in all 10 months counts 10 times.<span id="ih-outc-about"></span></p>
+          <div class="row g-3">
+            <div class="col-lg-5"><div class="chart-wrap" style="height:300px"><canvas id="chart-bonus-outcomes"></canvas></div></div>
+            <div class="col-lg-7">
+              <div class="table-wrap" style="max-height:560px">
+                <table class="table table-sm table-bordered mb-0">
+                  <thead><tr><th>Outcome<span id="ih-outc-outcome"></span></th><th class="text-end">Gang-Periods<span id="ih-outc-count"></span></th><th class="text-end">%<span id="ih-outc-pct"></span></th><th class="text-end">Rand<span id="ih-outc-rand"></span></th><th>Policy Rule</th></tr></thead>
+                  <tbody id="tbl-bonus-outcomes-body"><tr><td colspan="5" class="empty-state">Loading&hellip;</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="small text-muted mt-2" id="bonus-outcomes-note"></div>
+        </div>
+      </div>
+        </div><!-- /#bsub-outcomes -->
+      </div><!-- /tab-content (bonus sub-tabs) -->
 
-    <!-- ══ TAB 3: m² Range ════════════════════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-range">
+    </div><!-- /tab-bonus -->
+
+
+    <!-- ══ TAB: Gang Analysis (merged: m² Range/Gang Detail/Workplace Detail/Crew Performance) ══ -->
+    <div class="tab-pane fade" id="tab-gang-analysis">
+
+      <ul class="nav nav-pills mb-3 sub-tabs" id="gangAnalysisSubtabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#gsub-range">1. Gang m² Range</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-detail">2. Gang Detail</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-workplace">3. Workplace Detail</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-crew">4. Crew Performance</button></li>
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="gsub-range">
       <!-- Distribution chart -->
       <div class="card shadow-sm mb-3">
         <div class="card-body">
@@ -452,7 +644,19 @@
       <!-- Combined: crew distribution + bonus totals per period -->
       <div class="card shadow-sm mb-3">
         <div class="card-body">
-          <div class="section-header mb-3">Count of Crews per Period by m² Range &amp; Bonus Totals</div>
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div class="section-header mb-0">Count of Crews per Period by m² Range &amp; Bonus Totals</div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="small text-muted" id="sqm-bonus-picked"></span>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                        data-bs-auto-close="outside" aria-expanded="false">
+                  <i class="bi bi-ui-checks me-1"></i>Bonuses
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:320px" id="sqm-bonus-menu"></div>
+              </div>
+            </div>
+          </div>
           <div class="table-wrap">
             <table class="table table-sm table-bordered table-hover mb-0" id="tbl-range-combined">
               <thead><tr id="tbl-range-combined-head"></tr></thead>
@@ -462,10 +666,8 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- ══ TAB 4: Gang Detail ════════════════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-detail">
+        </div>
+        <div class="tab-pane fade" id="gsub-detail">
       <!-- Hidden datalists for column filters -->
       <datalist id="dl-section"></datalist>
       <datalist id="dl-period"></datalist>
@@ -555,8 +757,11 @@
         </div>
       </div>
 
+        </div>
+        <div class="tab-pane fade" id="gsub-workplace">
+          <p class="small text-muted mb-2" id="gsub-workplace-hint">Double-click a GANG cell on the Gang Detail sub-tab (Stope Breaking rows only) to load its workplace detail here.</p>
       <!-- ── Gang Workplace Drill-down (hidden until double-click) ──────────── -->
-      <div class="card shadow-sm mb-3 d-none" id="card-gang-prod-detail">
+      <div class="card shadow-sm mb-3" id="card-gang-prod-detail">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="section-header mb-0" id="gang-prod-detail-title">Workplace Detail</div>
@@ -587,478 +792,270 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- ══ TAB 5: R per m² ══════════════════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-rsqm">
-      <!-- Bonus type filter -->
+        </div>
+        <div class="tab-pane fade" id="gsub-crew">
+      <!-- Crew Performance -->
       <div class="card shadow-sm mb-3">
         <div class="card-body py-2">
-          <div class="d-flex align-items-center gap-4 flex-wrap">
-            <span class="fw-semibold small text-muted">Include in Total Bonus:</span>
-            <div class="form-check form-check-inline m-0">
-              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-safety"  value="safety"  checked>
-              <label class="form-check-label small" for="cb-rsqm-safety">Safety Bonus</label>
-            </div>
-            <div class="form-check form-check-inline m-0">
-              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-driller" value="driller" checked>
-              <label class="form-check-label small" for="cb-rsqm-driller">Driller Bonus</label>
-            </div>
-            <div class="form-check form-check-inline m-0">
-              <input class="form-check-input rsqm-cb" type="checkbox" id="cb-rsqm-stm"     value="stm"     checked>
-              <label class="form-check-label small" for="cb-rsqm-stm">STM Bonus</label>
-            </div>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <label class="small fw-semibold mb-0" for="crew-perf-period">Period:</label>
+            <select id="crew-perf-period" class="form-select form-select-sm" style="width:auto">
+              <option value="ALL">All selected months</option>
+            </select>
+            <label class="small fw-semibold mb-0" for="crew-perf-sort">Sort by:</label>
+            <select id="crew-perf-sort" class="form-select form-select-sm" style="width:auto">
+              <option value="sqm">Total m²</option>
+              <option value="achievement">m²/Man</option>
+            </select>
+            <label class="small fw-semibold mb-0" for="crew-perf-section">Section:</label>
+            <select id="crew-perf-section" class="form-select form-select-sm" style="width:auto">
+              <option value="ALL">Whole mine</option>
+            </select>
           </div>
         </div>
       </div>
-      <!-- Chart -->
-      <div class="card shadow-sm mb-3">
+      <div class="card shadow-sm mb-3" id="card-crew-top">
         <div class="card-body">
-          <div class="section-header mb-3">Rand per m² Trend — Stope Breaking</div>
-          <div class="chart-wrap"><canvas id="chart-rsqm"></canvas></div>
+          <div class="section-header mb-3">Top 10 Crews</div>
+          <div class="chart-wrap" style="height:360px"><canvas id="chart-crew-top"></canvas></div>
         </div>
       </div>
-      <!-- Summary table -->
-      <div class="card shadow-sm mb-3">
+      <div class="card shadow-sm mb-3" id="card-crew-section">
         <div class="card-body">
-          <div class="section-header mb-3">R/m² Summary Table</div>
-          <div class="table-wrap">
-            <table class="table table-sm table-bordered table-hover mb-0" id="tbl-rsqm">
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th class="text-end">Pre Adj m²<span id="ih-rsqm-startup"></span></th>
-                  <th class="text-end">Adj m²<span id="ih-rsqm-adj"></span></th>
-                  <th class="text-end" id="rsqm-th-safety">Safety Bonus<span id="ih-rsqm-safety"></span></th>
-                  <th class="text-end" id="rsqm-th-driller">Driller Bonus<span id="ih-rsqm-driller"></span></th>
-                  <th class="text-end" id="rsqm-th-stm">STM Bonus<span id="ih-rsqm-stm"></span></th>
-                  <th class="text-end">Total Bonus<span id="ih-rsqm-total"></span></th>
-                  <th class="text-end">Pre Adj R/m²<span id="ih-rsqm-startup-rate"></span></th>
-                  <th class="text-end">Adj R/m²<span id="ih-rsqm-adj-rate"></span></th>
-                  <th class="text-end">Variance (vs Avg)</th>
-                </tr>
-              </thead>
-              <tbody id="tbl-rsqm-body"></tbody>
-              <tfoot><tr id="tbl-rsqm-foot"></tr></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ TAB 6: Simulation ════════════════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-simulation">
-
-      <!-- Settings Card -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-3"><i class="bi bi-sliders me-2"></i>Target Settings</div>
-          <div class="row g-3 align-items-end">
-            <div class="col-lg-7">
-              <label class="form-label small fw-semibold">m² Target per Gang</label>
-              <div class="d-flex align-items-center gap-3">
-                <input type="range" class="form-range flex-grow-1" id="sim-slider"
-                       min="50" max="800" step="10" value="350">
-                <div class="d-flex align-items-center gap-1" style="min-width:120px">
-                  <input type="number" class="form-control form-control-sm text-end fw-bold"
-                         id="sim-target-input" value="350" min="50" max="800" style="width:90px">
-                  <span class="small text-muted">m²</span>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-5">
-              <div class="form-check mt-1">
-                <input class="form-check-input" type="checkbox" id="sim-per-section">
-                <label class="form-check-label small fw-semibold" for="sim-per-section">
-                  Set a different target per section
-                </label>
-              </div>
-            </div>
-          </div>
-          <div id="sim-section-targets" class="row g-3 mt-1" style="display:none"></div>
-
-          <div class="row g-3 align-items-end mt-2 border-top pt-3">
-            <div class="col-lg-7">
-              <label class="form-label small fw-semibold">R/m² Target (Projected Bonus)</label>
-              <div class="d-flex align-items-center gap-3">
-                <input type="range" class="form-range flex-grow-1" id="sim-rsqm-slider"
-                       min="10" max="2000" step="5" value="350">
-                <div class="d-flex align-items-center gap-1" style="min-width:150px">
-                  <span class="small text-muted">R</span>
-                  <input type="number" class="form-control form-control-sm text-end fw-bold"
-                         id="sim-rsqm-input" value="350" min="0" step="5" style="width:90px">
-                  <span class="small text-muted">/m²</span>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-5">
-              <div class="form-check mt-1">
-                <input class="form-check-input" type="checkbox" id="sim-rsqm-per-section">
-                <label class="form-check-label small fw-semibold" for="sim-rsqm-per-section">
-                  Set a different R/m² per section
-                </label>
-              </div>
-            </div>
-          </div>
-          <div id="sim-section-rsqm" class="row g-3 mt-1" style="display:none"></div>
-
-          <div class="border-top pt-3 mt-3">
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-              <span class="small fw-semibold">Budget R/Man (Production Bonus):</span>
-              <div class="d-flex align-items-center gap-1">
-                <span class="small text-muted">R</span>
-                <input type="number" class="form-control form-control-sm text-end fw-bold"
-                       id="sim-budget-r-man" value="3300" min="0" step="100" style="width:110px">
-                <span class="small text-muted">/ man / period</span>
-              </div>
-              <span class="small text-muted fst-italic">Production bonus only (excludes Safety &amp; Driller)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Simulation KPI Cards -->
-      <div class="row g-3 mb-3">
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-check2-circle kpi-icon" style="color:#43A047"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-meeting">—</div>
-                <div class="kpi-lbl">Gangs Meeting Target</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-arrow-up-right-circle kpi-icon" style="color:#E53935"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-gap">—</div>
-                <div class="kpi-lbl">Total m² Gap to Fill</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-cash-coin kpi-icon"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-proj-bonus">—</div>
-                <div class="kpi-lbl">Projected Total Bonus</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-graph-up-arrow kpi-icon" style="color:#43A047"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-uplift">—</div>
-                <div class="kpi-lbl">Bonus Variance</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-person-badge kpi-icon" style="color:#1565C0"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-avg-r-man">—</div>
-                <div class="kpi-lbl">Avg R/Man (Prod. Bonus)</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
-          <div class="card kpi-card shadow-sm h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-              <i class="bi bi-bullseye kpi-icon" style="color:#7B1FA2"></i>
-              <div>
-                <div class="kpi-val" id="sim-kpi-budget-status">—</div>
-                <div class="kpi-lbl">vs R/Man Budget</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Achievement Chart -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-3">Avg Actual m² vs Target by Section</div>
-          <div class="chart-wrap"><canvas id="chart-sim-achievement"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Section Summary Table -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-3">Section Target Summary</div>
+          <div class="section-header mb-3">Top 10 Crews &mdash; Detail</div>
           <div class="table-wrap">
             <table class="table table-sm table-bordered table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Section</th>
-                  <th class="text-end">Total Crews</th>
-                  <th class="text-end">Meeting Target</th>
-                  <th class="text-end">% Met</th>
-                  <th class="text-end">Target m²</th>
-                  <th class="text-end">Avg Actual m²</th>
-                  <th class="text-end">Avg Gap</th>
-                  <th class="text-end">Proj Bonus<span id="ih-sim-proj-sec"></span></th>
-                  <th class="text-end">Actual Bonus<span id="ih-sim-actual-sec"></span></th>
-                  <th class="text-end">Actual R/m²<span id="ih-sim-actual-rsqm-sec"></span></th>
-                  <th class="text-end">Bonus Variance<span id="ih-sim-var-sec"></span></th>
-                </tr>
-              </thead>
-              <tbody id="tbl-sim-section-body"></tbody>
-              <tfoot><tr id="tbl-sim-section-foot"></tr></tfoot>
+              <thead><tr>
+                <th>#</th><th>Gang</th><th>Section</th><th class="text-end">Total m²</th>
+                <th class="text-end">Months</th><th class="text-end">m²/Man</th>
+                <th class="text-end">Total Bonus</th><th class="text-end">R/m²</th>
+              </tr></thead>
+              <tbody id="tbl-crew-top-body"><tr><td colspan="8" class="empty-state">Loading&hellip;</td></tr></tbody>
             </table>
           </div>
-          <!-- Section Bonus Chart -->
-          <div class="mt-3 pt-3 border-top">
-            <div class="small fw-semibold text-muted mb-2">Projected vs Actual Bonus by Section</div>
-            <div class="chart-wrap"><canvas id="chart-sim-section-bonus"></canvas></div>
+        </div>
+      </div>
+        </div><!-- /#gsub-crew -->
+      </div><!-- /tab-content (gang analysis sub-tabs) -->
+
+    </div><!-- /tab-gang-analysis -->
+
+
+
+    <!-- ══ TAB: Labour Analysis ══════════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="tab-labour">
+      <div class="subtab-placeholder"><i class="bi bi-hourglass-split"></i>
+        Labour Analysis (Selection Totals, Process/Wage Code breakdown) &mdash; coming soon (Phase 4).</div>
+    </div><!-- /tab-labour -->
+
+    <!-- ══ TAB: Forecast (merged: Production/Cost/Required/Mid-Month + Trend Forecast) ══ -->
+    <div class="tab-pane fade" id="tab-forecast">
+
+      <!-- Shared controls for sub-tabs 1-4 (Target Settings) -->
+
+      <!-- Controls -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span class="small fw-semibold" style="color:var(--hg-dark)">Period:</span>
+            <select id="fct-fy-select" class="form-select form-select-sm" style="width:auto;min-width:220px"></select>
+            <div class="vr mx-1"></div>
+            <span class="small fw-semibold" style="color:var(--hg-dark)">Total m²/month Target:</span>
+            <input type="number" class="form-control form-control-sm text-end fw-bold"
+                   id="fct-target-total-sqm" value="" min="0" step="100" style="width:110px"
+                   placeholder="e.g. 15000">
+            <span class="small text-muted">÷ avg gangs =</span>
+            <span class="small fw-semibold" style="color:var(--hg-dark)">Target m²/Gang:</span>
+            <input type="number" class="form-control form-control-sm text-end fw-bold"
+                   id="fct-target-sqm-gang" value="300" min="0" step="5" style="width:85px">
+            <span class="small fw-semibold ms-2" style="color:var(--hg-dark)">Target R/Man:</span>
+            <div class="input-group input-group-sm" style="width:130px">
+              <span class="input-group-text">R</span>
+              <input type="number" class="form-control text-end fw-bold"
+                     id="fct-target-r-man" value="3300" min="0" step="100">
+            </div>
+            <span class="small fw-semibold ms-2" style="color:var(--hg-dark)">Target R/m²:</span>
+            <div class="input-group input-group-sm" style="width:110px">
+              <span class="input-group-text">R</span>
+              <input type="number" class="form-control text-end fw-bold"
+                     id="fct-target-r-sqm" value="500" min="0" step="10">
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- ══ What-If Scenario Simulator ═══════════════════════════════════════ -->
-      <div class="card shadow-sm mb-3" id="card-whatif">
-        <div class="card-body">
-          <div class="section-header mb-3"><i class="bi bi-calculator me-2"></i>What-If Scenario Simulator<span id="ih-wi-header"></span></div>
+      <ul class="nav nav-pills mb-3 sub-tabs" id="forecastSubtabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#fsub-production">1. Production vs Target</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fsub-cost">2. Cost Efficiency</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fsub-required">3. Required to Hit Target</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fsub-midmonth">4. Mid-Month Tracker</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fsub-trend">5. Trend Forecast</button></li>
+      </ul>
 
-          <!-- Sub-navigation -->
-          <div class="d-flex gap-2 mb-3 flex-wrap">
-            <button class="btn btn-sm btn-primary wi-tab-btn" onclick="_wiShowTab('interactive',this)">
-              <i class="bi bi-sliders me-1"></i>Interactive<span id="ih-wi-tab-interactive"></span>
-            </button>
-            <button class="btn btn-sm btn-outline-secondary wi-tab-btn" onclick="_wiShowTab('sensitivity',this)">
-              <i class="bi bi-table me-1"></i>Sensitivity Analysis<span id="ih-wi-tab-sensitivity"></span>
-            </button>
-            <button class="btn btn-sm btn-outline-secondary wi-tab-btn" onclick="_wiShowTab('goalseek',this)">
-              <i class="bi bi-bullseye me-1"></i>Goal-Seek<span id="ih-wi-tab-goalseek"></span>
-            </button>
-          </div>
-
-          <!-- ── Interactive panel ──────────────────────────────────────────── -->
-          <div id="wi-tab-interactive">
-            <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
-              <span class="small fw-semibold text-muted">Quick Presets:<span id="ih-wi-presets"></span></span>
-              <button class="btn btn-sm btn-success"   onclick="_wiPreset('best')">
-                <i class="bi bi-arrow-up-circle me-1"></i>Best Case
-              </button>
-              <button class="btn btn-sm btn-secondary" onclick="_wiPreset('expected')">
-                <i class="bi bi-dash-circle me-1"></i>Expected
-              </button>
-              <button class="btn btn-sm btn-danger"    onclick="_wiPreset('risk')">
-                <i class="bi bi-arrow-down-circle me-1"></i>Risk Case
-              </button>
-              <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="_wiReset()">
-                <i class="bi bi-x-circle me-1"></i>Reset
-              </button>
-            </div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label class="form-label small fw-semibold">
-                  m² Change<span id="ih-wi-sqm"></span>: <span id="wi-sqm-pct-lbl" class="badge bg-secondary ms-1">+0%</span>
-                </label>
-                <input type="range" class="form-range" id="wi-sqm-pct" min="-30" max="30" step="1" value="0" oninput="_wiUpdate()">
-                <div class="d-flex justify-content-between" style="font-size:.7rem;color:#aaa"><span>−30%</span><span>0%</span><span>+30%</span></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-semibold">
-                  Manpower Change<span id="ih-wi-labour"></span>: <span id="wi-labour-lbl" class="badge bg-secondary ms-1">+0%</span>
-                </label>
-                <input type="range" class="form-range" id="wi-labour-pct" min="-30" max="30" step="1" value="0" oninput="_wiUpdate()">
-                <div class="d-flex justify-content-between" style="font-size:.7rem;color:#aaa"><span>−30%</span><span>0%</span><span>+30%</span></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-semibold">
-                  Bonus Budget Change<span id="ih-wi-bonus"></span>: <span id="wi-bonus-pct-lbl" class="badge bg-secondary ms-1">+0%</span>
-                </label>
-                <input type="range" class="form-range" id="wi-bonus-pct" min="-30" max="30" step="1" value="0" oninput="_wiUpdate()">
-                <div class="d-flex justify-content-between" style="font-size:.7rem;color:#aaa"><span>−30%</span><span>0%</span><span>+30%</span></div>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table class="table table-sm table-bordered mb-0">
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th class="text-end">Actual (Base)<span id="ih-wi-actual"></span></th>
-                    <th class="text-end">Simulated<span id="ih-wi-simulated"></span></th>
-                    <th class="text-end">Variance<span id="ih-wi-variance"></span></th>
-                    <th class="text-center">Indicator<span id="ih-wi-indicator"></span></th>
-                  </tr>
-                </thead>
-                <tbody id="tbl-wi-interactive"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- ── Sensitivity Analysis panel ────────────────────────────────── -->
-          <div id="wi-tab-sensitivity" style="display:none">
-            <p class="small text-muted mb-3">Each table isolates one driver while holding all others constant at current actuals.<span id="ih-wi-sensitivity"></span></p>
-            <div class="row g-3" id="wi-sensitivity-content"></div>
-          </div>
-
-          <!-- ── Goal-Seek panel ────────────────────────────────────────────── -->
-          <div id="wi-tab-goalseek" style="display:none">
-            <p class="small text-muted mb-3">Answer "what would I need to achieve a specific target?" based on current actuals.<span id="ih-wi-goalseek-intro"></span></p>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="card border p-3 h-100">
-                  <div class="fw-semibold small mb-1"><i class="bi bi-search me-1"></i>Required m² for target Rand/m²<span id="ih-wi-gs-rsqm"></span></div>
-                  <div class="text-muted mb-2" style="font-size:.78rem">What total production is needed to achieve a specific bonus cost per m²?</div>
-                  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                    <span class="small">Target Rand/m²: R<span id="ih-wi-gs-rsqm-input"></span></span>
-                    <input type="number" class="form-control form-control-sm" id="wi-gs-rsqm" style="width:100px" value="350" step="5">
-                    <button class="btn btn-sm btn-primary" onclick="_wiGoSeekSqm()">Calculate</button>
-                  </div>
-                  <div id="wi-gs-rsqm-result" class="small"></div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="card border p-3 h-100">
-                  <div class="fw-semibold small mb-1"><i class="bi bi-search me-1"></i>Required headcount for target Rand/Man<span id="ih-wi-gs-rman"></span></div>
-                  <div class="text-muted mb-2" style="font-size:.78rem">What total labour complement achieves the desired STM Rand/Man?</div>
-                  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                    <span class="small">Target Rand/Man: R<span id="ih-wi-gs-rman-input"></span></span>
-                    <input type="number" class="form-control form-control-sm" id="wi-gs-rman" style="width:100px" value="4800" step="100">
-                    <button class="btn btn-sm btn-primary" onclick="_wiGoSeekMan()">Calculate</button>
-                  </div>
-                  <div id="wi-gs-rman-result" class="small"></div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="card border p-3 h-100">
-                  <div class="fw-semibold small mb-1"><i class="bi bi-search me-1"></i>Required m² for target m²/Crew<span id="ih-wi-gs-crew"></span></div>
-                  <div class="text-muted mb-2" style="font-size:.78rem">With crews fixed, how much total production is needed to hit a target m²/Crew?</div>
-                  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                    <span class="small">Target m²/Crew:<span id="ih-wi-gs-crew-input"></span></span>
-                    <input type="number" class="form-control form-control-sm" id="wi-gs-crew" style="width:100px" value="350" step="10">
-                    <button class="btn btn-sm btn-primary" onclick="_wiGoSeekCrew()">Calculate</button>
-                  </div>
-                  <div id="wi-gs-crew-result" class="small"></div>
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="card border p-3">
-                  <div class="fw-semibold small mb-1"><i class="bi bi-person-gear me-1"></i>Optimal Bodies per Stope Breaking Gang<span id="ih-wi-gs-opt"></span></div>
-                  <div class="text-muted mb-3" style="font-size:.78rem">
-                    Find the gang size that hits your Rand/Man budget. Production (m²) is treated as fixed — only labour changes.
-                    The optimal point is where Rand/Man = budget.
-                  </div>
-                  <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
-                    <div class="d-flex align-items-center gap-1">
-                      <span class="small fw-semibold">Budget Rand/Man: R<span id="ih-wi-gs-opt-budget"></span></span>
-                      <input type="number" class="form-control form-control-sm" id="wi-gs-opt-budget" style="width:100px" value="3300" step="100">
-                    </div>
-                    <button class="btn btn-sm btn-primary" onclick="_wiGoSeekOptBodies()">
-                      <i class="bi bi-calculator me-1"></i>Calculate
-                    </button>
-                  </div>
-                  <div id="wi-gs-opt-result"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Gang-Level Detail Table -->
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="fsub-production">
+      <!-- Chart: Avg m²/Gang vs Target -->
       <div class="card shadow-sm mb-3">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="section-header mb-0">Gang-Level Simulation Detail</div>
-            <div class="d-flex gap-2 align-items-center">
-              <select id="sim-filter-section" class="form-select form-select-sm" style="width:140px">
-                <option value="ALL">All Sections</option>
-              </select>
-              <select id="sim-filter-period" class="form-select form-select-sm" style="width:120px">
-                <option value="ALL">All Periods</option>
-              </select>
-            </div>
-          </div>
-          <div class="d-flex gap-3 mb-2 small">
-            <span><span class="badge bg-success">&nbsp;</span> Met target (&ge;100%)</span>
-            <span><span class="badge" style="background:#F57F17">&nbsp;</span> Near target (80–99%)</span>
-            <span><span class="badge bg-danger">&nbsp;</span> Below target (&lt;80%)</span>
-          </div>
-          <div class="table-wrap" style="max-height:520px">
-            <table class="table table-sm table-bordered mb-0" id="tbl-sim-detail">
-              <thead>
+          <div class="section-header mb-1">Avg m²/Gang per Period — vs Target</div>
+          <p class="small text-muted mb-2">
+            <span style="color:#198754;font-weight:600">Green bars</span> = at or above target &nbsp;·&nbsp;
+            <span style="color:#dc3545;font-weight:600">Red bars</span> = below target &nbsp;·&nbsp;
+            Red dashed line = target
+          </p>
+          <div class="chart-wrap" style="min-height:420px"><canvas id="chart-fct-sqm-gang"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Production Performance table -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-2">Production Performance by Period</div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover mb-0">
+              <thead class="table-light" id="tbl-fct-production-head">
                 <tr>
-                  <th>Section</th>
                   <th>Period</th>
-                  <th>Gang</th>
-                  <th class="text-end">Target m²</th>
-                  <th class="text-end">Actual m²</th>
-                  <th class="text-end">Gap</th>
-                  <th class="text-end">Achievement</th>
-                  <th class="text-end">Proj Bonus<span id="ih-sim-proj-det"></span></th>
-                  <th class="text-end">Actual Bonus<span id="ih-sim-actual-det"></span></th>
-                  <th class="text-end">Bonus Variance<span id="ih-sim-var-det"></span></th>
+                  <th class="text-end">Total m²<span id="ih-fct-prod-total"></span></th>
+                  <th class="text-end">Target Total m²<span id="ih-fct-prod-tgt-total"></span></th>
+                  <th class="text-end">Variance<span id="ih-fct-prod-var"></span></th>
+                  <th class="text-end">Avg m²/Gang<span id="ih-fct-prod-avg-gang"></span></th>
+                  <th class="text-end">Target m²/Gang<span id="ih-fct-prod-tgt-gang"></span></th>
+                  <th class="text-end">Over / Under<span id="ih-fct-prod-over-under"></span></th>
+                  <th class="text-end">Avg m²/Man<span id="ih-fct-prod-avg-man"></span></th>
+                  <th class="text-end">Gangs<span id="ih-fct-prod-gangs"></span></th>
+                  <th class="text-end">Avg Labour<span id="ih-fct-prod-avg-lab"></span></th>
                 </tr>
               </thead>
-              <tbody id="tbl-sim-detail-body"></tbody>
-              <tfoot><tr id="tbl-sim-detail-foot"></tr></tfoot>
+              <tbody id="tbl-fct-production-body">
+                <tr><td colspan="10" class="empty-state">Open Forecast tab to load.</td></tr>
+              </tbody>
+              <tfoot id="tbl-fct-production-foot" class="table-light fw-bold"></tfoot>
             </table>
           </div>
-          <!-- Gang Achievement Chart -->
-          <div class="mt-3 pt-3 border-top">
-            <div class="small fw-semibold text-muted mb-2">Gang Achievement % — sorted ascending (green ≥ 100%, amber 80–99%, red &lt; 80%)</div>
-            <div id="chart-sim-gang-ach-container" class="chart-wrap"><canvas id="chart-sim-gang-ach"></canvas></div>
+        </div>
+      </div>
+
+        </div>
+        <div class="tab-pane fade" id="fsub-cost">
+      <!-- Cost Efficiency chart + table -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-2">Cost Efficiency by Period</div>
+          <p class="small text-muted mb-2">
+            <span style="color:#0d6efd;font-weight:600">Blue bars</span> = R/Man &nbsp;·&nbsp;
+            <span style="color:#6f42c1;font-weight:600">Purple line</span> = R/m² &nbsp;·&nbsp;
+            Dashed lines = targets &nbsp;·&nbsp;
+            Under budget = green tint, over = red tint
+          </p>
+          <div class="chart-wrap mb-3" style="min-height:320px"><canvas id="chart-fct-cost"></canvas></div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover mb-0">
+              <thead class="table-light" id="tbl-fct-cost-head">
+                <tr>
+                  <th>Period</th>
+                  <th class="text-end">R/Man<span id="ih-fct-cost-rman"></span></th>
+                  <th class="text-end">Target R/Man<span id="ih-fct-cost-tgt-rman"></span></th>
+                  <th class="text-end">Variance<span id="ih-fct-cost-var-rman"></span></th>
+                  <th class="text-end">R/m²<span id="ih-fct-cost-rsqm"></span></th>
+                  <th class="text-end">Target R/m²<span id="ih-fct-cost-tgt-rsqm"></span></th>
+                  <th class="text-end">Variance<span id="ih-fct-cost-var-rsqm"></span></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-fct-cost-body">
+                <tr><td colspan="7" class="empty-state">Open Forecast tab to load.</td></tr>
+              </tbody>
+              <tfoot id="tbl-fct-cost-foot" class="table-light fw-bold"></tfoot>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- Analytics Insight Card -->
-      <div class="card shadow-sm mb-3" id="sim-analysis-card" style="display:none">
-        <div class="card-body">
-          <div class="section-header mb-3">
-            <i class="bi bi-lightbulb me-2"></i>Simulation Analysis &amp; Implications
-          </div>
-          <div id="sim-analysis-content"></div>
         </div>
-      </div>
-
-      <!-- Budget Analysis Card -->
-      <div class="card shadow-sm mb-3" id="sim-budget-card" style="display:none">
+        <div class="tab-pane fade" id="fsub-required">
+      <!-- Required Performance to Meet Target -->
+      <div class="card shadow-sm mt-3">
         <div class="card-body">
-          <div class="section-header mb-3"><i class="bi bi-cash-stack me-2"></i>Budget Analysis — R/Man Production Bonus</div>
-          <div class="row g-3 mb-3" id="sim-budget-summary"></div>
+          <div class="section-header mb-2"><i class="bi bi-bullseye me-2"></i>Required Performance to Meet Annual Target</div>
+          <p class="small text-muted mb-3">
+            Based on the selected FY target · completed months show actual · remaining months show what is needed to still hit the annual total
+          </p>
+
+          <!-- Summary KPI boxes -->
+          <div class="row g-2 mb-3" id="fct-req-kpis"></div>
+
+          <!-- Month-by-month table -->
           <div class="table-responsive">
             <table class="table table-sm table-bordered mb-0">
-              <thead>
+              <thead class="table-light" id="tbl-fct-required-head">
                 <tr>
-                  <th>Section</th>
-                  <th class="text-end">Total Labour</th>
-                  <th class="text-end">STM Bonus (Actual)</th>
-                  <th class="text-end">STM Bonus (Budget)</th>
-                  <th class="text-end">Variance</th>
-                  <th class="text-end">Avg R/Man</th>
-                  <th>Status</th>
+                  <th>Period</th>
+                  <th class="text-center">Status<span id="ih-fct-req-status"></span></th>
+                  <th class="text-end">Avg m²/Gang<span id="ih-fct-req-avg-gang"></span></th>
+                  <th class="text-end">Target m²/Gang<span id="ih-fct-req-tgt-gang"></span></th>
+                  <th class="text-end">Over / Under<span id="ih-fct-req-over-under"></span></th>
+                  <th class="text-end">Cumulative m²/Gang<span id="ih-fct-req-cum"></span></th>
+                  <th class="text-end">On-Track Cumulative<span id="ih-fct-req-on-track"></span></th>
                 </tr>
               </thead>
-              <tbody id="tbl-sim-budget-body"></tbody>
-              <tfoot><tr id="tbl-sim-budget-foot"></tr></tfoot>
+              <tbody id="tbl-fct-required-body">
+                <tr><td colspan="7" class="empty-state">Open Forecast tab to load.</td></tr>
+              </tbody>
+              <tfoot id="tbl-fct-required-foot" class="table-light fw-bold"></tfoot>
             </table>
           </div>
         </div>
       </div>
 
-    </div><!-- /tab-simulation -->
+        </div>
+        <div class="tab-pane fade" id="fsub-midmonth">
+      <!-- Mid-Month Production Tracker -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="section-header mb-0">
+              <i class="bi bi-calendar-check me-2"></i>Mid-Month Production Tracker
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_mmtLoadFromData()" title="Load one row per period from the currently loaded FY data">
+                <i class="bi bi-cloud-download me-1"></i> Load FY Periods
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="_mmtAddRow()">
+                <i class="bi bi-plus-circle me-1"></i> Add Month
+              </button>
+            </div>
+          </div>
+          <p class="small text-muted mb-3">One row per period — enter Meas Shifts, Shifts Covered, SQM Target and SQM Actual to see what rate is required over the remaining shifts.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="min-width:82px">Period</th>
+                  <th title="Total measurable shifts in the month">Meas Shifts</th>
+                  <th title="Shifts already worked">Shifts Covered</th>
+                  <th>SQM Target</th>
+                  <th>SQM Actual</th>
+                  <th>m²/Shift (Target)</th>
+                  <th>m²/Shift (Actual)</th>
+                  <th>Variance</th>
+                  <th>Shifts Left</th>
+                  <th>Required m²/Shift</th>
+                  <th title="Rand per m² — optional, for cost estimate">R/m² (opt.)</th>
+                  <th>Cost at Actual</th>
+                  <th>Cost at Target</th>
+                  <th style="width:28px"></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-mmt-body">
+                <tr><td colspan="14" class="text-center py-3 text-muted">Click "Add Month" or "Load FY Periods" to start tracking.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-    <!-- ══ TAB 8: Projection ═══════════════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-projection">
+        </div>
+        <div class="tab-pane fade" id="fsub-trend">
 
       <!-- Controls -->
       <div class="card shadow-sm mb-3">
@@ -1285,197 +1282,11 @@
         </div>
       </div>
 
-    </div><!-- /tab-projection -->
-
-    <!-- ══ TAB 7: Forecast (Performance Table) ════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-forecast">
-
-      <!-- Controls -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body py-2">
-          <div class="d-flex align-items-center gap-3 flex-wrap">
-            <span class="small fw-semibold" style="color:var(--hg-dark)">Period:</span>
-            <select id="fct-fy-select" class="form-select form-select-sm" style="width:auto;min-width:220px"></select>
-            <div class="vr mx-1"></div>
-            <span class="small fw-semibold" style="color:var(--hg-dark)">Total m²/month Target:</span>
-            <input type="number" class="form-control form-control-sm text-end fw-bold"
-                   id="fct-target-total-sqm" value="" min="0" step="100" style="width:110px"
-                   placeholder="e.g. 15000">
-            <span class="small text-muted">÷ avg gangs =</span>
-            <span class="small fw-semibold" style="color:var(--hg-dark)">Target m²/Gang:</span>
-            <input type="number" class="form-control form-control-sm text-end fw-bold"
-                   id="fct-target-sqm-gang" value="300" min="0" step="5" style="width:85px">
-            <span class="small fw-semibold ms-2" style="color:var(--hg-dark)">Target R/Man:</span>
-            <div class="input-group input-group-sm" style="width:130px">
-              <span class="input-group-text">R</span>
-              <input type="number" class="form-control text-end fw-bold"
-                     id="fct-target-r-man" value="3300" min="0" step="100">
-            </div>
-            <span class="small fw-semibold ms-2" style="color:var(--hg-dark)">Target R/m²:</span>
-            <div class="input-group input-group-sm" style="width:110px">
-              <span class="input-group-text">R</span>
-              <input type="number" class="form-control text-end fw-bold"
-                     id="fct-target-r-sqm" value="500" min="0" step="10">
-            </div>
-          </div>
         </div>
-      </div>
-
-      <!-- Chart: Avg m²/Gang vs Target -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-1">Avg m²/Gang per Period — vs Target</div>
-          <p class="small text-muted mb-2">
-            <span style="color:#198754;font-weight:600">Green bars</span> = at or above target &nbsp;·&nbsp;
-            <span style="color:#dc3545;font-weight:600">Red bars</span> = below target &nbsp;·&nbsp;
-            Red dashed line = target
-          </p>
-          <div class="chart-wrap" style="min-height:420px"><canvas id="chart-fct-sqm-gang"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Production Performance table -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-2">Production Performance by Period</div>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered table-hover mb-0">
-              <thead class="table-light" id="tbl-fct-production-head">
-                <tr>
-                  <th>Period</th>
-                  <th class="text-end">Total m²<span id="ih-fct-prod-total"></span></th>
-                  <th class="text-end">Target Total m²<span id="ih-fct-prod-tgt-total"></span></th>
-                  <th class="text-end">Variance<span id="ih-fct-prod-var"></span></th>
-                  <th class="text-end">Avg m²/Gang<span id="ih-fct-prod-avg-gang"></span></th>
-                  <th class="text-end">Target m²/Gang<span id="ih-fct-prod-tgt-gang"></span></th>
-                  <th class="text-end">Over / Under<span id="ih-fct-prod-over-under"></span></th>
-                  <th class="text-end">Avg m²/Man<span id="ih-fct-prod-avg-man"></span></th>
-                  <th class="text-end">Gangs<span id="ih-fct-prod-gangs"></span></th>
-                  <th class="text-end">Avg Labour<span id="ih-fct-prod-avg-lab"></span></th>
-                </tr>
-              </thead>
-              <tbody id="tbl-fct-production-body">
-                <tr><td colspan="10" class="empty-state">Open Forecast tab to load.</td></tr>
-              </tbody>
-              <tfoot id="tbl-fct-production-foot" class="table-light fw-bold"></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cost Efficiency chart + table -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="section-header mb-2">Cost Efficiency by Period</div>
-          <p class="small text-muted mb-2">
-            <span style="color:#0d6efd;font-weight:600">Blue bars</span> = R/Man &nbsp;·&nbsp;
-            <span style="color:#6f42c1;font-weight:600">Purple line</span> = R/m² &nbsp;·&nbsp;
-            Dashed lines = targets &nbsp;·&nbsp;
-            Under budget = green tint, over = red tint
-          </p>
-          <div class="chart-wrap mb-3" style="min-height:320px"><canvas id="chart-fct-cost"></canvas></div>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered table-hover mb-0">
-              <thead class="table-light" id="tbl-fct-cost-head">
-                <tr>
-                  <th>Period</th>
-                  <th class="text-end">R/Man<span id="ih-fct-cost-rman"></span></th>
-                  <th class="text-end">Target R/Man<span id="ih-fct-cost-tgt-rman"></span></th>
-                  <th class="text-end">Variance<span id="ih-fct-cost-var-rman"></span></th>
-                  <th class="text-end">R/m²<span id="ih-fct-cost-rsqm"></span></th>
-                  <th class="text-end">Target R/m²<span id="ih-fct-cost-tgt-rsqm"></span></th>
-                  <th class="text-end">Variance<span id="ih-fct-cost-var-rsqm"></span></th>
-                </tr>
-              </thead>
-              <tbody id="tbl-fct-cost-body">
-                <tr><td colspan="7" class="empty-state">Open Forecast tab to load.</td></tr>
-              </tbody>
-              <tfoot id="tbl-fct-cost-foot" class="table-light fw-bold"></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Required Performance to Meet Target -->
-      <div class="card shadow-sm mt-3">
-        <div class="card-body">
-          <div class="section-header mb-2"><i class="bi bi-bullseye me-2"></i>Required Performance to Meet Annual Target</div>
-          <p class="small text-muted mb-3">
-            Based on the selected FY target · completed months show actual · remaining months show what is needed to still hit the annual total
-          </p>
-
-          <!-- Summary KPI boxes -->
-          <div class="row g-2 mb-3" id="fct-req-kpis"></div>
-
-          <!-- Month-by-month table -->
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0">
-              <thead class="table-light" id="tbl-fct-required-head">
-                <tr>
-                  <th>Period</th>
-                  <th class="text-center">Status<span id="ih-fct-req-status"></span></th>
-                  <th class="text-end">Avg m²/Gang<span id="ih-fct-req-avg-gang"></span></th>
-                  <th class="text-end">Target m²/Gang<span id="ih-fct-req-tgt-gang"></span></th>
-                  <th class="text-end">Over / Under<span id="ih-fct-req-over-under"></span></th>
-                  <th class="text-end">Cumulative m²/Gang<span id="ih-fct-req-cum"></span></th>
-                  <th class="text-end">On-Track Cumulative<span id="ih-fct-req-on-track"></span></th>
-                </tr>
-              </thead>
-              <tbody id="tbl-fct-required-body">
-                <tr><td colspan="7" class="empty-state">Open Forecast tab to load.</td></tr>
-              </tbody>
-              <tfoot id="tbl-fct-required-foot" class="table-light fw-bold"></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mid-Month Production Tracker -->
-      <div class="card shadow-sm mt-3">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="section-header mb-0">
-              <i class="bi bi-calendar-check me-2"></i>Mid-Month Production Tracker
-            </div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-secondary" onclick="_mmtLoadFromData()" title="Load one row per period from the currently loaded FY data">
-                <i class="bi bi-cloud-download me-1"></i> Load FY Periods
-              </button>
-              <button class="btn btn-sm btn-outline-primary" onclick="_mmtAddRow()">
-                <i class="bi bi-plus-circle me-1"></i> Add Month
-              </button>
-            </div>
-          </div>
-          <p class="small text-muted mb-3">One row per period — enter Meas Shifts, Shifts Covered, SQM Target and SQM Actual to see what rate is required over the remaining shifts.</p>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style="min-width:82px">Period</th>
-                  <th title="Total measurable shifts in the month">Meas Shifts</th>
-                  <th title="Shifts already worked">Shifts Covered</th>
-                  <th>SQM Target</th>
-                  <th>SQM Actual</th>
-                  <th>m²/Shift (Target)</th>
-                  <th>m²/Shift (Actual)</th>
-                  <th>Variance</th>
-                  <th>Shifts Left</th>
-                  <th>Required m²/Shift</th>
-                  <th title="Rand per m² — optional, for cost estimate">R/m² (opt.)</th>
-                  <th>Cost at Actual</th>
-                  <th>Cost at Target</th>
-                  <th style="width:28px"></th>
-                </tr>
-              </thead>
-              <tbody id="tbl-mmt-body">
-                <tr><td colspan="14" class="text-center py-3 text-muted">Click "Add Month" or "Load FY Periods" to start tracking.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      </div><!-- /tab-content (forecast sub-tabs) -->
 
     </div><!-- /tab-forecast -->
+
 
     <!-- ══ TAB: Bonus Policy Simulator ═════════════════════════════════════ -->
     <div class="tab-pane fade" id="tab-bonus-rule">
@@ -1532,6 +1343,13 @@
           </details>
         </div>
       </div>
+
+      <ul class="nav nav-pills mb-3 sub-tabs" id="brsTabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#brs-sim">1. Simulator</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#brs-disc">2. Where the System Differs from the Policy</button></li>
+      </ul>
+      <div class="tab-content">
+      <div class="tab-pane fade show active" id="brs-sim">
 
       <div id="brs-report">
 
@@ -1811,6 +1629,25 @@
         </div>
       </div>
 
+      </div><!-- /#brs-sim -->
+
+      <div class="tab-pane fade" id="brs-disc">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="section-header mb-1">Where the System Differs from the Policy</div>
+          <p class="small text-muted mb-3">Each written Thibakotsi Stoping Incentive Scheme (REV04) rule already examined in this
+            project, checked against what the real data shows for the selected period and section.
+            <span class="text-success fw-semibold">Green</span> = matches the written policy.
+            <span style="color:#fd7e14" class="fw-semibold">Orange</span> = differs, with the real rand impact where it can be
+            computed. <span class="text-muted fw-semibold">Grey</span> = not independently checkable from the data available.
+            Not yet checked record-by-record: the written AWOP per-shift percentages, the REV07 Quality Drilling payment rules,
+            and any safety-ladder tiers beyond clean / dressing / LTI / fatal.</p>
+          <div id="disc-items"></div>
+        </div>
+      </div>
+      </div><!-- /#brs-disc -->
+      </div><!-- /brs tab-content -->
+
     </div><!-- /tab-bonus-rule -->
 
   </div><!-- /tab-content -->
@@ -1838,7 +1675,9 @@ const fmtR = (v) => {
   const n = parseFloat(v);
   return 'R ' + n.toLocaleString('en-ZA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 };
-const fmtSqm = (v) => fmtN(v, 0) + ' m²';
+const fmtSqm = (v) => fmtN(v, 0) + ' m²';
+const fmtRm  = (v) => (v == null || isNaN(v)) ? '—' : (Math.abs(v) >= 1e6 ? 'R ' + (v / 1e6).toFixed(1) + 'm' : fmtR(v));
+const esc    = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ════════════════════════════════════════════════════════════════════════════
 //  State & chart instances
@@ -1954,14 +1793,18 @@ async function init() {
     hideLoading();
   }
 
-  // Bonus type filter checkboxes
+  // Bonus type filter checkboxes (Bonus Analysis tab's Section/Gang Type tables)
   ['bonus-filter-stm', 'bonus-filter-safety', 'bonus-filter-driller'].forEach(id => {
     document.getElementById(id).addEventListener('change', _applyBonusFilter);
   });
+  // Include in Total Bonus (top KPIs) — separate checkboxes, separate scope
+  _buildGangtypeMenu();
 
-  // Gang workplace drill-down close buttons
+  // Gang workplace drill-down "Close" — switch back to the Gang Detail sub-tab pill
+  // (Workplace Detail is now its own always-visible sub-tab pane, not a toggled overlay).
   document.getElementById('btn-gang-prod-close').addEventListener('click', () => {
-    document.getElementById('card-gang-prod-detail').classList.add('d-none');
+    const detailPill = document.querySelector('#gangAnalysisSubtabs button[data-bs-target="#gsub-detail"]');
+    if (detailPill) bootstrap.Tab.getOrCreateInstance(detailPill).show();
   });
   document.getElementById('btn-fc-gang-prod-close').addEventListener('click', () => {
     document.getElementById('card-fc-gang-prod-detail').classList.add('d-none');
@@ -2008,15 +1851,6 @@ async function init() {
     document.getElementById(id)?.addEventListener('input', () => { if (_fctData) _fctRenderTables(); });
   });
 
-  // Simulation budget input re-runs budget analysis without re-fetching
-  document.getElementById('sim-budget-r-man')?.addEventListener('input', () => {
-    if (_simData) {
-      const gangs = _simComputeGangs();
-      _simRenderKpi(gangs);
-      _simRenderBudget(gangs);
-    }
-  });
-
   // PDF download
   document.getElementById('btn-download-pdf')?.addEventListener('click', downloadPDF);
 
@@ -2044,36 +1878,18 @@ async function init() {
     'ih-rsqm-total':    ['Total Bonus',    ''],
     'ih-rsqm-startup-rate': ['Pre Adj R/m²', 'Total bonus divided by Pre Adj m². Bonus cost per square metre before any adjustments are applied.'],
     'ih-rsqm-adj-rate':   ['Adj R/m²',       'Total bonus divided by Adj m². Bonus cost per actual square metre drilled — the most accurate efficiency measure.'],
-    'ih-sim-proj-sec':    ['Proj Bonus',      'Projected bonus for the section if every gang hits their m² target. Calculated as: R/m² Target (set in Target Settings) × m² Target × gang count, plus fixed Safety and Driller bonuses. Adjust the R/m² Target slider to model different bonus rates.'],
-    'ih-sim-actual-sec':  ['Actual Bonus',    'The bonus actually paid to the section based on the m² each gang achieved. Includes all bonus types (STM, Safety, Driller).'],
-    'ih-sim-actual-rsqm-sec': ['Actual R/m²', 'Actual bonus paid to the section divided by total actual m² drilled. Shows the real bonus cost per square metre — compare this against the R/m² Target to see whether the section is running above or below your target rate.'],
-    'ih-sim-var-sec':     ['Bonus Variance',  'Actual Bonus minus Projected Bonus. Positive (green) = section earned more than projected. Negative (red) = gangs missed targets and payout was lower than planned.'],
-    'ih-sim-proj-det':    ['Proj Bonus',      'Projected bonus for this gang if they hit their m² target. Calculated as: R/m² Target (set in Target Settings) × m² Target, plus fixed Safety and Driller bonuses.'],
-    'ih-sim-actual-det':  ['Actual Bonus',    'The bonus actually paid to this gang based on their achieved m². Includes STM, Safety, and Driller components.'],
-    'ih-sim-var-det':     ['Bonus Variance',  'Actual Bonus minus Projected Bonus for this gang. Positive = exceeded target, earned more than planned. Negative = missed target, earned less than planned.'],
-    // ── What-If Scenario Simulator ──
-    'ih-wi-header':           ['What-If Scenario Simulator', 'A three-panel tool for exploring how changes to production, manpower, and bonus budget affect key efficiency metrics. All calculations use the actual data from your current simulation period as the baseline — no database writes occur.'],
-    'ih-wi-tab-interactive':  ['Interactive Tab', 'Drag sliders to adjust m², manpower, and bonus budget simultaneously. The comparison table updates instantly, showing what each metric would look like under those conditions.'],
-    'ih-wi-tab-sensitivity':  ['Sensitivity Analysis Tab', 'Five pre-built tables that each vary one input (production, labour, crew count, bonus budget, or combined scenario) across a fixed range while holding everything else constant. Useful for understanding which driver has the biggest impact on efficiency.'],
-    'ih-wi-tab-goalseek':     ['Goal-Seek Tab', 'Reverse-calculates: you specify a target outcome (e.g. R350/m²) and the tool tells you what input level is required to get there. Four calculators cover Rand/m², Rand/Man, m²/Crew, and optimal gang size.'],
-    'ih-wi-presets':          ['Quick Presets', 'Best Case: +10% m², −10% labour (higher production, leaner crew). Expected: base actuals unchanged. Risk Case: −10% m², +10% labour (lower production, more people — worst efficiency). Use these as quick scenario anchors before fine-tuning with the sliders.'],
-    'ih-wi-sqm':              ['m² Change', 'Simulates a percentage change in total m² drilled, with labour and bonus held fixed. Increasing m² improves Rand/m² (bonus cost per m² drops) and m²/Man (more output per person). Formula: Simulated m² = Actual m² × (1 + slider%).'],
-    'ih-wi-labour':           ['Manpower Change', 'Simulates a percentage change in total headcount, with m² and bonus held fixed. Adding people dilutes m²/Man and lowers Rand/Man (STM bonus shared over more workers). Reducing people raises Rand/Man. Formula: Simulated Labour = Actual Labour × (1 + slider%).'],
-    'ih-wi-bonus':            ['Bonus Budget Change', 'Simulates a percentage change in total bonus payout, with m² and labour held fixed. This affects Rand/m² and Rand/Man directly — useful for modelling budget increases or cuts. Formula: Simulated Bonus = Actual Bonus × (1 + slider%).'],
-    'ih-wi-actual':           ['Actual (Base)', 'The real values from your selected simulation period — the starting point for all what-if calculations. Nothing here is projected; it reflects what actually happened.'],
-    'ih-wi-simulated':        ['Simulated', 'Recalculated metric value after applying the slider adjustments. Derived from the same formulas used across the rest of the dashboard.'],
-    'ih-wi-variance':         ['Variance', 'Simulated minus Actual, shown as both an absolute amount and a percentage. Green = improvement vs actual; red = worsening.'],
-    'ih-wi-indicator':        ['Indicator', 'Traffic-light status for each metric. Improved (green) = the simulated value is better than actual by more than 2%. Worsened (red) = more than 2% worse. Neutral (amber) = within 2% either way.'],
-    'ih-wi-sensitivity':      ['Sensitivity Analysis', 'Each of the 5 tables varies one driver across 5 steps (e.g. −20%, −10%, 0%, +10%, +20%) while holding all other inputs at actual values. The current actual row is highlighted blue. Green cells = metric improved vs actual; red = worsened.'],
-    'ih-wi-goalseek-intro':   ['Goal-Seek', 'Each calculator solves for one unknown given a target outcome. All use actual data as the fixed baseline — they tell you what needs to change to reach your target, not what has already happened.'],
-    'ih-wi-gs-rsqm':          ['Required m² for target Rand/m²', 'Formula: Required m² = Total Bonus ÷ Target Rand/m². Rand/m² = Bonus ÷ m², so to lower Rand/m² you need more production (bigger denominator). Bonus is treated as fixed at the actual amount.'],
-    'ih-wi-gs-rsqm-input':    ['Target Rand/m²', 'The bonus cost per square metre you want to achieve. Enter the budget or benchmark rate. To lower your current Rand/m², you need to produce more m² with the same bonus payout.'],
-    'ih-wi-gs-rman':          ['Required headcount for target Rand/Man', 'Formula: Required headcount = Total STM Bonus ÷ Target Rand/Man. Rand/Man = STM Bonus ÷ Labour. To bring Rand/Man down to budget you need more people (dilutes the bonus cost per person). Note: the headcount shown is the total across all selected periods, not per period.'],
-    'ih-wi-gs-rman-input':    ['Target Rand/Man', 'The STM bonus per person per period you want to achieve. If your actual Rand/Man is above budget, the result will show how many more people are needed to dilute the payout down to this level.'],
-    'ih-wi-gs-crew':          ['Required m² for target m²/Crew', 'Formula: Required m² = Target m²/Crew × Number of gang-periods. Crew count is fixed at the actual value — the calculator tells you how much more total production your existing gangs need to average the target per crew.'],
-    'ih-wi-gs-crew-input':    ['Target m²/Crew', 'The average square metres per gang-period you want to achieve. A gang-period is one gang active for one period. If you have 10 gangs over 12 periods, that is 120 gang-periods.'],
-    'ih-wi-gs-opt':           ['Optimal Bodies per Stope Breaking Gang', 'Finds the gang size (headcount per gang) where Rand/Man exactly equals your budget. Formula: Optimal bodies = STM Bonus per period ÷ (Budget Rand/Man × Gangs per period). The sensitivity table shows ±4 bodies around the optimal so you can see the efficiency trade-off at each step.'],
-    'ih-wi-gs-opt-budget':    ['Budget Rand/Man', 'Your target or budgeted STM Rand/Man — the maximum acceptable bonus cost per person per period. The optimal gang size is the headcount at which actual STM payments equal exactly this budget rate. Reducing gang size below optimal means each person earns above budget; increasing above optimal brings the rate down.'],
+    // ── Bonus Analysis: Bonus per Bonus Component ──
+    'ih-comp-about':    ['Bonus per Bonus Component', 'Tshepong\'s paid STM is not an additive sum of the schema\'s bonus columns. Verified on 541/541 Stope Breaking gang-periods (Jul-25 to Apr-26): GANGPRODUCTIONBONUS = GANGFINALBREAKBONUS + GANGFINALSWEEPINGSBONUS + GANGFINALSAFETYBONUS. The efficiency part is multiplicative (Raw Qualifying x Netting x B-Reef SW); Safety and Sweeping Penalty are then added inside the same figure. Each step here is anchored so the three parts add to the real paid STM exactly.'],
+    'ih-comp-comp':     ['Component', 'Each step in building up the real paid STM from its Raw Qualifying base, plus reference figures that are real but either already included (Safety, AWOP) or tracked separately (Driller, REV07).'],
+    'ih-comp-rand':     ['Rand', 'Summed over every Stope Breaking gang-period in the current selection. The efficiency steps multiply in sequence (exact, no cross-terms); Safety and Sweep are the anchored additive components.'],
+    'ih-comp-pct':      ['% of Raw Base', 'This row\'s Rand as a percentage of the Raw Qualifying Bonus row — e.g. Netting at 20% of a fully-netted base.'],
+    'ih-comp-rule':     ['Policy Rule', 'The Thibakotsi Stoping Incentive Scheme (REV04) clause behind this row.'],
+    // ── Bonus Analysis: Who Earned What ──
+    'ih-outc-about':    ['Who Earned What', 'Classifies gang-periods, not individual people — the entry level, netting flag, B-Reef factor and incident indicators are all gang-level facts, and Gang Detail is the finest grain used anywhere else in this dashboard. AWOP uses the real per-employee EMPLOYEEAWOPPENALTY rolled up to "did this gang-period have any AWOP deduction".'],
+    'ih-outc-outcome':  ['Outcome', 'The policy step a gang-period landed on for this lever, straight from the real indicators (GANGEFFICIENCY vs the entry level, WORKPLACENETTINGRATE, B_REEF_SW_FACTOR, LTI/Dressing/Fatal indicators, AWOP penalty) — not inferred from a threshold.'],
+    'ih-outc-count':    ['Gang-Periods', 'How many gang-periods got this outcome, in the current selection.'],
+    'ih-outc-pct':      ['% of Gang-Periods', 'Gang-Periods ÷ all Stope Breaking gang-periods in the current selection.'],
+    'ih-outc-rand':     ['Rand', 'The uplift, bonus or deduction these gang-periods received on this lever. Rows within a component add up to the matching row in Bonus per Bonus Component — e.g. the two Netting rows add up to that table\'s Netting Uplift row exactly.'],
     // ── Forecast: Production Performance table ──
     'ih-fct-prod-total':      ['Total m²',          'Total m² drilled by all Stope Breaking gangs this period.'],
     'ih-fct-prod-tgt-total':  ['Target Total m²',   'Fixed annual target entered above — the same value for every period. Not adjusted for gang count.'],
@@ -2110,7 +1926,6 @@ async function init() {
   _initPopovers(document.getElementById('tbl-fct-production-head'));
   _initPopovers(document.getElementById('tbl-fct-cost-head'));
   _initPopovers(document.getElementById('tbl-fct-required-head'));
-  _initPopovers(document.getElementById('card-whatif'));
 
   // Gang Detail refresh button
   document.getElementById('btn-gd-refresh')?.addEventListener('click', refreshGangDetail);
@@ -2198,13 +2013,66 @@ async function loadSections() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  Gang Types multi-select (checkbox dropdown)
+// ════════════════════════════════════════════════════════════════════════════
+// Real GANGTYPE values in GANGPRODUCTIONDETAIL (verified fresh against the database —
+// ANCILLARY was in the old single-select dropdown but never appears in real data, so it's
+// not listed here).
+const GANGTYPES = ['STOPE BREAKING', 'STOPE CLEANING', 'CENTRE GULLY', 'STOPING', 'SURFACE ASSISTANT'];
+
+function _buildGangtypeMenu() {
+  const menu = document.getElementById('gangtype-menu');
+  if (!menu || menu.dataset.built) return;
+  menu.dataset.built = '1';
+  const label = t => t.split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' ');
+  menu.innerHTML =
+    `<div class="form-check mb-1 border-bottom pb-1">
+      <input class="form-check-input" type="checkbox" id="gt-all" checked>
+      <label class="form-check-label small fw-semibold" for="gt-all">All Types</label>
+    </div>` +
+    GANGTYPES.map(t => `
+      <div class="form-check mb-1">
+        <input class="form-check-input gt-cb" type="checkbox" value="${t}" id="gt-${t.replace(/\s+/g,'-')}">
+        <label class="form-check-label small" for="gt-${t.replace(/\s+/g,'-')}">${label(t)}</label>
+      </div>`).join('');
+
+  const allCb = document.getElementById('gt-all');
+  const cbs   = () => Array.from(menu.querySelectorAll('.gt-cb'));
+
+  allCb.addEventListener('change', () => {
+    if (allCb.checked) cbs().forEach(cb => cb.checked = false);
+    _updateGangtypeButton();
+  });
+  cbs().forEach(cb => cb.addEventListener('change', () => {
+    if (cbs().some(c => c.checked)) allCb.checked = false;
+    else allCb.checked = true;
+    _updateGangtypeButton();
+  }));
+  _updateGangtypeButton();
+}
+
+function _getSelectedGangtypes() {
+  const checked = Array.from(document.querySelectorAll('#gangtype-menu .gt-cb:checked')).map(cb => cb.value);
+  return checked.length ? checked.join(',') : 'ALL';
+}
+
+function _updateGangtypeButton() {
+  const btn = document.getElementById('btn-gangtype');
+  if (!btn) return;
+  const checked = Array.from(document.querySelectorAll('#gangtype-menu .gt-cb:checked')).map(cb => cb.value);
+  if (!checked.length) { btn.textContent = 'All Types'; return; }
+  const label = t => t.split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' ');
+  btn.textContent = checked.length <= 2 ? checked.map(label).join(' + ') : `${checked.length} types`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  Apply button
 // ════════════════════════════════════════════════════════════════════════════
 async function applyFilters() {
   state.from     = parseInt(document.getElementById('sel-from').value);
   state.to       = parseInt(document.getElementById('sel-to').value);
   state.section  = document.getElementById('sel-section').value;
-  state.gangtype = document.getElementById('sel-gangtype').value;
+  state.gangtype = _getSelectedGangtypes();
 
   showLoading();
   try {
@@ -2215,23 +2083,129 @@ async function applyFilters() {
   }
 }
 
+// Downloads an Excel workbook showing exactly how every value for the current
+// filters was computed, with an independent SQL check for each one (run server-
+// side, right now, via a separate code path from the dashboard's own queries) —
+// so the numbers can be verified in SSMS without trusting this app's code.
+async function exportAuditPack() {
+  const btn = document.getElementById('btn-audit-pack');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Building audit pack…';
+  try {
+    const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
+    const qs = new URLSearchParams(p).toString();
+    const r = await fetch('/api/audit_pack?' + qs);
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `Tshepong_Audit_Pack_${state.from}_${state.to}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Could not build the audit pack: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Gang Analysis — Crew Performance (lazy, per pill)
+// ════════════════════════════════════════════════════════════════════════════
+let _crewData = null;
+
+async function loadLazyCrews() {
+  if (_lazyLoaded.crews) return;
+  _lazyLoaded.crews = true;
+  showLoading();
+  try {
+    const p = { from: state.from, to: state.to, section: state.section };
+    _crewData = await api('/api/crew_performance', p);
+    _crewPerfBuildFilters();
+    renderCrewPerformance();
+  } catch (e) {
+    _lazyLoaded.crews = false;
+    document.getElementById('tbl-crew-top-body').innerHTML =
+      `<tr><td colspan="8" class="empty-state text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${e.message.slice(0, 300)}</td></tr>`;
+  } finally { hideLoading(); }
+}
+
+function _crewPerfBuildFilters() {
+  const secSel = document.getElementById('crew-perf-section');
+  secSel.querySelectorAll('option:not([value="ALL"])').forEach(o => o.remove());
+  const sections = [...new Set((_crewData || []).map(r => r.section))].sort();
+  sections.forEach(s => secSel.appendChild(new Option(s, s)));
+  if (!secSel.dataset.wired) {
+    secSel.dataset.wired = '1';
+    [secSel, document.getElementById('crew-perf-sort')].forEach(el =>
+      el.addEventListener('change', renderCrewPerformance));
+  }
+}
+
+function renderCrewPerformance() {
+  if (!_crewData) return;
+  const sortBy = document.getElementById('crew-perf-sort').value;
+  const secF   = document.getElementById('crew-perf-section').value;
+  let rows = _crewData.filter(r => secF === 'ALL' || r.section === secF);
+  rows = [...rows].sort((a, b) => (sortBy === 'achievement' ? b.sqm_per_man - a.sqm_per_man : b.total_sqm - a.total_sqm));
+  const top10 = rows.slice(0, 10);
+
+  const colors = ["#1565C0","#2E7D32","#AD1457","#E65100","#4527A0","#00695C"];
+  const secIdx = {};
+  [...new Set(_crewData.map(r => r.section))].sort().forEach((s, i) => secIdx[s] = i);
+
+  makeChart('chart-crew-top', {
+    type: 'bar',
+    data: {
+      labels: top10.map(r => r.gang),
+      datasets: [{
+        label: sortBy === 'achievement' ? 'm²/Man' : 'Total m²',
+        data: top10.map(r => sortBy === 'achievement' ? r.sqm_per_man : r.total_sqm),
+        backgroundColor: top10.map(r => colors[(secIdx[r.section] || 0) % colors.length]),
+      }],
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + (sortBy === 'achievement' ? fmtN(ctx.parsed.x, 1) + ' m²/Man' : fmtSqm(ctx.parsed.x)) } } },
+      scales: { x: { grid: { color: '#eee' } }, y: { grid: { display: false } } },
+    },
+  });
+
+  document.getElementById('tbl-crew-top-body').innerHTML = top10.length
+    ? top10.map((r, i) => `<tr>
+        <td>${i + 1}</td><td class="fw-semibold">${r.gang}</td><td>${r.section}</td>
+        <td class="text-end">${fmtSqm(r.total_sqm)}</td><td class="text-end">${r.months}</td>
+        <td class="text-end">${fmtN(r.sqm_per_man, 1)}</td>
+        <td class="text-end">${fmtR(r.total_bonus)}</td><td class="text-end">${fmtR(r.r_per_sqm)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="empty-state">No data for this selection.</td></tr>';
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  Refresh all panels
 // ════════════════════════════════════════════════════════════════════════════
-let _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false, bonusRule: false };
+let _lazyLoaded = { range: false, detail: false, crews: false, forecast: false, fct: false, bonusRule: false };
 let _bonusRaw   = { gt: null, sec: null };
 
 async function refreshAll() {
   const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
-  _lazyLoaded = { range: false, detail: false, sim: false, forecast: false, fct: false, bonusRule: false };
+  _lazyLoaded = { range: false, detail: false, crews: false, forecast: false, fct: false, bonusRule: false };
   _bonusRaw   = { gt: null, sec: null };
-  _simData    = null;
   _fcData     = null;
   _fctData    = null;
   _fctFrom    = null;
   _fctTo      = null;
 
-  const [kpi, trend, preAdjTrend, bonusGT, bonusSec, rSqm, secRank] = await Promise.all([
+  const [kpi, trend, preAdjTrend, bonusGT, bonusSec, rSqm, secRank, scopeNote, secRsqmTrend, bonusComp, bonusOutc] = await Promise.all([
     api('/api/kpi',              p),
     api('/api/trend',            p),
     api('/api/pre_adj_trend',    p),
@@ -2239,10 +2213,16 @@ async function refreshAll() {
     api('/api/section_bonus',    p),
     api('/api/r_per_sqm',        p),
     api('/api/section_ranking',  { from: state.from, to: state.to }),
+    api('/api/scope_note',       { from: state.from, to: state.to }),
+    api('/api/section_rsqm_trend', { from: state.from, to: state.to }),
+    api('/api/bonus_composition', { from: state.from, to: state.to, section: state.section }),
+    api('/api/bonus_outcomes',    { from: state.from, to: state.to, section: state.section }),
   ]);
 
+  renderScopeNote(scopeNote);
   renderKpi(kpi);
   renderExecSummary(kpi, secRank);
+  renderSectionRsqm(secRsqmTrend);
   renderSectionRanking(secRank);
   renderTrend(trend);
   renderPreAdjTrend(preAdjTrend);
@@ -2251,6 +2231,8 @@ async function refreshAll() {
   _bonusRaw.sec = bonusSec;
   _applyBonusFilter();
   renderRPerSqm(rSqm);
+  renderBonusComposition(bonusComp);
+  renderBonusOutcomes(bonusOutc);
 
   document.getElementById('tbl-range-combined-body').innerHTML =
     '<tr><td colspan="17" class="empty-state">Open the m² Range tab to load.</td></tr>';
@@ -2260,11 +2242,17 @@ async function refreshAll() {
   // shown.bs.tab only fires on tab switch, so if a lazy tab is already active
   // when Apply is clicked it won't re-load itself — trigger it manually.
   const _activeHref = document.querySelector('#mainTabs .nav-link.active')?.getAttribute('href');
-  if      (_activeHref === '#tab-range')      loadLazyRange();
-  else if (_activeHref === '#tab-detail')     loadLazyDetail();
-  else if (_activeHref === '#tab-simulation') loadLazySim();
-  else if (_activeHref === '#tab-forecast')   loadLazyFct();
-  else if (_activeHref === '#tab-projection') loadLazyForecast();
+  if (_activeHref === '#tab-gang-analysis') {
+    const _activeSubHref = document.querySelector('#gangAnalysisSubtabs .nav-link.active')?.getAttribute('data-bs-target');
+    if      (_activeSubHref === '#gsub-range')  loadLazyRange();
+    else if (_activeSubHref === '#gsub-detail') loadLazyDetail();
+    else if (_activeSubHref === '#gsub-crew')   loadLazyCrews();
+  }
+  else if (_activeHref === '#tab-forecast') {
+    const _activeSubHref = document.querySelector('#forecastSubtabs .nav-link.active')?.getAttribute('data-bs-target');
+    if (_activeSubHref === '#fsub-trend') loadLazyForecast();
+    else loadLazyFct();
+  }
   else if (_activeHref === '#tab-bonus-rule') loadLazyBonusRuleSim();
 }
 
@@ -2312,10 +2300,25 @@ function renderKpi(d) {
   }
   document.getElementById('kpi-sqm').textContent     = fmtN(d.total_sqm) + ' m²';
   document.getElementById('kpi-bonus').textContent   = fmtR(d.total_bonus);
+  document.getElementById('kpi-bonus').classList.toggle('kpi-long', fmtR(d.total_bonus).length > 14);
   document.getElementById('kpi-gangs').textContent   = fmtN(d.gang_count);
   document.getElementById('kpi-avg-sqm').textContent = fmtN(d.avg_sqm_per_gang, 1) + ' m²';
   document.getElementById('kpi-r-sqm').textContent   = fmtR(d.r_per_sqm) + '/m²';
   document.getElementById('kpi-periods').textContent = d.periods;
+}
+
+// Scope note: INCLUDED text is static in the HTML (it rarely changes); only the EXCLUDED
+// Stoping Miner figure is dynamic, filled in here from /api/scope_note.
+function renderScopeNote(d) {
+  const el = document.getElementById('scope-excluded');
+  if (!el) return;
+  if (!d || !d.excluded_miner_total) { el.innerHTML = ''; return; }
+  const minerTotal = fmtR(d.excluded_miner_total);
+  const n = d.excluded_miner_periods || 0;
+  el.innerHTML =
+    `<strong>EXCLUDED:</strong> Stoping Miner Bonus ${minerTotal} over ${n} period${n === 1 ? '' : 's'} — a separate ` +
+    `scheme (policy REV10, JB_202606_STPMINER — the Miner is paid the sum of the Teams they ` +
+    `supervise), tracked in its own MINERSEARN tables, never included in this dashboard's totals.`;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2328,6 +2331,9 @@ function renderExecSummary(kpi, secRank) {
   document.getElementById('exec-total-bonus').textContent = fmtR(kpi.total_bonus);
   document.getElementById('exec-r-per-sqm').textContent   = fmtR(kpi.r_per_sqm) + '/m²';
   document.getElementById('exec-total-sqm').textContent   = fmtN(kpi.total_sqm) + ' m²';
+  document.getElementById('exec-split').textContent       = fmtR(kpi.total_driller_bonus);
+  document.getElementById('exec-recov').textContent       =
+    `Safety Bonus (already inside Total, not additive): ${fmtR(kpi.total_safety_bonus)}`;
 
   // % change vs prior period
   const _pct = (cur, prior) => prior > 0 ? ((cur - prior) / prior * 100) : null;
@@ -2372,6 +2378,73 @@ function renderExecSummary(kpi, secRank) {
     parts.push(`R/m² is trending <strong>${dir} ${Math.abs(rsqmPct).toFixed(1)}%</strong> vs. the prior period${note}`);
   }
   narEl.innerHTML = parts.length ? parts.join(' ') : '';
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Monthly Bonus Cost per m² by Section
+// ════════════════════════════════════════════════════════════════════════════
+function renderSectionRsqm(d) {
+  if (!d || !d.rows || d.rows.length === 0) return;
+  const colors = ["#1565C0","#2E7D32","#AD1457","#E65100","#4527A0","#00695C"];
+  const labels = d.rows.map(r => r.period);
+  const secs   = d.sections;
+
+  const cell = (row, s) => row.sections[s] || { sqm: 0, bonus: 0, r_per_sqm: null };
+  const mine = d.rows.map(row => {
+    let sqm = 0, bonus = 0;
+    secs.forEach(s => { const c = cell(row, s); sqm += c.sqm || 0; bonus += c.bonus || 0; });
+    return { sqm, bonus, r_per_sqm: sqm > 0 ? bonus / sqm : null };
+  });
+  const ratesAt = row => secs.map(s => cell(row, s).r_per_sqm).filter(v => v != null);
+  const lo = d.rows.map(row => { const r = ratesAt(row); return r.length ? Math.min(...r) : null; });
+  const hi = d.rows.map(row => { const r = ratesAt(row); return r.length ? Math.max(...r) : null; });
+
+  const datasets = [
+    { label: 'Highest', data: hi, borderWidth: 0, pointRadius: 0, tension: 0.3, fill: '+1',
+      backgroundColor: 'rgba(26,39,68,.07)', _spread: true },
+    { label: 'Lowest', data: lo, borderWidth: 0, pointRadius: 0, tension: 0.3, fill: false, _spread: true },
+    ...secs.map((s, i) => ({
+      label: s, data: d.rows.map(row => cell(row, s).r_per_sqm),
+      borderColor: colors[i % colors.length], backgroundColor: colors[i % colors.length] + '33',
+      tension: 0.3, fill: false, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6,
+    })),
+    { label: 'Whole mine', data: mine.map(m => m.r_per_sqm),
+      borderColor: '#D4A017', backgroundColor: 'transparent',
+      tension: 0.3, fill: false, borderWidth: 3, borderDash: [6, 3], pointRadius: 4, pointHoverRadius: 7 },
+  ];
+
+  makeChart('chart-section-rsqm', {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10, filter: it => !datasets[it.datasetIndex]._spread } },
+        tooltip: {
+          itemSort: (a, b) => (b.parsed.y ?? -1) - (a.parsed.y ?? -1),
+          filter: it => !it.dataset._spread && it.parsed.y != null,
+          callbacks: {
+            title: items => items.length ? items[0].label + ' — bonus cost per m²' : '',
+            label: ctx => {
+              const i = ctx.dataIndex, s = ctx.dataset.label;
+              const c = s === 'Whole mine' ? mine[i] : cell(d.rows[i], s);
+              return ' ' + s + ': ' + fmtR(c.r_per_sqm) + '/m²   (' + fmtR(c.bonus) + ' ÷ ' + fmtN(c.sqm) + ' m²)';
+            },
+            footer: items => {
+              const i = items[0]?.dataIndex;
+              if (i == null || hi[i] == null) return '';
+              return 'Spread: ' + fmtR(hi[i] - lo[i]) + '/m² between highest and lowest section';
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { color: '#eee' } },
+        y: { grid: { color: '#eee' }, ticks: { callback: v => 'R ' + fmtN(v) }, title: { display: true, text: 'R per m²' } },
+      },
+    },
+  });
 }
 
 function renderSectionRanking(rows) {
@@ -2736,6 +2809,169 @@ function _applyBonusFilter() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  Tab 2 — Bonus by Component (what the paid STM is made of)
+// ════════════════════════════════════════════════════════════════════════════
+const COMP_COLORS = { raw_qualifying: '#1565C0', netting: '#2E7D32', breef: '#00695C', safety: '#D4A017', sweep: '#dc3545' };
+let _compData = null;
+let _compSecOn = new Set();
+
+function renderBonusComposition(d) {
+  _compData = d || null;
+  const wf = (d && d.waterfall) || [], ref = (d && d.reference) || [];
+  const body = document.getElementById('tbl-bonus-comp-body');
+  if (!wf.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-state">No data for this selection.</td></tr>';
+    if (charts['chart-bonus-composition']) charts['chart-bonus-composition'].destroy();
+    document.getElementById('bonus-comp-note').textContent = '';
+    renderCompSection();
+    return;
+  }
+  const rawBase = (wf.find(r => r.step === 'raw_qualifying') || {}).rand || 0;
+  const pct = v => rawBase ? fmtN(v / rawBase * 100, 1) + '%' : '—';
+  const rowHtml = (r, isRef) => `<tr class="${r.step === 'total' ? 'tr-grand-total' : r.subtotal ? 'table-light fw-semibold' : ''}">
+      <td class="fw-semibold">${esc(r.label)}</td>
+      <td class="text-end">${fmtR(r.rand)}</td>
+      <td class="text-end">${isRef ? '—' : pct(r.rand)}</td>
+      <td class="text-muted small">${esc(r.rule)}</td></tr>`;
+  body.innerHTML = wf.map(r => rowHtml(r, false)).join('')
+    + '<tr class="table-secondary"><td colspan="4" class="small fw-semibold py-1">Reference — already included above or tracked separately, never added on top</td></tr>'
+    + ref.map(r => rowHtml(r, true)).join('');
+
+  const barRows = wf.filter(r => r.step !== 'total' && !r.subtotal);
+  makeChart('chart-bonus-composition', { type: 'bar',
+    data: { labels: barRows.map(r => r.label.replace(/^[+=\/\- ]+/, '')), datasets: [{
+      label: 'Rand', data: barRows.map(r => r.rand),
+      backgroundColor: barRows.map(r => r.rand < 0 ? '#dc3545' : (COMP_COLORS[r.step] || '#1565C0')) }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtR(ctx.parsed.x) } } },
+      scales: { x: { ticks: { callback: v => fmtRm(v) }, grid: { color: '#eee' } }, y: { grid: { display: false } } } } });
+
+  const s = d.summary || {};
+  document.getElementById('bonus-comp-note').textContent =
+    `${fmtN(s.gang_count || 0)} Stope Breaking gang-period(s)` +
+    (s.gated_count ? `, ${fmtN(s.gated_count)} with R0 efficiency (real STM, where any, carried straight to Raw Qualifying Bonus — no basis to split it further).` : '.') +
+    (s.reconciles ? ' Efficiency + Safety + Sweeping Penalty reconcile to the paid STM total exactly.' : ' WARNING: steps do not reconcile to STM — check the data.');
+
+  const secs = d.sections || [];
+  if (![..._compSecOn].every(x => secs.includes(x)) || !_compSecOn.size) _compSecOn = new Set(secs);
+  const tg = document.getElementById('comp-sec-toggles');
+  tg.innerHTML = secs.map(sec => `<button type="button" class="comp-sec-toggle ${_compSecOn.has(sec) ? 'active' : ''}" data-sec="${esc(sec)}">${esc(sec)}</button>`).join('');
+  tg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const sec = b.dataset.sec;
+    if (_compSecOn.has(sec)) { if (_compSecOn.size > 1) _compSecOn.delete(sec); } else _compSecOn.add(sec);
+    b.classList.toggle('active', _compSecOn.has(sec));
+    renderCompSection();
+  }));
+  renderCompSection();
+}
+
+function renderCompSection() {
+  const d = _compData;
+  const head = document.getElementById('tbl-comp-sec-head');
+  const body = document.getElementById('tbl-comp-sec-body');
+  const foot = document.getElementById('tbl-comp-sec-foot');
+  if (!d || !(d.by_section_period || []).length) {
+    head.innerHTML = ''; body.innerHTML = '<tr><td class="empty-state">No data for this selection.</td></tr>'; foot.innerHTML = '';
+    if (charts['chart-comp-section']) charts['chart-comp-section'].destroy();
+    return;
+  }
+  const keys = d.period_keys, labels = d.periods;
+  const comps = [
+    ['raw_qualifying', 'Raw Qualifying Bonus'], ['netting', 'Netting Uplift'], ['breef', 'B-Reef Stope-Width Uplift'],
+    ['safety', 'Safety Ladder'], ['sweep', 'Sweeping Penalty'],
+  ];
+  const sum = (k, comp) => d.by_section_period
+    .filter(r => r.period_raw === k && _compSecOn.has(r.section))
+    .reduce((a, r) => a + (r[comp] || 0), 0);
+  const grid = Object.fromEntries(comps.map(([c]) => [c, keys.map(k => sum(k, c))]));
+  const effRow = keys.map(k => sum(k, 'efficiency'));
+  const totRow = keys.map(k => sum(k, 'total'));
+
+  makeChart('chart-comp-section', { type: 'bar',
+    data: { labels, datasets: comps.map(([c, lbl]) => ({ label: lbl, data: grid[c], backgroundColor: COMP_COLORS[c], borderWidth: 1 })) },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtR(ctx.parsed.y) } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => fmtRm(v) }, grid: { color: '#eee' } } } } });
+
+  const tot = arr => arr.reduce((a, b) => a + b, 0);
+  head.innerHTML = '<th>Component</th>' + labels.map(l => `<th class="text-end">${l}</th>`).join('') + '<th class="text-end">Total</th>';
+  const line = (lbl, arr, cls = '') => `<tr class="${cls}"><td class="fw-semibold">${lbl}</td>${arr.map(v => `<td class="text-end">${fmtR(v)}</td>`).join('')}<td class="text-end fw-bold">${fmtR(tot(arr))}</td></tr>`;
+  body.innerHTML = comps.slice(0, 3).map(([c, lbl]) => line(lbl, grid[c])).join('')
+    + line('= Efficiency Bonus', effRow, 'table-light fw-semibold')
+    + comps.slice(3).map(([c, lbl]) => line(lbl, grid[c])).join('');
+  foot.innerHTML = '<th>= STM Bonus (paid)</th>' + totRow.map(v => `<th class="text-end">${fmtR(v)}</th>`).join('') + `<th class="text-end">${fmtR(tot(totRow))}</th>`;
+}
+
+const BONUS_OUTCOME_COLORS = {
+  entry:   { qualified: '#2E7D32', gated: '#9E9E9E' },
+  netting: { netted: '#2E7D32', not_netted: '#9E9E9E' },
+  breef:   { uplifted: '#2E7D32', not_uplifted: '#9E9E9E' },
+  safety:  { clean: '#2E7D32', dressing: '#FB8C00', lti: '#E53935', fatal: '#424242' },
+  awop:    { docked: '#E53935', none: '#2E7D32' },
+};
+
+function renderBonusOutcomes(d) {
+  const body = document.getElementById('tbl-bonus-outcomes-body');
+  const comps = (d && d.components) || [];
+  const total = (d && d.total_gang_periods) || 0;
+  if (!comps.length || !total) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-state">No data for this selection.</td></tr>';
+    if (charts['chart-bonus-outcomes']) charts['chart-bonus-outcomes'].destroy();
+    document.getElementById('bonus-outcomes-note').textContent = '';
+    return;
+  }
+  const grp = lbl => `<tr class="table-secondary"><td colspan="5" class="small fw-semibold py-1" style="color:var(--hg-dark)">${esc(lbl)}</td></tr>`;
+  body.innerHTML = comps.map(c => grp(c.title) + c.rows.map(r => `<tr>
+      <td><span class="d-inline-block rounded me-2" style="width:10px;height:10px;background:${BONUS_OUTCOME_COLORS[c.component]?.[r.key] || '#9E9E9E'}"></span>${esc(r.label)}</td>
+      <td class="text-end fw-semibold">${fmtN(r.gang_periods)}</td>
+      <td class="text-end">${fmtN(r.gang_periods / total * 100, 1)}%</td>
+      <td class="text-end">${fmtR(r.rand)}</td>
+      <td class="text-muted small">${esc(r.rule)}</td></tr>`).join('')).join('');
+
+  const datasets = [];
+  comps.forEach((c, ci) => c.rows.forEach(r => {
+    const data = comps.map(() => 0);
+    data[ci] = r.gang_periods / total * 100;
+    datasets.push({ label: r.label, data, backgroundColor: BONUS_OUTCOME_COLORS[c.component]?.[r.key] || '#9E9E9E',
+                    borderColor: '#fff', borderWidth: 1, _n: r.gang_periods });
+  }));
+  makeChart('chart-bonus-outcomes', { type: 'bar',
+    data: { labels: comps.map(c => c.title.replace(/\s*\(.*\)/, '')), datasets },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { filter: i => i.parsed.x > 0, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtN(ctx.dataset._n)} (${ctx.parsed.x.toFixed(1)}%)` } } },
+      scales: { x: { stacked: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#eee' } },
+                y: { stacked: true, grid: { display: false } } } } });
+
+  document.getElementById('bonus-outcomes-note').textContent =
+    `${fmtN(total)} gang-period(s) in the current selection. Rand per outcome adds back exactly to Bonus per Bonus Component.`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Bonus Policy Simulator — Where the System Differs from the Policy
+// ════════════════════════════════════════════════════════════════════════════
+function renderPolicyDiscrepancies(d) {
+  const el = document.getElementById('disc-items');
+  if (!el) return;
+  const items = (d && d.items) || [];
+  if (!items.length) { el.innerHTML = '<div class="empty-state">No data for this selection.</div>'; return; }
+  const cls = s => s === 'matches' ? 'disc-ok' : s === 'unverifiable' ? 'disc-unknown' : '';
+  const icon = s => s === 'matches' ? '<i class="bi bi-check-circle-fill text-success me-1"></i>'
+    : s === 'unverifiable' ? '<i class="bi bi-dash-circle text-muted me-1"></i>'
+    : '<i class="bi bi-exclamation-triangle-fill me-1" style="color:#fd7e14"></i>';
+  el.innerHTML = items.map(it => `
+    <div class="disc-item ${cls(it.status)}">
+      <div class="disc-title">${icon(it.status)}${esc(it.title)}</div>
+      <div class="disc-body mt-1">
+        <div><strong>Policy:</strong> ${esc(it.policy)}</div>
+        <div><strong>System:</strong> ${esc(it.system)}</div>
+        ${it.rand != null ? `<div class="mt-1"><strong>${esc(it.rand_label)}:</strong> ${fmtR(it.rand)}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  Tab 2 — Bonus by Gang Type
 // ════════════════════════════════════════════════════════════════════════════
 function renderBonusGangtype(d) {
@@ -2801,6 +3037,30 @@ function renderBonusSection(d) {
   if (!d || !d.rows || d.rows.length === 0) return;
 
   const keys = d.period_keys;
+
+  const secColors = ["#1565C0","#2E7D32","#AD1457","#E65100","#4527A0","#00695C"];
+  makeChart('chart-bonus-section', {
+    type: 'bar',
+    data: {
+      labels: d.periods,
+      datasets: d.rows.map((r, i) => ({
+        label: r.section, data: keys.map(k => r[k] || 0),
+        backgroundColor: secColors[i % secColors.length], borderWidth: 1,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtR(ctx.parsed.y) } },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: v => fmtR(v) }, grid: { color: '#eee' } },
+      },
+    },
+  });
+
   const head = document.getElementById('tbl-bonus-section-head');
   const body = document.getElementById('tbl-bonus-section-body');
   const foot = document.getElementById('tbl-bonus-section-foot');
@@ -2826,8 +3086,98 @@ function renderBonusSection(d) {
 // ════════════════════════════════════════════════════════════════════════════
 //  Tab 3 — m² Range Analysis
 // ════════════════════════════════════════════════════════════════════════════
+// "Bonuses" picker for the m² Range table — lets you choose what the Total Bonus column adds
+// up. STM Bonus is always included (it's what the KPI cards/Bonus Analysis call "Total Bonus").
+// Safety is NOT a pickable option — it's already inside STM Bonus (a reported breakdown of it,
+// not an addition), so there's no safe way to "add" it without double-counting. Driller
+// (Quality Drilling, REV07) IS a genuinely separate scheme paid on top of STM, so it's the one
+// real toggle here.
+let _sqmRangeData = null;
+let _sqmPicked = new Set(['stm']);
+
+function _buildSqmBonusMenu() {
+  const menu = document.getElementById('sqm-bonus-menu');
+  if (!menu || menu.dataset.built) return;
+  menu.dataset.built = '1';
+  menu.innerHTML = `
+    <div class="form-check mb-1">
+      <input class="form-check-input" type="checkbox" id="sqmb-stm" checked disabled>
+      <label class="form-check-label small" for="sqmb-stm">STM Bonus (always included — matches the KPI cards)</label>
+    </div>
+    <div class="form-check mb-1">
+      <input class="form-check-input" type="checkbox" id="sqmb-driller">
+      <label class="form-check-label small" for="sqmb-driller">+ Driller Bonus (Quality Drilling, REV07 — a separate scheme paid on top of STM)</label>
+    </div>
+    <hr class="my-2">
+    <div class="small text-muted">Safety Bonus isn't offered here — it's already included inside STM Bonus, so adding it on top would double-count it (shown as its own column for visibility only).</div>
+  `;
+  menu.querySelector('#sqmb-driller').addEventListener('change', e => {
+    if (e.target.checked) _sqmPicked.add('driller'); else _sqmPicked.delete('driller');
+    _renderSqmRangeTable();
+  });
+}
+
+function _renderSqmRangeTable() {
+  const d = _sqmRangeData;
+  if (!d || !d.period_rows || !d.period_rows.length) return;
+  const includeDriller = _sqmPicked.has('driller');
+  document.getElementById('sqm-bonus-picked').textContent =
+    includeDriller ? 'STM + Driller' : 'STM only';
+
+  const ranges = d.ranges;
+  const bonusCols = [
+    { key: 'stm_bonus',     label: 'STM Bonus' },
+    { key: 'safety_bonus',  label: 'Safety Bonus' },
+    { key: 'driller_bonus', label: 'Driller Bonus' },
+    { key: 'total_bonus',   label: 'Total Bonus' },
+  ];
+  const pickedTotal = row => row.stm_bonus + (includeDriller ? row.driller_bonus : 0);
+
+  const head = document.getElementById('tbl-range-combined-head');
+  const body = document.getElementById('tbl-range-combined-body');
+  const foot = document.getElementById('tbl-range-combined-foot');
+
+  const _rangeBonusInfo = {
+    'STM Bonus':     'Stope Team bonus (EMPLOYEESTOPETEAMBONUS) — Efficiency + Sweeping Penalty combined. Safety Bonus is already included inside this figure (a reported ~20% breakdown of it, not an addition); Driller/Quality Drilling is a genuinely separate scheme, not included. Source: PARTICIPANTSDETAIL actual payments.',
+    'Safety Bonus':  'The Safety portion already included within STM Bonus (shown here as its own column for visibility — do not add it to STM, that would double-count it). Source: PARTICIPANTSDETAIL.',
+    'Driller Bonus': 'Quality Drilling Incentive (REV07) — a genuinely separate bonus scheme paid in addition to STM, R100 per quality blast. Not included in STM Bonus or the KPI cards. Source: PARTICIPANTSDETAIL.',
+    'Total Bonus':   'The bonuses ticked in the Bonuses picker above, added together. Defaults to STM Bonus alone (matches the KPI cards and Bonus Analysis tab exactly).',
+  };
+  head.innerHTML =
+    '<th>Period</th>' +
+    ranges.map(r => `<th class="text-end" style="min-width:68px">${r}</th>`).join('') +
+    '<th class="text-end">Total Crews</th>' +
+    bonusCols.map(c => `<th class="text-end" style="min-width:110px">${c.label}${_infoBtn(c.label, _rangeBonusInfo[c.label] || c.label)}</th>`).join('');
+  _initPopovers(document.getElementById('tbl-range-combined').tHead);
+
+  body.innerHTML = d.period_rows.map(row => `
+    <tr>
+      <td class="fw-semibold">${row.period}</td>
+      ${ranges.map(r => `<td class="text-end">${row[r] > 0 ? row[r] : '—'}</td>`).join('')}
+      <td class="text-end fw-bold">${row.total}</td>
+      <td class="text-end">${fmtR(row.stm_bonus || 0)}</td>
+      <td class="text-end">${fmtR(row.safety_bonus || 0)}</td>
+      <td class="text-end">${fmtR(row.driller_bonus || 0)}</td>
+      <td class="text-end fw-bold">${fmtR(pickedTotal(row))}</td>
+    </tr>`
+  ).join('');
+
+  const sumR = r   => d.period_rows.reduce((s, row) => s + (row[r]   || 0), 0);
+  const sumB = key => d.period_rows.reduce((s, row) => s + (row[key] || 0), 0);
+  foot.innerHTML =
+    '<th>Grand Total</th>' +
+    ranges.map(r => `<th class="text-end">${sumR(r) > 0 ? sumR(r) : '—'}</th>`).join('') +
+    `<th class="text-end">${d.period_rows.reduce((s, r) => s + r.total, 0)}</th>` +
+    `<th class="text-end">${fmtR(sumB('stm_bonus'))}</th>` +
+    `<th class="text-end">${fmtR(sumB('safety_bonus'))}</th>` +
+    `<th class="text-end">${fmtR(sumB('driller_bonus'))}</th>` +
+    `<th class="text-end fw-bold">${fmtR(d.period_rows.reduce((s, row) => s + pickedTotal(row), 0))}</th>`;
+}
+
 function renderSqmRange(d) {
   if (!d) return;
+  _sqmRangeData = d;
+  _buildSqmBonusMenu();
 
   // Stacked bar chart
   if (d.chart && d.chart.labels && d.chart.labels.length) {
@@ -2849,53 +3199,7 @@ function renderSqmRange(d) {
   }
 
   // Combined table: crew distribution per m² range + bonus totals — one row per period
-  if (d.period_rows && d.period_rows.length) {
-    const ranges = d.ranges;
-    const bonusCols = [
-      { key: 'stm_bonus',     label: 'STM Bonus' },
-      { key: 'safety_bonus',  label: 'Safety Bonus' },
-      { key: 'driller_bonus', label: 'Driller Bonus' },
-      { key: 'total_bonus',   label: 'Total Bonus' },
-    ];
-
-    const head = document.getElementById('tbl-range-combined-head');
-    const body = document.getElementById('tbl-range-combined-body');
-    const foot = document.getElementById('tbl-range-combined-foot');
-
-    const _rangeBonusInfo = {
-      'STM Bonus':     'Stope Team bonus (EMPLOYEESTOPETEAMBONUS) — Efficiency + Sweeping Penalty combined, excludes Driller and Safety. Source: PARTICIPANTSDETAIL actual payments.',
-      'Safety Bonus':  'Actual safety bonus payments per gang. Source: PARTICIPANTSDETAIL.',
-      'Driller Bonus': 'Actual driller bonus payments per gang. Source: PARTICIPANTSDETAIL.',
-      'Total Bonus':   'STM + Safety + Driller. Source: PARTICIPANTSDETAIL — reconciles with the Bonus Analysis tab.',
-    };
-    head.innerHTML =
-      '<th>Period</th>' +
-      ranges.map(r => `<th class="text-end" style="min-width:68px">${r}</th>`).join('') +
-      '<th class="text-end">Total Crews</th>' +
-      bonusCols.map(c => `<th class="text-end" style="min-width:110px">${c.label}${_infoBtn(c.label, _rangeBonusInfo[c.label] || c.label)}</th>`).join('');
-    _initPopovers(document.getElementById('tbl-range-combined').tHead);
-
-    body.innerHTML = d.period_rows.map(row => `
-      <tr>
-        <td class="fw-semibold">${row.period}</td>
-        ${ranges.map(r => `<td class="text-end">${row[r] > 0 ? row[r] : '—'}</td>`).join('')}
-        <td class="text-end fw-bold">${row.total}</td>
-        ${bonusCols.map((c, i) =>
-          `<td class="text-end${i === bonusCols.length - 1 ? ' fw-bold' : ''}">${fmtR(row[c.key] || 0)}</td>`
-        ).join('')}
-      </tr>`
-    ).join('');
-
-    const sumR = r   => d.period_rows.reduce((s, row) => s + (row[r]   || 0), 0);
-    const sumB = key => d.period_rows.reduce((s, row) => s + (row[key] || 0), 0);
-    foot.innerHTML =
-      '<th>Grand Total</th>' +
-      ranges.map(r => `<th class="text-end">${sumR(r) > 0 ? sumR(r) : '—'}</th>`).join('') +
-      `<th class="text-end">${d.period_rows.reduce((s, r) => s + r.total, 0)}</th>` +
-      bonusCols.map((c, i) =>
-        `<th class="text-end${i === bonusCols.length - 1 ? ' fw-bold' : ''}">${fmtR(sumB(c.key))}</th>`
-      ).join('');
-  }
+  _renderSqmRangeTable();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -3360,12 +3664,12 @@ function renderGangDetail(rows) {
 // ════════════════════════════════════════════════════════════════════════════
 
 async function loadGangProdDetail(gang) {
-  const card  = document.getElementById('card-gang-prod-detail');
   const title = document.getElementById('gang-prod-detail-title');
   const tbody = document.getElementById('tbl-gang-prod-detail-body');
 
-  card.classList.remove('d-none');
-  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Workplace Detail is its own sub-tab pill now — switch to it instead of un-hiding a card.
+  const workplacePill = document.querySelector('#gangAnalysisSubtabs button[data-bs-target="#gsub-workplace"]');
+  if (workplacePill) bootstrap.Tab.getOrCreateInstance(workplacePill).show();
   title.textContent = `Workplace Detail — Gang ${gang}`;
   tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading…</td></tr>';
 
@@ -3593,1106 +3897,6 @@ function _rsqmRefreshAndUpdateInfo() {
   _rsqmUpdateTotalInfo();
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Tab 6 — m² Quota Simulation
-// ════════════════════════════════════════════════════════════════════════════
-let _simData      = null;
-let _simInitDone  = false;
-
-async function loadLazySim() {
-  if (_lazyLoaded.sim) return;
-  _lazyLoaded.sim = true;
-  showLoading();
-  try {
-    const p = { from: state.from, to: state.to, section: state.section };
-    _simData = await api('/api/simulation_data', p);
-    _simSetup();
-    _simRun();
-  } catch (e) {
-    _lazyLoaded.sim = false;
-    _simData = null;
-    document.getElementById('tbl-sim-detail-body').innerHTML =
-      `<tr><td colspan="12" class="empty-state text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${e.message.slice(0, 300)}</td></tr>`;
-  } finally { hideLoading(); }
-}
-
-// Returns the target m² for a section (global or per-section override)
-function _simGetTarget(section) {
-  if (document.getElementById('sim-per-section').checked) {
-    const id = 'sim-sec-' + section.replace(/[^a-zA-Z0-9]/g, '_');
-    const el = document.getElementById(id);
-    if (el) return Math.max(1, parseFloat(el.value) || 350);
-  }
-  return Math.max(1, parseFloat(document.getElementById('sim-target-input').value) || 350);
-}
-
-// Returns the R/m² target for a section (global or per-section override)
-function _simGetRSqm(section) {
-  if (document.getElementById('sim-rsqm-per-section')?.checked) {
-    const id = 'sim-rsqm-sec-' + section.replace(/[^a-zA-Z0-9]/g, '_');
-    const el = document.getElementById(id);
-    if (el) return Math.max(0, parseFloat(el.value) || 0);
-  }
-  return Math.max(0, parseFloat(document.getElementById('sim-rsqm-input')?.value) || 0);
-}
-
-// One-time setup of dropdowns + section target inputs + event listeners
-function _simSetup() {
-  if (!_simData) return;
-
-  // Populate Section filter
-  const secSel = document.getElementById('sim-filter-section');
-  secSel.innerHTML = '<option value="ALL">All Sections</option>';
-  _simData.sections.forEach(s => secSel.appendChild(new Option(s, s)));
-
-  // Populate Period filter
-  const perSel = document.getElementById('sim-filter-period');
-  perSel.innerHTML = '<option value="ALL">All Periods</option>';
-  _simData.periods.forEach(p => perSel.appendChild(new Option(p, p)));
-
-  // Build per-section m² target inputs
-  const globalVal  = document.getElementById('sim-target-input').value;
-  document.getElementById('sim-section-targets').innerHTML = _simData.sections.map(s => {
-    const id = 'sim-sec-' + s.replace(/[^a-zA-Z0-9]/g, '_');
-    return `<div class="col-auto">
-      <label class="form-label small fw-semibold">${s}</label>
-      <div class="d-flex align-items-center gap-1">
-        <input type="number" class="form-control form-control-sm text-end sim-sec-input"
-               id="${id}" value="${globalVal}" min="50" max="800" step="10"
-               style="width:90px" oninput="_simRun()">
-        <span class="small text-muted">m²</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Initialise R/m² global input from historical overall rate (sensible default)
-  const overallRate = Math.round(_simData.overall_stm_rate || 350);
-  document.getElementById('sim-rsqm-input').value  = overallRate;
-  document.getElementById('sim-rsqm-slider').value = Math.min(2000, overallRate);
-
-  // Build per-section R/m² target inputs
-  document.getElementById('sim-section-rsqm').innerHTML = _simData.sections.map(s => {
-    const id  = 'sim-rsqm-sec-' + s.replace(/[^a-zA-Z0-9]/g, '_');
-    const def = Math.round(_simData.section_stm_rates?.[s] || overallRate);
-    return `<div class="col-auto">
-      <label class="form-label small fw-semibold">${s}</label>
-      <div class="d-flex align-items-center gap-1">
-        <span class="small text-muted">R</span>
-        <input type="number" class="form-control form-control-sm text-end sim-rsqm-sec-input"
-               id="${id}" value="${def}" min="0" step="5"
-               style="width:90px" oninput="_simRun()">
-        <span class="small text-muted">/m²</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Wire controls (only once — _simInitDone prevents duplicate listeners)
-  if (!_simInitDone) {
-    _simInitDone = true;
-
-    document.getElementById('sim-slider').addEventListener('input', function () {
-      document.getElementById('sim-target-input').value = this.value;
-      if (!document.getElementById('sim-per-section').checked)
-        document.querySelectorAll('.sim-sec-input').forEach(el => el.value = this.value);
-      _simRun();
-    });
-
-    document.getElementById('sim-target-input').addEventListener('input', function () {
-      document.getElementById('sim-slider').value = this.value;
-      if (!document.getElementById('sim-per-section').checked)
-        document.querySelectorAll('.sim-sec-input').forEach(el => el.value = this.value);
-      _simRun();
-    });
-
-    document.getElementById('sim-per-section').addEventListener('change', function () {
-      document.getElementById('sim-section-targets').style.display = this.checked ? '' : 'none';
-      if (!this.checked) {
-        const val = document.getElementById('sim-target-input').value;
-        document.querySelectorAll('.sim-sec-input').forEach(el => el.value = val);
-      }
-      _simRun();
-    });
-
-    // R/m² controls
-    document.getElementById('sim-rsqm-slider').addEventListener('input', function () {
-      document.getElementById('sim-rsqm-input').value = this.value;
-      if (!document.getElementById('sim-rsqm-per-section').checked)
-        document.querySelectorAll('.sim-rsqm-sec-input').forEach(el => el.value = this.value);
-      _simRun();
-    });
-
-    document.getElementById('sim-rsqm-input').addEventListener('input', function () {
-      document.getElementById('sim-rsqm-slider').value = Math.min(2000, this.value);
-      if (!document.getElementById('sim-rsqm-per-section').checked)
-        document.querySelectorAll('.sim-rsqm-sec-input').forEach(el => el.value = this.value);
-      _simRun();
-    });
-
-    document.getElementById('sim-rsqm-per-section').addEventListener('change', function () {
-      document.getElementById('sim-section-rsqm').style.display = this.checked ? '' : 'none';
-      if (!this.checked) {
-        const val = document.getElementById('sim-rsqm-input').value;
-        document.querySelectorAll('.sim-rsqm-sec-input').forEach(el => el.value = val);
-      }
-      _simRun();
-    });
-
-    document.getElementById('sim-filter-section').addEventListener('change', () => _simRenderDetail());
-    document.getElementById('sim-filter-period').addEventListener('change',  () => _simRenderDetail());
-  }
-}
-
-// Derive projected gangs from _simData + current target settings
-function _simComputeGangs() {
-  if (!_simData) return [];
-  return _simData.gangs.map(g => {
-    const target   = _simGetTarget(g.section);
-    // Projected STM bonus = user-set R/m² target × m² target; safety + driller are fixed
-    const rSqm     = _simGetRSqm(g.section);
-    const projStm  = round2(rSqm * target);
-    const proj     = round2(projStm + g.safety_bonus + g.driller_bonus);
-    const gap      = round2(g.actual_sqm - target);
-    const achiev   = g.actual_sqm > 0 ? round2(g.actual_sqm / target * 100) : 0;
-    const uplift   = round2(proj - g.actual_bonus);
-    return { ...g, target, proj_bonus: proj, gap, achievement: achiev, uplift };
-  });
-}
-
-function _simRun() {
-  if (!_simData) return;
-  const gangs = _simComputeGangs();
-  _simRenderKpi(gangs);
-  _simRenderChart(gangs);
-  _simRenderSectionBonusChart(gangs);
-  _simRenderSection(gangs);
-  _simRenderDetail(gangs);
-  _simRenderGangAchChart(gangs);
-  _simRenderAnalysis(gangs);
-  _simRenderBudget(gangs);
-  _wiUpdate();
-}
-
-function _simRenderKpi(gangs) {
-  const meeting   = gangs.filter(g => g.actual_sqm >= g.target).length;
-  const totalGap  = round2(gangs.reduce((s, g) => s + Math.max(0, -g.gap), 0));
-  const projBonus = gangs.reduce((s, g) => s + g.proj_bonus, 0);
-  const actBonus  = gangs.reduce((s, g) => s + g.actual_bonus, 0);
-  const uplift    = round2(projBonus - actBonus);
-
-  document.getElementById('sim-kpi-meeting').textContent    = `${meeting} / ${gangs.length}`;
-  document.getElementById('sim-kpi-gap').textContent        = fmtN(totalGap) + ' m²';
-  document.getElementById('sim-kpi-proj-bonus').textContent = fmtR(projBonus);
-  document.getElementById('sim-kpi-uplift').textContent     = (uplift >= 0 ? '+' : '') + fmtR(uplift);
-
-  // Budget R/Man KPIs
-  const budget   = parseFloat(document.getElementById('sim-budget-r-man')?.value || 3300);
-  const validG   = gangs.filter(g => g.labour > 0 && g.stm_bonus != null);
-  const avgRMan  = validG.length
-    ? validG.reduce((s, g) => s + g.stm_bonus / g.labour, 0) / validG.length : 0;
-  const pctVsBudget = budget > 0 ? ((avgRMan - budget) / budget * 100) : 0;
-  const rManEl   = document.getElementById('sim-kpi-avg-r-man');
-  const budgetEl = document.getElementById('sim-kpi-budget-status');
-  if (rManEl)   rManEl.textContent = fmtR(avgRMan);
-  if (budgetEl) {
-    const sign = pctVsBudget >= 0 ? '+' : '';
-    budgetEl.innerHTML = `<span class="${pctVsBudget >= 0 ? 'text-success' : 'text-danger'}">${sign}${pctVsBudget.toFixed(1)}%</span>`;
-  }
-}
-
-function _simRenderBudget(gangs) {
-  const budget = parseFloat(document.getElementById('sim-budget-r-man')?.value || 3300);
-  const card   = document.getElementById('sim-budget-card');
-  if (!card) return;
-
-  // Aggregate by section
-  const secMap = {};
-  gangs.forEach(g => {
-    if (!secMap[g.section]) secMap[g.section] = { labour: 0, stm: 0 };
-    secMap[g.section].labour += (g.labour || 0);
-    secMap[g.section].stm    += (g.stm_bonus || 0);
-  });
-
-  const rows   = Object.entries(secMap).sort((a, b) => a[0].localeCompare(b[0]));
-  const totLab = rows.reduce((s, [, v]) => s + v.labour, 0);
-  const totStm = rows.reduce((s, [, v]) => s + v.stm, 0);
-  const totBudStm = totLab * budget;
-  const totVar    = totStm - totBudStm;
-  const nPeriods  = [...new Set(gangs.map(g => g.period_raw))].length || 1;
-
-  const statusBadge = (actual, bud) => {
-    const p = bud > 0 ? (actual - bud) / bud * 100 : 0;
-    const cls = p >= 5 ? 'bg-success' : p >= -5 ? 'bg-warning text-dark' : 'bg-danger';
-    const sign = p >= 0 ? '+' : '';
-    return `<span class="badge ${cls}">${sign}${p.toFixed(1)}%</span>`;
-  };
-
-  document.getElementById('tbl-sim-budget-body').innerHTML = rows.map(([sec, v]) => {
-    const budStm = v.labour * budget;
-    const varV   = v.stm - budStm;
-    const avgRM  = v.labour > 0 ? v.stm / v.labour : 0;
-    return `<tr>
-      <td class="fw-semibold">${sec}</td>
-      <td class="text-end">${fmtN(v.labour, 1)}</td>
-      <td class="text-end">${fmtR(v.stm)}</td>
-      <td class="text-end">${fmtR(budStm)}</td>
-      <td class="text-end ${varV >= 0 ? 'text-success' : 'text-danger'} fw-bold">${varV >= 0 ? '+' : ''}${fmtR(varV)}</td>
-      <td class="text-end fw-semibold">${fmtR(avgRM)}</td>
-      <td>${statusBadge(v.stm, budStm)}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('tbl-sim-budget-foot').innerHTML = `
-    <th>Grand Total</th>
-    <th class="text-end">${fmtN(totLab, 1)}</th>
-    <th class="text-end fw-bold">${fmtR(totStm)}</th>
-    <th class="text-end fw-bold">${fmtR(totBudStm)}</th>
-    <th class="text-end fw-bold ${totVar >= 0 ? 'text-success' : 'text-danger'}">${totVar >= 0 ? '+' : ''}${fmtR(totVar)}</th>
-    <th class="text-end fw-bold">${fmtR(totLab > 0 ? totStm / totLab : 0)}</th>
-    <th>${statusBadge(totStm, totBudStm)}</th>`;
-
-  // Summary boxes
-  const annFactor = 12 / nPeriods;
-  const annActual = totStm * annFactor;
-  const annBudget = totBudStm * annFactor;
-  const annVar    = annActual - annBudget;
-  document.getElementById('sim-budget-summary').innerHTML = `
-    <div class="col-sm-6 col-lg-3">
-      <div class="border rounded p-2 text-center">
-        <div class="small text-muted">Actual STM (period)</div>
-        <div class="fw-bold">${fmtR(totStm)}</div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="border rounded p-2 text-center">
-        <div class="small text-muted">Budget STM (period)</div>
-        <div class="fw-bold">${fmtR(totBudStm)}</div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="border rounded p-2 text-center">
-        <div class="small text-muted">Annualised Actual STM</div>
-        <div class="fw-bold">${fmtR(annActual)}</div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="border rounded p-2 text-center">
-        <div class="small text-muted">Annual Budget STM</div>
-        <div class="fw-bold">${fmtR(annBudget)}</div>
-        <div class="small ${annVar >= 0 ? 'text-success' : 'text-danger'}">${annVar >= 0 ? '+' : ''}${fmtR(annVar)} vs budget</div>
-      </div>
-    </div>`;
-
-  card.style.display = '';
-}
-
-function _simRenderChart(gangs) {
-  // Average actual m² per section vs target
-  const secMap = {};
-  gangs.forEach(g => {
-    if (!secMap[g.section]) secMap[g.section] = [];
-    secMap[g.section].push(g.actual_sqm);
-  });
-  const sections   = Object.keys(secMap).sort();
-  const avgActuals = sections.map(s => round2(secMap[s].reduce((a,b)=>a+b,0) / secMap[s].length));
-  const targets    = sections.map(s => _simGetTarget(s));
-
-  makeChart('chart-sim-achievement', {
-    type: 'bar',
-    data: {
-      labels: sections,
-      datasets: [
-        {
-          label: 'Avg Actual m²',
-          data: avgActuals,
-          backgroundColor: avgActuals.map((v,i) => v >= targets[i] ? '#43A04755' : '#E5393555'),
-          borderColor:     avgActuals.map((v,i) => v >= targets[i] ? '#43A047'   : '#E53935'),
-          borderWidth: 2,
-        },
-        {
-          type: 'line',
-          label: 'Target m²',
-          data: targets,
-          borderColor: '#D4A017', backgroundColor: 'transparent',
-          borderWidth: 2.5, borderDash: [7, 4],
-          pointRadius: 6, pointStyle: 'rectRot', pointBackgroundColor: '#D4A017',
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
-        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtN(ctx.parsed.y) + ' m²' } }
-      },
-      scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: '#eee' }, ticks: { callback: v => fmtN(v) + ' m²' }, beginAtZero: true }
-      }
-    }
-  });
-}
-
-function _simRenderSectionBonusChart(gangs) {
-  const secMap = {};
-  gangs.forEach(g => {
-    if (!secMap[g.section]) secMap[g.section] = { act: 0, proj: 0 };
-    secMap[g.section].act  += g.actual_bonus;
-    secMap[g.section].proj += g.proj_bonus;
-  });
-  const secs  = Object.keys(secMap).sort();
-  const acts  = secs.map(s => round2(secMap[s].act));
-  const projs = secs.map(s => round2(secMap[s].proj));
-
-  makeChart('chart-sim-section-bonus', {
-    type: 'bar',
-    data: {
-      labels: secs,
-      datasets: [
-        {
-          label: 'Actual Bonus',
-          data: acts,
-          backgroundColor: '#2196F330',
-          borderColor: '#2196F3',
-          borderWidth: 2,
-          borderRadius: 4,
-        },
-        {
-          label: 'Proj Bonus @ Target',
-          data: projs,
-          backgroundColor: projs.map((p, i) => p >= acts[i] ? '#43A04730' : '#E5393530'),
-          borderColor:     projs.map((p, i) => p >= acts[i] ? '#43A047'   : '#E53935'),
-          borderWidth: 2,
-          borderRadius: 4,
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
-        tooltip: {
-          callbacks: {
-            label: ctx => ' ' + ctx.dataset.label + ': ' + fmtR(ctx.parsed.y),
-            afterBody: items => {
-              const i = items[0].dataIndex;
-              const diff = round2(projs[i] - acts[i]);
-              return [' Variance: ' + (diff >= 0 ? '+' : '') + fmtR(diff)];
-            }
-          }
-        }
-      },
-      scales: {
-        x: { grid: { display: false } },
-        y: {
-          grid: { color: '#eee' }, beginAtZero: true,
-          ticks: { callback: v => v >= 1e6 ? 'R '+(v/1e6).toFixed(1)+'M' : v >= 1e3 ? 'R '+(v/1e3).toFixed(0)+'k' : 'R '+v }
-        }
-      }
-    }
-  });
-}
-
-function _simRenderGangAchChart(gangs) {
-  // Aggregate by section+gang (average achievement across all selected periods)
-  const gMap = {};
-  gangs.forEach(g => {
-    const key = g.section + ' / ' + g.gang;
-    if (!gMap[key]) gMap[key] = [];
-    gMap[key].push(g.achievement);
-  });
-  const entries = Object.entries(gMap)
-    .map(([key, achs]) => ({ label: key, avg: round2(achs.reduce((a,b)=>a+b,0)/achs.length) }))
-    .sort((a, b) => a.avg - b.avg);
-
-  const labels  = entries.map(e => e.label);
-  const values  = entries.map(e => e.avg);
-  const colors  = values.map(v => v >= 100 ? '#43A047' : v >= 80 ? '#F57F17' : '#E53935');
-  const bgColors = values.map(v => v >= 100 ? '#43A04730' : v >= 80 ? '#F57F1730' : '#E5393530');
-
-  // Grow the container to fit all bars
-  const wrap = document.getElementById('chart-sim-gang-ach-container');
-  if (wrap) wrap.style.height = Math.max(240, entries.length * 26 + 50) + 'px';
-
-  makeChart('chart-sim-gang-ach', {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Avg Achievement %',
-        data: values,
-        backgroundColor: bgColors,
-        borderColor: colors,
-        borderWidth: 1.5,
-        borderRadius: 3,
-        barThickness: 18,
-      }]
-    },
-    plugins: [{
-      id: 'targetLine',
-      afterDraw: chart => {
-        const { ctx, scales: { x }, chartArea: { top, bottom } } = chart;
-        const xPx = x.getPixelForValue(100);
-        ctx.save();
-        ctx.strokeStyle = '#D4A017';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath(); ctx.moveTo(xPx, top); ctx.lineTo(xPx, bottom); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#D4A017';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Target 100%', xPx, top - 5);
-        ctx.restore();
-      }
-    }],
-    options: {
-      indexAxis: 'y',
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' Achievement: ' + fmtN(ctx.parsed.x, 1) + '%' } }
-      },
-      scales: {
-        x: { grid: { color: '#eee' }, min: 0, ticks: { callback: v => v + '%' } },
-        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
-      }
-    }
-  });
-}
-
-function _simRenderSection(gangs) {
-  const secMap = {};
-  gangs.forEach(g => {
-    if (!secMap[g.section]) secMap[g.section] = { count:0, meeting:0, sqms:[], actBonus:0, projBonus:0 };
-    const s = secMap[g.section];
-    s.count++; if (g.actual_sqm >= g.target) s.meeting++;
-    s.sqms.push(g.actual_sqm); s.actBonus += g.actual_bonus; s.projBonus += g.proj_bonus;
-  });
-
-  const sections = Object.keys(secMap).sort();
-  let totCount=0, totMeeting=0, totAct=0, totProj=0, totActSqm=0;
-
-  document.getElementById('tbl-sim-section-body').innerHTML = sections.map(sec => {
-    const s       = secMap[sec];
-    const target  = _simGetTarget(sec);
-    const actSqm  = s.sqms.reduce((a,b)=>a+b, 0);
-    const avgSqm  = round2(actSqm / s.sqms.length);
-    const pctMet  = round2(s.meeting / s.count * 100);
-    const avgGap  = round2(avgSqm - target);
-    const uplift  = round2(s.projBonus - s.actBonus);
-    const actRSqm = actSqm > 0 ? round2(s.actBonus / actSqm) : 0;
-    totCount += s.count; totMeeting += s.meeting;
-    totAct += s.actBonus; totProj += s.projBonus; totActSqm += actSqm;
-    const rc = pctMet >= 100 ? 'table-success' : pctMet >= 80 ? 'table-warning' : 'table-danger';
-    return `<tr class="${rc}">
-      <td class="fw-semibold">${sec}</td>
-      <td class="text-end">${s.count}</td>
-      <td class="text-end">${s.meeting}</td>
-      <td class="text-end fw-bold">${fmtN(pctMet,1)}%</td>
-      <td class="text-end">${fmtN(target,0)}</td>
-      <td class="text-end">${fmtN(avgSqm,0)}</td>
-      <td class="text-end fw-semibold ${avgGap>0?'text-success':'text-danger'}">
-        ${avgGap>0 ? '+'+fmtN(avgGap,0) : fmtN(avgGap,0)}
-      </td>
-      <td class="text-end">${fmtR(s.projBonus)}</td>
-      <td class="text-end">${fmtR(s.actBonus)}</td>
-      <td class="text-end fw-semibold">${actRSqm > 0 ? fmtR(actRSqm)+'/m²' : '—'}</td>
-      <td class="text-end fw-bold ${uplift>=0?'text-success':'text-danger'}">
-        ${uplift>=0?'+':''}${fmtR(uplift)}
-      </td>
-    </tr>`;
-  }).join('');
-
-  const totUplift  = round2(totProj - totAct);
-  const totPct     = totCount > 0 ? round2(totMeeting / totCount * 100) : 0;
-  const totActRSqm = totActSqm > 0 ? round2(totAct / totActSqm) : 0;
-  const totAvgSqm  = totCount > 0 ? round2(totActSqm / totCount) : 0;
-  document.getElementById('tbl-sim-section-foot').innerHTML = `
-    <th>Grand Total</th>
-    <th class="text-end">${totCount}</th>
-    <th class="text-end">${totMeeting}</th>
-    <th class="text-end">${fmtN(totPct,1)}%</th>
-    <th class="text-end">—</th>
-    <th class="text-end">${fmtN(totAvgSqm,0)}</th>
-    <th class="text-end">—</th>
-    <th class="text-end">${fmtR(totProj)}</th>
-    <th class="text-end">${fmtR(totAct)}</th>
-    <th class="text-end fw-semibold">${totActRSqm > 0 ? fmtR(totActRSqm)+'/m²' : '—'}</th>
-    <th class="text-end fw-bold ${totUplift>=0?'text-success':'text-danger'}">
-      ${totUplift>=0?'+':''}${fmtR(totUplift)}
-    </th>
-  `;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  What-If Scenario Simulator
-// ════════════════════════════════════════════════════════════════════════════
-
-function _wiBaseMetrics() {
-  if (!_simData?.gangs?.length) return null;
-  const gangs    = _simData.gangs;
-  const nPer     = Math.max(1, new Set(gangs.map(g => g.period_raw)).size);
-  const totSqm   = gangs.reduce((s,g) => s + (g.actual_sqm    || 0), 0);
-  const totBonus = gangs.reduce((s,g) => s + (g.actual_bonus  || 0), 0);
-  const totStm   = gangs.reduce((s,g) => s + (g.stm_bonus     || 0), 0);
-  const totLab   = gangs.reduce((s,g) => s + (g.labour        || 0), 0);
-  const nCrew    = gangs.length; // gang-period rows
-  return {
-    nPer, totSqm, totBonus, totStm, totLab, nCrew,
-    rSqm:     totSqm > 0 ? round2(totBonus / totSqm) : 0,
-    stmRSqm:  totSqm > 0 ? round2(totStm   / totSqm) : 0,
-    rMan:     totLab > 0  ? round2(totStm   / totLab) : 0,
-    mSqmMan:  totLab > 0  ? round2(totSqm   / totLab) : 0,
-    mSqmCrew: nCrew  > 0  ? round2(totSqm   / nCrew)  : 0,
-  };
-}
-
-function _wiShowTab(name, btn) {
-  ['interactive','sensitivity','goalseek'].forEach(t => {
-    const p = document.getElementById('wi-tab-' + t);
-    if (p) p.style.display = t === name ? '' : 'none';
-  });
-  document.querySelectorAll('.wi-tab-btn').forEach(b => {
-    b.classList.toggle('btn-primary', b === btn);
-    b.classList.toggle('btn-outline-secondary', b !== btn);
-  });
-  if (name === 'sensitivity') _wiRenderSensitivity();
-}
-
-function _wiUpdate() {
-  const b = _wiBaseMetrics();
-  if (!b) return;
-  const sqmPct    = parseInt(document.getElementById('wi-sqm-pct')?.value    || 0);
-  const labPct    = parseInt(document.getElementById('wi-labour-pct')?.value || 0);
-  const bonPct    = parseInt(document.getElementById('wi-bonus-pct')?.value  || 0);
-
-  const setLbl = (id, val, suf) => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent = (val >= 0 ? '+' : '') + val + suf;
-              el.className = `badge ms-1 ${val > 0 ? 'bg-success' : val < 0 ? 'bg-danger' : 'bg-secondary'}`; }
-  };
-  setLbl('wi-sqm-pct-lbl', sqmPct, '%');
-  setLbl('wi-labour-lbl',  labPct, '%');
-  setLbl('wi-bonus-pct-lbl', bonPct, '%');
-
-  const simSqm   = round2(b.totSqm   * (1 + sqmPct / 100));
-  const simBonus = round2(b.totBonus * (1 + bonPct  / 100));
-  const simStm   = round2(b.totStm   * (1 + bonPct  / 100));
-  const simLab   = Math.max(1, round2(b.totLab * (1 + labPct / 100)));
-
-  const simRSqm     = simSqm > 0 ? round2(simBonus / simSqm) : 0;
-  const simStmRSqm  = simSqm > 0 ? round2(simStm   / simSqm) : 0;
-  const simRMan     = simLab > 0  ? round2(simStm   / simLab) : 0;
-  const simMSqmMan  = simLab > 0  ? round2(simSqm   / simLab) : 0;
-  const simMSqmCrew = b.nCrew > 0 ? round2(simSqm   / b.nCrew) : 0;
-
-  const traffic = (act, sim, hi) => {
-    if (!act) return '<span class="badge bg-secondary">—</span>';
-    const p = (sim - act) / act * 100;
-    if (hi  ? p >  2 : p < -2) return '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Improved</span>';
-    if (hi  ? p < -2 : p >  2) return '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Worsened</span>';
-    return '<span class="badge bg-warning text-dark"><i class="bi bi-dash-circle me-1"></i>Neutral</span>';
-  };
-  const row = (lbl, act, sim, fmt, unit, hi) => {
-    const d = round2(sim - act);
-    const p = act > 0 ? round2((sim - act) / act * 100) : 0;
-    const c = (d >= 0) === hi ? 'text-success' : 'text-danger';
-    return `<tr><td class="fw-semibold">${lbl}</td>
-      <td class="text-end">${fmt(act)}${unit}</td>
-      <td class="text-end fw-bold">${fmt(sim)}${unit}</td>
-      <td class="text-end fw-semibold ${c}">${d>=0?'+':''}${fmt(d)}${unit} (${d>=0?'+':''}${p.toFixed(1)}%)</td>
-      <td class="text-center">${traffic(act,sim,hi)}</td></tr>`;
-  };
-  const grp = lbl => `<tr class="table-secondary"><td colspan="5" class="small fw-semibold text-muted py-1">${lbl}</td></tr>`;
-
-  const tbody = document.getElementById('tbl-wi-interactive');
-  if (tbody) tbody.innerHTML = [
-    grp('Production'),
-    row('Total m²',         b.totSqm,   simSqm,   fmtN, ' m²',  true),
-    grp('Bonus Cost'),
-    row('Total Bonus',      b.totBonus, simBonus,  fmtR, '',     true),
-    row('STM Rand/m²',      b.stmRSqm,  simStmRSqm,fmtR,'/m²',  false),
-    row('Total Rand/m²',    b.rSqm,     simRSqm,   fmtR, '/m²',  false),
-    grp('Labour Efficiency'),
-    row('Rand/Man (STM)',   b.rMan,     simRMan,   fmtR, '/man', false),
-    row('m²/Man',           b.mSqmMan,  simMSqmMan,fmtN, ' m²',  true),
-    row('m²/Crew',          b.mSqmCrew, simMSqmCrew,fmtN,' m²',  true),
-  ].join('');
-}
-
-function _wiPreset(type) {
-  const p = { best:[10,-10,0], expected:[0,0,0], risk:[-10,10,0] }[type] || [0,0,0];
-  ['wi-sqm-pct','wi-labour-pct','wi-bonus-pct'].forEach((id,i) => {
-    const el = document.getElementById(id); if (el) el.value = p[i];
-  });
-  _wiUpdate();
-}
-
-function _wiReset() {
-  ['wi-sqm-pct','wi-labour-pct','wi-bonus-pct'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = 0;
-  });
-  _wiUpdate();
-}
-
-function _wiRenderSensitivity() {
-  const b   = _wiBaseMetrics();
-  const box = document.getElementById('wi-sensitivity-content');
-  if (!b || !box) return;
-
-  const tbl = (title, desc, heads, rows) => `
-    <div class="col-md-6 col-xl-4">
-      <div class="card border h-100">
-        <div class="card-body p-2">
-          <div class="small fw-bold mb-1">${title}</div>
-          <div class="text-muted mb-2" style="font-size:.7rem">${desc}</div>
-          <div class="table-wrap">
-            <table class="table table-sm table-bordered mb-0" style="font-size:.75rem">
-              <thead><tr>${heads.map(h=>`<th class="${h.c||''}">${h.l}</th>`).join('')}</tr></thead>
-              <tbody>${rows.map(r=>`<tr class="${r.rc||''}">${r.cells.map((c,i)=>`<td class="${heads[i]?.c||''} ${c.c||''}">${c.v}</td>`).join('')}</tr>`).join('')}</tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-  // Sim 1 — Production Change
-  const s1 = [-20,-10,0,10,20].map(p => {
-    const sq = round2(b.totSqm*(1+p/100));
-    const rs = sq>0 ? round2(b.totBonus/sq) : 0;
-    const mm = b.totLab>0 ? round2(sq/b.totLab) : 0;
-    const mc = b.nCrew>0  ? round2(sq/b.nCrew)  : 0;
-    return { rc: p===0?'table-primary fw-bold':'', cells:[
-      {v:(p>=0?'+':'')+p+'%'},
-      {v:fmtN(sq)+' m²'},
-      {v:fmtR(rs)+'/m²', c:rs<=b.rSqm?'text-success':'text-danger'},
-      {v:fmtN(mm)+' m²', c:mm>=b.mSqmMan?'text-success':'text-danger'},
-      {v:fmtN(mc)+' m²', c:mc>=b.mSqmCrew?'text-success':'text-danger'},
-    ]};
-  });
-
-  // Sim 2 — Manpower Change
-  const s2 = [-20,-10,0,10,20].map(p => {
-    const lab = Math.max(1, round2(b.totLab*(1+p/100)));
-    const rm  = lab>0 ? round2(b.totStm/lab) : 0;
-    const mm  = lab>0 ? round2(b.totSqm/lab) : 0;
-    return { rc: p===0?'table-primary fw-bold':'', cells:[
-      {v:(p>=0?'+':'')+p+'%'},
-      {v:fmtN(lab,1)},
-      {v:fmtR(rm)+'/man', c:rm<=b.rMan?'text-success':'text-danger'},
-      {v:fmtN(mm)+' m²',  c:mm>=b.mSqmMan?'text-success':'text-danger'},
-    ]};
-  });
-
-  // Sim 3 — Crew Count Change
-  const s3 = [-4,-2,0,2,4].map(d => {
-    const cr = Math.max(1, b.nCrew+d);
-    const mc = round2(b.totSqm/cr);
-    return { rc: d===0?'table-primary fw-bold':'', cells:[
-      {v:(d>=0?'+':'')+d+' crews'},
-      {v:cr},
-      {v:fmtN(mc)+' m²', c:mc>=b.mSqmCrew?'text-success':'text-danger'},
-    ]};
-  });
-
-  // Sim 4 — Bonus Budget Change
-  const s4 = [-20,-10,0,10,20].map(p => {
-    const bon = round2(b.totBonus*(1+p/100));
-    const stm = round2(b.totStm  *(1+p/100));
-    const rs  = b.totSqm>0 ? round2(bon/b.totSqm) : 0;
-    const rm  = b.totLab>0 ? round2(stm/b.totLab) : 0;
-    return { rc: p===0?'table-primary fw-bold':'', cells:[
-      {v:(p>=0?'+':'')+p+'%'},
-      {v:fmtR(bon)},
-      {v:fmtR(rs)+'/m²', c:rs<=b.rSqm?'text-success':'text-danger'},
-      {v:fmtR(rm)+'/man', c:rm<=b.rMan?'text-success':'text-danger'},
-    ]};
-  });
-
-  // Sim 5 — Combined Scenarios
-  const s5cfg = [
-    {lbl:'Risk Case',  sq:-10, lb:10,  bn:0, rc:'table-danger'},
-    {lbl:'Expected',   sq:0,   lb:0,   bn:0, rc:'table-primary fw-bold'},
-    {lbl:'Best Case',  sq:10,  lb:-10, bn:0, rc:'table-success'},
-  ];
-  const s5 = s5cfg.map(sc => {
-    const sq = round2(b.totSqm  *(1+sc.sq/100));
-    const lb = Math.max(1,round2(b.totLab*(1+sc.lb/100)));
-    const bn = round2(b.totBonus*(1+sc.bn/100));
-    const st = round2(b.totStm  *(1+sc.bn/100));
-    const rs = sq>0 ? round2(bn/sq) : 0;
-    const rm = lb>0 ? round2(st/lb) : 0;
-    const mm = lb>0 ? round2(sq/lb) : 0;
-    const ind = sc.sq>0&&sc.lb<0 ? '<span class="badge bg-success">Best</span>'
-              : sc.sq<0||sc.lb>0 ? '<span class="badge bg-danger">Risk</span>'
-              : '<span class="badge bg-secondary">Base</span>';
-    return { rc: sc.rc, cells:[
-      {v:sc.lbl},{v:(sc.sq>=0?'+':'')+sc.sq+'%'},{v:(sc.lb>=0?'+':'')+sc.lb+'%'},
-      {v:fmtN(sq)+' m²'},{v:fmtR(rs)+'/m²'},{v:fmtR(rm)+'/man'},{v:fmtN(mm)+' m²'},{v:ind},
-    ]};
-  });
-
-  box.innerHTML = [
-    tbl('1 — Production Change',  'Bonus &amp; labour fixed — m² varies.',
-      [{l:'Scenario'},{l:'m²',c:'text-end'},{l:'Rand/m²',c:'text-end'},{l:'m²/Man',c:'text-end'},{l:'m²/Crew',c:'text-end'}], s1),
-    tbl('2 — Manpower Change',    'm² &amp; bonus fixed — labour varies.',
-      [{l:'Scenario'},{l:'Labour',c:'text-end'},{l:'Rand/Man',c:'text-end'},{l:'m²/Man',c:'text-end'}], s2),
-    tbl('3 — Crew Count Change',  'm² fixed — crews vary.',
-      [{l:'Scenario'},{l:'Crews',c:'text-end'},{l:'m²/Crew',c:'text-end'}], s3),
-    tbl('4 — Bonus Budget Change','m² &amp; labour fixed — bonus varies.',
-      [{l:'Scenario'},{l:'Bonus',c:'text-end'},{l:'Rand/m²',c:'text-end'},{l:'Rand/Man',c:'text-end'}], s4),
-    tbl('5 — Combined Scenarios', 'Best / Expected / Risk preset combinations.',
-      [{l:'Scenario'},{l:'m²%',c:'text-end'},{l:'Lab%',c:'text-end'},{l:'Sim m²',c:'text-end'},
-       {l:'Rand/m²',c:'text-end'},{l:'Rand/Man',c:'text-end'},{l:'m²/Man',c:'text-end'},{l:'Status',c:'text-center'}], s5),
-  ].join('');
-}
-
-function _wiGoSeekSqm() {
-  const b = _wiBaseMetrics(); if (!b) return;
-  const tgt = parseFloat(document.getElementById('wi-gs-rsqm')?.value);
-  if (!tgt || tgt <= 0) return;
-  const req  = round2(b.totBonus / tgt);
-  const diff = round2(req - b.totSqm);
-  const pct  = b.totSqm > 0 ? round2(diff / b.totSqm * 100) : 0;
-  const cls  = diff <= 0 ? 'text-success' : 'text-danger';
-  document.getElementById('wi-gs-rsqm-result').innerHTML =
-    `To achieve <strong>${fmtR(tgt)}/m²</strong>, you need <strong>${fmtN(req)} m²</strong> total. ` +
-    `<span class="${cls}">(${diff>=0?'+':''}${fmtN(diff)} m², ${diff>=0?'+':''}${pct.toFixed(1)}% vs actual)</span>`;
-}
-
-function _wiGoSeekMan() {
-  const b = _wiBaseMetrics(); if (!b) return;
-  const tgt = parseFloat(document.getElementById('wi-gs-rman')?.value);
-  if (!tgt || tgt <= 0) return;
-  const req  = Math.round(b.totStm / tgt);
-  const diff = req - Math.round(b.totLab);
-  const cls  = diff <= 0 ? 'text-success' : 'text-danger';
-  document.getElementById('wi-gs-rman-result').innerHTML =
-    `To achieve <strong>${fmtR(tgt)}/man</strong>, you need <strong>${fmtN(req)} headcount</strong> total. ` +
-    `<span class="${cls}">(${diff>=0?'+':''}${diff} vs actual ${Math.round(b.totLab)})</span>`;
-}
-
-function _wiGoSeekCrew() {
-  const b = _wiBaseMetrics(); if (!b) return;
-  const tgt = parseFloat(document.getElementById('wi-gs-crew')?.value);
-  if (!tgt || tgt <= 0) return;
-  // Crews fixed — how much m² is needed?
-  const curAvg = b.nCrew > 0 ? round2(b.totSqm / b.nCrew) : 0;
-  const reqSqm = round2(tgt * b.nCrew);
-  const diff   = round2(reqSqm - b.totSqm);
-  const pct    = b.totSqm > 0 ? round2(diff / b.totSqm * 100) : 0;
-  const cls    = diff <= 0 ? 'text-success' : 'text-danger';
-  const res    = document.getElementById('wi-gs-crew-result');
-  if (curAvg >= tgt) {
-    res.innerHTML = `<span class="text-success">Already at <strong>${fmtN(curAvg)} m²/crew</strong> — target met!</span>`;
-    return;
-  }
-  res.innerHTML =
-    `With <strong>${b.nCrew} gang-periods</strong> fixed, you need <strong>${fmtN(reqSqm)} m²</strong> total ` +
-    `to hit <strong>${fmtN(tgt)} m²/crew</strong>. ` +
-    `<span class="${cls}">(${diff>=0?'+':''}${fmtN(diff)} m², ${diff>=0?'+':''}${pct.toFixed(1)}% vs actual ${fmtN(b.totSqm)} m²)</span>`;
-}
-
-function _wiGoSeekOptBodies() {
-  const b = _wiBaseMetrics(); if (!b) return;
-  const budget = parseFloat(document.getElementById('wi-gs-opt-budget')?.value);
-  if (!budget || budget <= 0) return;
-  const res = document.getElementById('wi-gs-opt-result');
-
-  // Per-period averages (production treated as fixed)
-  const nPer      = b.nPer || 1;
-  const gangsPerP = round2(b.nCrew / nPer);
-  const stmPerP   = round2(b.totStm / nPer);
-  const sqmPerP   = round2(b.totSqm / nPer);
-  const curBodies = gangsPerP > 0 ? round2(b.totLab / b.nCrew) : 0;
-
-  // Optimal: Rand/Man = budget  →  bodies/gang = STM / (budget × gangs)
-  const optBodies = gangsPerP > 0 ? round2(stmPerP / (budget * gangsPerP)) : 0;
-  const optLab    = round2(optBodies * gangsPerP);
-  const optRMan   = optLab > 0 ? round2(stmPerP / optLab) : 0;
-  const optMSqmM  = optLab > 0 ? round2(sqmPerP / optLab) : 0;
-
-  // Sensitivity table centred on optimal, ±4 bodies
-  const lo   = Math.max(1, Math.round(optBodies) - 4);
-  const hi   = Math.round(optBodies) + 4;
-  const rows = [];
-  for (let n = lo; n <= hi; n++) {
-    const totLab = round2(n * gangsPerP);
-    const rMan   = totLab > 0 ? round2(stmPerP / totLab) : 0;
-    const mSqmM  = totLab > 0 ? round2(sqmPerP / totLab) : 0;
-    const vs     = round2((rMan - budget) / budget * 100);
-    const isCur  = Math.abs(n - Math.round(curBodies)) < 0.5;
-    const isOpt  = Math.abs(n - Math.round(optBodies)) < 0.5;
-    let rc = '';
-    if (isOpt && isCur) rc = 'table-success fw-bold';
-    else if (isOpt)     rc = 'table-success fw-bold';
-    else if (isCur)     rc = 'table-primary fw-bold';
-    const badge = isOpt && isCur ? '<span class="badge bg-success ms-1">Optimal = Current</span>'
-                : isOpt           ? '<span class="badge bg-success ms-1">Optimal</span>'
-                : isCur           ? '<span class="badge bg-primary ms-1">Current</span>'
-                : '';
-    rows.push(`<tr class="${rc}">
-      <td class="text-center fw-semibold">${n}${badge}</td>
-      <td class="text-end">${fmtN(totLab, 1)}</td>
-      <td class="text-end ${rMan <= budget ? 'text-success' : 'text-danger'}">${fmtR(rMan)}</td>
-      <td class="text-end">${fmtN(mSqmM, 1)} m²</td>
-      <td class="text-end ${vs <= 0 ? 'text-success' : 'text-danger'}">${vs >= 0 ? '+' : ''}${vs.toFixed(1)}%</td>
-    </tr>`);
-  }
-
-  const diffBod = round2(optBodies - curBodies);
-  const absDiff = Math.abs(Math.round(diffBod));
-  const arrow   = diffBod < -0.4 ? '▼ reduce by' : diffBod > 0.4 ? '▲ increase by' : '✓ already at';
-  const arrCls  = diffBod < -0.4 ? 'text-danger'  : diffBod > 0.4 ? 'text-success'  : 'text-muted';
-
-  res.innerHTML = `
-    <div class="alert alert-${absDiff < 1 ? 'success' : 'warning'} py-2 mb-3 small">
-      <strong>Optimal bodies/gang: ${Math.round(optBodies)}</strong>
-      &nbsp;—&nbsp;<span class="${arrCls}">${arrow}${absDiff > 0 ? ' ' + absDiff + ' person' + (absDiff !== 1 ? 's' : '') : ' optimal'} per gang</span>
-      &nbsp;(current avg: <strong>${curBodies.toFixed(1)}</strong>).
-      At ${Math.round(optBodies)} bodies → <strong>${fmtR(optRMan)}/man</strong> Rand/Man &amp; <strong>${fmtN(optMSqmM, 1)} m²/man</strong>.
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-bordered mb-0" style="font-size:.78rem">
-        <thead class="table-dark">
-          <tr>
-            <th class="text-center">Bodies/Gang</th>
-            <th class="text-end">Total Labour<br><span class="fw-normal opacity-75">/period</span></th>
-            <th class="text-end">Rand/Man<br><span class="fw-normal opacity-75">STM only</span></th>
-            <th class="text-end">m²/Man</th>
-            <th class="text-end">vs Budget</th>
-          </tr>
-        </thead>
-        <tbody>${rows.join('')}</tbody>
-      </table>
-    </div>
-    <div class="text-muted mt-2" style="font-size:.72rem">
-      Assumes ${gangsPerP.toFixed(1)} gangs/period &amp; ${fmtN(sqmPerP)} m²/period are fixed. Rand/Man = STM Bonus ÷ Total Labour per period.
-    </div>`;
-}
-
-function _simRenderDetail(gangsArg) {
-  if (!_simData) return;
-  const gangs = Array.isArray(gangsArg) ? gangsArg : _simComputeGangs();
-
-  const secF  = document.getElementById('sim-filter-section').value;
-  const perF  = document.getElementById('sim-filter-period').value;
-  const rows  = gangs.filter(g =>
-    (secF === 'ALL' || g.section === secF) &&
-    (perF === 'ALL' || g.period  === perF)
-  );
-
-  const body = document.getElementById('tbl-sim-detail-body');
-  const foot = document.getElementById('tbl-sim-detail-foot');
-
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="10" class="empty-state">No data for selected filters.</td></tr>';
-    foot.innerHTML = '';
-    return;
-  }
-
-  const rc = a => a >= 100 ? 'table-success' : a >= 80 ? 'table-warning' : 'table-danger';
-  body.innerHTML = rows.map(g => `
-    <tr class="${rc(g.achievement)}">
-      <td>${g.section}</td>
-      <td data-order="${g.period_raw}">${g.period}</td>
-      <td class="fw-semibold">${g.gang}</td>
-      <td class="text-end">${fmtN(g.target)}</td>
-      <td class="text-end">${fmtN(g.actual_sqm)}</td>
-      <td class="text-end fw-semibold ${g.gap>0?'text-success':'text-danger'}">
-        ${g.gap>0 ? '+'+fmtN(g.gap) : fmtN(g.gap)}
-      </td>
-      <td class="text-end fw-bold">${fmtN(g.achievement,1)}%</td>
-      <td class="text-end">${fmtR(g.proj_bonus)}</td>
-      <td class="text-end">${fmtR(g.actual_bonus)}</td>
-      <td class="text-end fw-bold ${g.uplift>=0?'text-success':'text-danger'}">
-        ${g.uplift>=0?'+':''}${fmtR(g.uplift)}
-      </td>
-    </tr>
-  `).join('');
-
-  const totActSqm = round2(rows.reduce((s,g) => s+g.actual_sqm, 0));
-  const totTgtSqm = round2(rows.reduce((s,g) => s+g.target, 0));
-  const totGap    = round2(rows.reduce((s,g) => s+g.gap, 0));    // net: includes negatives
-  const totAct    = round2(rows.reduce((s,g) => s+g.actual_bonus, 0));
-  const totProj   = round2(rows.reduce((s,g) => s+g.proj_bonus, 0));
-  const totUpl    = round2(rows.reduce((s,g) => s+g.uplift, 0)); // net: includes negatives
-  foot.innerHTML = `
-    <th colspan="3">Total (${rows.length} gang-periods)</th>
-    <th class="text-end">${fmtN(totTgtSqm)}</th>
-    <th class="text-end">${fmtN(totActSqm)}</th>
-    <th class="text-end fw-semibold ${totGap>0?'text-success':totGap<0?'text-danger':''}">
-      ${totGap>0?'+':''}${fmtN(totGap)}
-    </th>
-    <th class="text-end">—</th>
-    <th class="text-end">${fmtR(totProj)}</th>
-    <th class="text-end">${fmtR(totAct)}</th>
-    <th class="text-end fw-bold ${totUpl>=0?'text-success':'text-danger'}">
-      ${totUpl>=0?'+':''}${fmtR(totUpl)}
-    </th>
-  `;
-}
-
-function _simRenderAnalysis(gangs) {
-  const card = document.getElementById('sim-analysis-card');
-  if (!gangs || !gangs.length) { card.style.display = 'none'; return; }
-  card.style.display = '';
-
-  const over  = gangs.filter(g => g.actual_sqm >= g.target);
-  const under = gangs.filter(g => g.actual_sqm > 0 && g.actual_sqm < g.target);
-  const zero  = gangs.filter(g => g.actual_sqm === 0);
-  const total = gangs.length;
-  const tgt   = gangs[0].target; // representative target (global)
-
-  // ── Over-achiever metrics ──────────────────────────────────────────────
-  const overSurplusM2     = round2(over.reduce((s,g) => s + Math.abs(g.gap), 0));
-  const overSurplusBonus  = round2(over.reduce((s,g) => s + g.actual_bonus - g.proj_bonus, 0));
-  const overAvgAchiev     = over.length > 0 ? round2(over.reduce((s,g)=>s+g.achievement,0)/over.length) : 0;
-  const overRperExtraM2   = overSurplusM2 > 0 ? round2(overSurplusBonus / overSurplusM2) : 0;
-
-  // ── Under-achiever metrics ─────────────────────────────────────────────
-  const underGapM2        = round2(under.reduce((s,g) => s + Math.abs(g.gap), 0));
-  const underLiftCost     = round2(under.reduce((s,g) => s + g.proj_bonus - g.actual_bonus, 0));
-  const underAvgAchiev    = under.length > 0 ? round2(under.reduce((s,g)=>s+g.achievement,0)/under.length) : 0;
-  const underRperGapM2    = underGapM2 > 0 ? round2(underLiftCost / underGapM2) : 0;
-
-  // ── Net / budget metrics ───────────────────────────────────────────────
-  const netUplift         = round2(gangs.reduce((s,g)=>s+g.uplift,0));
-  const efficiencyDelta   = round2(overSurplusBonus - underLiftCost); // + means over-surplus covers lift cost
-
-  const pctOver  = round2(over.length / total * 100);
-  const pctUnder = round2(under.length / total * 100);
-
-  // ── Narrative insight ─────────────────────────────────────────────────
-  let insight = `Of the <strong>${total}</strong> gang-periods analysed against a <strong>${fmtN(tgt)} m²</strong> target, ` +
-    `<strong class="text-success">${over.length} (${pctOver}%)</strong> met or exceeded it and ` +
-    `<strong class="text-danger">${under.length} (${pctUnder}%)</strong> fell short` +
-    (zero.length > 0 ? ` — <strong>${zero.length}</strong> recorded zero production` : '') + `.`;
-
-  if (over.length > 0) {
-    insight += ` Over-achievers produced a combined surplus of <strong>${fmtN(overSurplusM2)} m²</strong> above target, ` +
-      `earning <strong>${fmtR(overSurplusBonus)}</strong> in bonus beyond what target-level payout would have been ` +
-      `(<strong>${fmtR(overRperExtraM2)} per extra m²</strong>).`;
-  }
-  if (under.length > 0) {
-    insight += ` Under-achievers have a combined shortfall of <strong>${fmtN(underGapM2)} m²</strong>. ` +
-      `Lifting all of them to exactly the target would cost an additional <strong>${fmtR(underLiftCost)}</strong> ` +
-      `(<strong>${fmtR(underRperGapM2)} per m² of shortfall</strong>).`;
-  }
-  if (netUplift < 0) {
-    insight += ` If every gang produced exactly at target, the total bonus payout would be <strong class="text-success">${fmtR(Math.abs(netUplift))} less</strong> than what was actually paid — the over-achievers are currently driving total payout above what the quota alone would require.`;
-  } else if (netUplift > 0) {
-    insight += ` If every gang produced exactly at target, the total bonus payout would be <strong class="text-danger">${fmtR(netUplift)} more</strong> than what was actually paid — under-achievers are currently suppressing total payout below what full-quota compliance would cost.`;
-  }
-
-  // ── Recommendation ────────────────────────────────────────────────────
-  let rec = '';
-  if (over.length === 0) {
-    rec = `<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
-      <strong>No gang-periods met the target.</strong> With zero over-achievers there is no surplus to redirect.
-      The priority should be diagnosing <em>why</em> production is uniformly below ${fmtN(tgt)} m² — likely causes
-      include stope availability, shift-face access, equipment downtime or crew under-manning.
-      Consider lowering the target temporarily to build momentum and re-evaluate in 2–3 periods.`;
-  } else if (under.length === 0) {
-    rec = `<i class="bi bi-trophy-fill text-warning me-1"></i>
-      <strong>Every gang is meeting or exceeding the target</strong> — which suggests the quota is set below
-      the operational ceiling. Consider <strong>raising the target</strong> to ${fmtN(round2(tgt * 1.15))} m²
-      (+15%) to continue stretching performance. At the current rate, the incentive model is not differentiating
-      high and low performers.`;
-  } else if (efficiencyDelta >= 0) {
-    rec = `<i class="bi bi-arrow-left-right text-success me-1"></i>
-      <strong>The surplus bonus paid to over-achievers (${fmtR(overSurplusBonus)}) is enough to fully cover
-      the cost of lifting all under-achievers to target (${fmtR(underLiftCost)})</strong>,
-      leaving <strong>${fmtR(efficiencyDelta)}</strong> unallocated.
-      This opens the door to a <em>quota-capped bonus redistribution</em>: cap over-achiever bonus at the target
-      rate, and direct the saving into an under-achiever performance bonus. The net budget impact would be
-      <strong>${fmtR(Math.abs(netUplift))} ${netUplift <= 0 ? 'lower' : 'higher'}</strong> than today.
-      <br><br>
-      <strong>Key risk:</strong> over-achievers may reduce output if their upside is capped. Their average
-      achievement is ${fmtN(overAvgAchiev,1)}% — if even a moderate pull-back occurs, total m² and production
-      revenue could fall. A soft cap (e.g. a stretch bonus above target at a lower rate) may be preferable
-      to a hard ceiling.`;
-  } else {
-    // under-achiever lift costs more than over-surplus — compare efficiency
-    if (over.length > 0 && under.length > 0 && underRperGapM2 < overRperExtraM2) {
-      rec = `<i class="bi bi-graph-up-arrow text-primary me-1"></i>
-        Lifting under-achievers to target costs <strong>${fmtR(underRperGapM2)}/m²</strong> versus
-        <strong>${fmtR(overRperExtraM2)}/m²</strong> being paid to over-achievers for production above target.
-        <strong>Lifting under-achievers to target is the more cost-efficient use of bonus spend</strong> per rand invested.
-        A targeted bonus top-up for below-target gangs would yield more m² per rand than continuing to reward
-        over-production at the current rate.
-        <br><br>
-        However, the full under-achiever lift cost (${fmtR(underLiftCost)}) exceeds what can be redirected
-        from over-achiever surplus (${fmtR(overSurplusBonus)}) by <strong>${fmtR(Math.abs(efficiencyDelta))}</strong>.
-        A pragmatic first step: focus the additional incentive only on the <em>near-quota</em> gangs (80–99%
-        achievement) — they require the least investment and are most likely to respond.`;
-    } else {
-      rec = `<i class="bi bi-currency-exchange text-warning me-1"></i>
-        Over-achievers are producing extra m² at <strong>${fmtR(overRperExtraM2)}/m²</strong> of bonus,
-        while lifting under-achievers to target would cost <strong>${fmtR(underRperGapM2)}/m²</strong>.
-        <strong>Over-achievement is currently the better-value production stimulus</strong> per rand of bonus paid
-        — do not cap over-achiever upside as it risks reducing total m² output.
-        <br><br>
-        To close the gap on under-achievers without a large budget increase, prioritise the ${
-          gangs.filter(g=>g.achievement>=80&&g.achievement<100).length
-        } gangs in the 80–99% range (near-quota). Getting these across the line is cheaper than lifting the
-        worst performers, and they represent the quickest compliance wins. The full under-achiever lift would
-        require <strong>${fmtR(Math.abs(efficiencyDelta))}</strong> in net additional budget beyond what
-        over-achiever surplus can provide.`;
-    }
-  }
-
-  document.getElementById('sim-analysis-content').innerHTML = `
-    <div class="row g-3 mb-3">
-      <!-- Over-achievers -->
-      <div class="col-md-4">
-        <div class="rounded p-3 h-100" style="background:#e8f5e9;border-left:4px solid #43A047">
-          <div class="fw-bold small text-success mb-2">
-            <i class="bi bi-check2-circle me-1"></i>Over-achievers (&ge; target)
-          </div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Count</span><span class="fw-bold">${over.length} of ${total} (${pctOver}%)</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Avg achievement</span><span class="fw-bold">${fmtN(overAvgAchiev,1)}%</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Combined surplus m²</span><span class="fw-bold">${fmtN(overSurplusM2)}</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Bonus above target rate</span><span class="fw-bold">${fmtR(overSurplusBonus)}</span></div>
-          <div class="d-flex justify-content-between small py-1"><span class="text-muted">Rate per extra m²</span><span class="fw-bold">${fmtR(overRperExtraM2)}</span></div>
-        </div>
-      </div>
-      <!-- Under-achievers -->
-      <div class="col-md-4">
-        <div class="rounded p-3 h-100" style="background:#ffebee;border-left:4px solid #E53935">
-          <div class="fw-bold small text-danger mb-2">
-            <i class="bi bi-x-circle me-1"></i>Under-achievers (&lt; target)
-          </div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Count</span><span class="fw-bold">${under.length} of ${total} (${pctUnder}%)</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Avg achievement</span><span class="fw-bold">${fmtN(underAvgAchiev,1)}%</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Combined shortfall m²</span><span class="fw-bold">${fmtN(underGapM2)}</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Cost to lift all to target</span><span class="fw-bold">${fmtR(underLiftCost)}</span></div>
-          <div class="d-flex justify-content-between small py-1"><span class="text-muted">Cost per m² shortfall</span><span class="fw-bold">${fmtR(underRperGapM2)}</span></div>
-        </div>
-      </div>
-      <!-- Net budget -->
-      <div class="col-md-4">
-        <div class="rounded p-3 h-100" style="background:#fff8e1;border-left:4px solid #D4A017">
-          <div class="fw-bold small mb-2" style="color:#b8880f">
-            <i class="bi bi-calculator me-1"></i>Net Budget Impact at Target
-          </div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">If all hit exactly target</span><span class="fw-bold ${netUplift>=0?'text-danger':'text-success'}">${netUplift>=0?'+':''}${fmtR(netUplift)}</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Over-achiever surplus bonus</span><span class="fw-bold text-success">−${fmtR(overSurplusBonus)}</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Under-achiever lift cost</span><span class="fw-bold text-danger">+${fmtR(underLiftCost)}</span></div>
-          <div class="d-flex justify-content-between small py-1 border-bottom"><span class="text-muted">Surplus covers lift cost?</span><span class="fw-bold ${efficiencyDelta>=0?'text-success':'text-danger'}">${efficiencyDelta>=0?'Yes — '+fmtR(efficiencyDelta)+' spare':'No — '+fmtR(Math.abs(efficiencyDelta))+' short'}</span></div>
-          ${zero.length>0?`<div class="d-flex justify-content-between small py-1 text-muted"><span>Zero-production periods</span><span>${zero.length}</span></div>`:''}
-        </div>
-      </div>
-    </div>
-    <!-- Insight narrative -->
-    <p class="small mb-3" style="line-height:1.75;color:#333">${insight}</p>
-    <!-- Recommendation -->
-    <div class="rounded p-3 small" style="background:#f5f7fa;border-left:4px solid var(--hg-gold);line-height:1.75">
-      <div class="fw-bold mb-1" style="color:var(--hg-dark);font-size:.82rem;text-transform:uppercase;letter-spacing:.5px">Recommendation</div>
-      <div style="color:#333">${rec}</div>
-    </div>
-  `;
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 //  Tab 7 — Forecast
@@ -6172,6 +5376,7 @@ async function loadLazyBonusRuleSim() {
     _brsWireControls();
     _brsRender();
     _brsLoadScenariosList();
+    renderPolicyDiscrepancies(await api('/api/policy_discrepancies', p));
   } catch (e) {
     _lazyLoaded.bonusRule = false;
     console.error('Bonus Rule Sim load failed:', e);
@@ -6647,12 +5852,48 @@ document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
   tab.addEventListener('shown.bs.tab', e => {
     Object.values(charts).forEach(c => c.resize());
     const target = e.target.getAttribute('href');
-    if (target === '#tab-range')      loadLazyRange();
-    if (target === '#tab-detail')     loadLazyDetail();
-    if (target === '#tab-simulation') loadLazySim();
+    if (target === '#tab-gang-analysis') loadLazyRange();
     if (target === '#tab-forecast')   loadLazyFct();
-    if (target === '#tab-projection') loadLazyForecast();
     if (target === '#tab-bonus-rule') loadLazyBonusRuleSim();
+  });
+});
+
+// Forecast sub-tab pills (Production vs Target / Cost Efficiency / Required to Hit
+// Target / Mid-Month Tracker share tab-forecast's main loadLazyFct() load; only
+// "Trend Forecast" needs its own separate lazy load, same as the old standalone
+// Projection tab did.
+document.querySelectorAll('#forecastSubtabs button[data-bs-toggle="pill"]').forEach(pill => {
+  pill.addEventListener('shown.bs.tab', e => {
+    Object.values(charts).forEach(c => c.resize());
+    if (e.target.getAttribute('data-bs-target') === '#fsub-trend') loadLazyForecast();
+  });
+});
+
+// Gang Analysis sub-tab pills: "Gang Detail" needs its own lazy load (DataTable init +
+// fetch); "Gang m² Range" is already triggered when the main tab opens (default sub-tab 1).
+document.querySelectorAll('#gangAnalysisSubtabs button[data-bs-toggle="pill"]').forEach(pill => {
+  pill.addEventListener('shown.bs.tab', e => {
+    Object.values(charts).forEach(c => c.resize());
+    const target = e.target.getAttribute('data-bs-target');
+    if (target === '#gsub-detail') loadLazyDetail();
+    if (target === '#gsub-crew')   loadLazyCrews();
+  });
+});
+
+// Bonus Analysis sub-tab pills: all content (Section/Gang Type/R per m²) is already
+// fetched eagerly in refreshAll() — no per-pill lazy load needed, just resize charts
+// that were hidden in an inactive pane when their pill is shown.
+document.querySelectorAll('#bonusSubtabs button[data-bs-toggle="pill"], #brsTabs button[data-bs-toggle="pill"]').forEach(pill => {
+  pill.addEventListener('shown.bs.tab', () => {
+    Object.values(charts).forEach(c => c.resize());
+  });
+});
+
+// Overview sub-tab pills: all content is already fetched eagerly in refreshAll() —
+// just resize charts that were hidden in an inactive pane when their pill is shown.
+document.querySelectorAll('#ovTabs button[data-bs-toggle="pill"]').forEach(pill => {
+  pill.addEventListener('shown.bs.tab', () => {
+    Object.values(charts).forEach(c => c.resize());
   });
 });
 

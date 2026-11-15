@@ -87,10 +87,18 @@ def _section_filter(section: str) -> str:
     return ""
 
 def _gangtype_filter(gangtype: str) -> str:
-    if gangtype and gangtype.upper() != "ALL":
-        safe = gangtype.upper().replace("'", "''")
-        return f"AND UPPER(LTRIM(RTRIM(GANGTYPE))) = '{safe}'"
-    return ""
+    """gangtype is "ALL", a single type, or a comma-separated list of types (the filter
+    bar's Gang Types control is a multi-select) — emits = 'X' for one, IN (...) for several.
+    """
+    if not gangtype or gangtype.upper() == "ALL":
+        return ""
+    types = [t.strip().upper().replace("'", "''") for t in gangtype.split(",") if t.strip()]
+    if not types:
+        return ""
+    if len(types) == 1:
+        return f"AND UPPER(LTRIM(RTRIM(GANGTYPE))) = '{types[0]}'"
+    in_list = ", ".join(f"'{t}'" for t in types)
+    return f"AND UPPER(LTRIM(RTRIM(GANGTYPE))) IN ({in_list})"
 
 # ── PARTICIPANTSDETAIL bonus helper ───────────────────────────────────────────
 
@@ -186,6 +194,7 @@ def _get_participants_bonus(period_from: int, period_to: int,
             SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS total_stm_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS    AS FLOAT), 0)) AS total_safety_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS   AS FLOAT), 0)) AS total_driller_bonus,
+            SUM(ISNULL(TRY_CAST(EMPLOYEEAWOPPENALTY    AS FLOAT), 0)) AS total_awop_bonus,
             SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS total_bonus
         FROM {_participants_dedup_sql(period_filter)} AS pd
         WHERE LTRIM(RTRIM(GANG))   != 'xxx'
@@ -262,13 +271,34 @@ def get_kpi_summary(period_from: int, period_to: int,
         return {}
     sqm_df["period"] = sqm_df["period"].astype(str)
 
+    # Scope bonus to the SAME Stope Breaking (section, period, gang) keys as total_sqm above —
+    # _get_participants_bonus() on its own returns every gang type, which would silently mix
+    # Stope Cleaning/Centre Gully/etc. bonus into a KPI that's supposed to be Stope Breaking
+    # only (matching the m² figure right next to it, and every other total on this page).
+    # Merge-on-keys pattern already used correctly elsewhere (get_section_ranking,
+    # get_rands_per_sqm). The `gangtype` parameter is intentionally NOT applied here — the
+    # headline KPIs are unconditionally Stope Breaking, independent of the Gang Types filter
+    # (which instead scopes the detail tabs); see queries.py docs for why.
     bonus_df = _get_participants_bonus(period_from, period_to, section)
+    sb_keys = sqm_df[["section", "period", "gang"]].drop_duplicates()
+    if not bonus_df.empty:
+        bonus_sb = sb_keys.merge(
+            bonus_df[["section", "period", "gang",
+                      "total_bonus", "total_safety_bonus", "total_driller_bonus", "total_stm_bonus"]],
+            on=["section", "period", "gang"], how="left"
+        )
+        for col in ["total_bonus", "total_safety_bonus", "total_driller_bonus", "total_stm_bonus"]:
+            bonus_sb[col] = bonus_sb[col].fillna(0).astype(float)
+    else:
+        bonus_sb = sb_keys.copy()
+        for col in ["total_bonus", "total_safety_bonus", "total_driller_bonus", "total_stm_bonus"]:
+            bonus_sb[col] = 0.0
 
     total_sqm           = float(sqm_df["sqm"].sum())
-    total_bonus         = float(bonus_df["total_bonus"].sum())         if not bonus_df.empty else 0.0
-    total_safety_bonus  = float(bonus_df["total_safety_bonus"].sum())  if not bonus_df.empty else 0.0
-    total_driller_bonus = float(bonus_df["total_driller_bonus"].sum()) if not bonus_df.empty else 0.0
-    total_stm_bonus     = float(bonus_df["total_stm_bonus"].sum())     if not bonus_df.empty else 0.0
+    total_bonus         = float(bonus_sb["total_bonus"].sum())
+    total_safety_bonus  = float(bonus_sb["total_safety_bonus"].sum())
+    total_driller_bonus = float(bonus_sb["total_driller_bonus"].sum())
+    total_stm_bonus     = float(bonus_sb["total_stm_bonus"].sum())
     gang_count          = int(sqm_df.groupby(["section", "gang"]).ngroups)
     avg_sqm             = float(sqm_df["sqm"].mean())
     r_per_sqm           = total_bonus / total_sqm if total_sqm > 0 else 0
@@ -294,10 +324,18 @@ def get_kpi_summary(period_from: int, period_to: int,
             ) AS q
             GROUP BY section, period, gang
         """)
-        pr_bonus_df       = _get_participants_bonus(pr_from, pr_to, section)
-        prior_total_sqm   = float(pr_sqm_df["sqm"].sum())        if not pr_sqm_df.empty   else 0.0
-        prior_total_bonus = float(pr_bonus_df["total_bonus"].sum()) if not pr_bonus_df.empty else 0.0
-        prior_r_per_sqm   = prior_total_bonus / prior_total_sqm  if prior_total_sqm > 0   else 0.0
+        pr_bonus_df     = _get_participants_bonus(pr_from, pr_to, section)
+        prior_total_sqm = float(pr_sqm_df["sqm"].sum()) if not pr_sqm_df.empty else 0.0
+        if not pr_sqm_df.empty and not pr_bonus_df.empty:
+            pr_keys = pr_sqm_df[["section", "period", "gang"]].drop_duplicates()
+            pr_bonus_sb = pr_keys.merge(
+                pr_bonus_df[["section", "period", "gang", "total_bonus"]],
+                on=["section", "period", "gang"], how="left"
+            )
+            prior_total_bonus = float(pr_bonus_sb["total_bonus"].fillna(0).sum())
+        else:
+            prior_total_bonus = 0.0
+        prior_r_per_sqm = prior_total_bonus / prior_total_sqm if prior_total_sqm > 0 else 0.0
     except Exception:
         pass  # prior comparison is non-critical; don't break the main KPI response
 
@@ -314,6 +352,50 @@ def get_kpi_summary(period_from: int, period_to: int,
         "prior_total_sqm":     round(prior_total_sqm,  0)  if prior_total_sqm  is not None else None,
         "prior_total_bonus":   round(prior_total_bonus, 2)  if prior_total_bonus is not None else None,
         "prior_r_per_sqm":     round(prior_r_per_sqm,  2)  if prior_r_per_sqm  is not None else None,
+    }
+
+
+# Real GANGTYPE values this dashboard's KPIs/scope cover (verified fresh against
+# GANGPRODUCTIONDETAIL — ANCILLARY appeared in an old dropdown but never in real data).
+SCOPE_GANGTYPES = ["STOPE BREAKING", "STOPE CLEANING", "CENTRE GULLY", "STOPING", "SURFACE ASSISTANT"]
+
+
+def get_scope_note(period_from: int, period_to: int) -> dict:
+    """What's included/excluded from this dashboard's totals, with a real excluded figure.
+
+    Stoping Miner Bonus (policy REV10, JB_202606_STPMINER_REV10) is a genuinely separate
+    incentive scheme, calculated and paid through MINERSEARN<period> tables rather than
+    PARTICIPANTSDETAIL/GANGPRODUCTIONDETAIL, and was never surfaced anywhere in this app
+    before. Verified before using it here: EMPLOYEEPRODUCTIONBONUS = EMPLOYEEEFFICIENCYBONUS +
+    EMPLOYEESAFETYBONUS + EMPLOYEESWEEPINGSBONUS exactly on every sampled real row (not an
+    assumed formula); a Miner genuinely gets more than one row per period when supervising more
+    than one team, and SUMMING those rows is correct — not a duplicate-row bug like
+    PARTICIPANTSDETAIL's GANGLINKEARN fan-out — confirmed against the policy's own "the Miner
+    will receive the sum of the Teams that are supervised" rule (the summed per-employee max
+    stays under the scheme's R150,000/month cap, as expected). EMPLOYEETOTALBONUS is always 0 in
+    MINERSEARN (unpopulated), which is why relying on it alone (as done earlier in this
+    project's development) wrongly concluded the scheme had no backing data.
+    """
+    periods = [p["value"] for p in get_available_periods() if period_from <= p["value"] <= period_to]
+    periods.sort()
+
+    miner_total = 0.0
+    periods_found = 0
+    exists_df = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'MINERSEARN2%'")
+    existing_tables = set(exists_df["TABLE_NAME"].str.upper()) if not exists_df.empty else set()
+    for p in periods:
+        tbl = f"MINERSEARN{p}"
+        if tbl.upper() not in existing_tables:
+            continue
+        periods_found += 1
+        df = read_sql(f"SELECT SUM(TRY_CAST(EMPLOYEEPRODUCTIONBONUS AS FLOAT)) AS total FROM [{tbl}]")
+        if not df.empty and df["total"].iloc[0] is not None:
+            miner_total += float(df["total"].iloc[0])
+
+    return {
+        "included_gangtypes": SCOPE_GANGTYPES,
+        "excluded_miner_total": round(miner_total, 2),
+        "excluded_miner_periods": periods_found,
     }
 
 
@@ -585,6 +667,68 @@ def get_bonus_by_section(period_from: int, period_to: int) -> dict:
         rows.append(row)
 
     return {"periods": period_labels, "period_keys": period_order, "rows": rows}
+
+
+def get_section_rsqm_trend(period_from: int, period_to: int) -> dict:
+    """Per-section, per-period STOPE BREAKING R/m², for the Overview Executive Summary's
+    "Monthly Bonus Cost per m² by Section" chart. get_bonus_by_section() is NOT usable here
+    on its own -- it sums bonus across every gang type, not just Stope Breaking, which would
+    overstate R/m² against a Stope-Breaking-only m² denominator. Same merge-on-(section,
+    period,gang)-keys scoping already used in get_section_ranking/get_rands_per_sqm.
+    """
+    sqm_df = read_sql(f"""
+        SELECT section, period, gang, MAX(sqm) AS sqm
+        FROM (
+            SELECT
+                LTRIM(RTRIM(SECTION)) AS section,
+                LTRIM(RTRIM(PERIOD))  AS period,
+                LTRIM(RTRIM(GANG))    AS gang,
+                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm
+            FROM [GANGPRODUCTIONDETAIL]
+            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+        ) AS q
+        GROUP BY section, period, gang
+    """)
+    if sqm_df.empty:
+        return {"sections": [], "rows": []}
+    sqm_df["period"] = sqm_df["period"].astype(str)
+
+    bonus_df = _get_participants_bonus(period_from, period_to, "ALL")
+    if not bonus_df.empty:
+        merged = sqm_df.merge(
+            bonus_df[["section", "period", "gang", "total_bonus"]],
+            on=["section", "period", "gang"], how="left"
+        )
+        merged["total_bonus"] = merged["total_bonus"].fillna(0).astype(float)
+    else:
+        merged = sqm_df.copy()
+        merged["total_bonus"] = 0.0
+
+    pivot = merged.groupby(["section", "period"]).agg(
+        sqm=("sqm", "sum"), bonus=("total_bonus", "sum")
+    ).reset_index()
+
+    period_order = sorted(pivot["period"].unique())
+    sections = sorted(pivot["section"].unique())
+    pivot_idx = pivot.set_index(["section", "period"])
+
+    rows = []
+    for p in period_order:
+        row = {"period": _period_label(int(p)), "sections": {}}
+        for s in sections:
+            key = (s, p)
+            if key in pivot_idx.index:
+                sqm   = float(pivot_idx.loc[key, "sqm"])
+                bonus = float(pivot_idx.loc[key, "bonus"])
+                row["sections"][s] = {
+                    "sqm": round(sqm, 0),
+                    "bonus": round(bonus, 2),
+                    "r_per_sqm": round(bonus / sqm, 2) if sqm > 0 else None,
+                }
+        rows.append(row)
+    return {"sections": sections, "rows": rows}
 
 
 # ── m² Range analysis ──────────────────────────────────────────────────────────
@@ -906,7 +1050,7 @@ def get_rands_per_sqm(period_from: int, period_to: int,
     # _get_participants_bonus() on its own returns every gang type, which would silently mix
     # STOPE CLEANING/CENTRE GULLY/etc. bonus into a chart and table both labelled "Stope
     # Breaking" (see the chart title above). Match the merge-on-gang-keys pattern already
-    # used correctly in get_simulation_data/get_forecast_data. raw_df has no section column,
+    # used correctly in get_section_ranking/get_forecast_data. raw_df has no section column,
     # so key on (period, gang) — gang codes are section-prefixed and already unique.
     bonus_df = _get_participants_bonus(period_from, period_to, section)
     if not bonus_df.empty:
@@ -962,99 +1106,6 @@ def get_rands_per_sqm(period_from: int, period_to: int,
         "stm_bonus":         stm_bonuses,
     }
 
-
-def get_simulation_data(period_from: int, period_to: int,
-                        section: str = "ALL") -> dict:
-    """Per-gang STOPE BREAKING data for the quota simulation tab."""
-    sf = _section_filter(section)
-    sqm_df = read_sql(f"""
-        SELECT section, period, gang, crewno,
-               MAX(sqm) AS sqm, MAX(labour) AS labour
-        FROM (
-            SELECT
-                LTRIM(RTRIM(SECTION)) AS section,
-                LTRIM(RTRIM(PERIOD))  AS period,
-                LTRIM(RTRIM(GANG))    AS gang,
-                LTRIM(RTRIM(CREWNO))  AS crewno,
-                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm,
-                TRY_CAST(GANGLABOUR           AS FLOAT) AS labour
-            FROM [GANGPRODUCTIONDETAIL]
-            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
-              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
-              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
-              {sf}
-        ) AS q
-        GROUP BY section, period, gang, crewno
-    """)
-    if sqm_df.empty:
-        return {"gangs": [], "periods": [], "sections": [],
-                "section_stm_rates": {}, "overall_stm_rate": 0.0,
-                "total_actual_sqm": 0.0, "total_actual_bonus": 0.0}
-
-    sqm_df["period"] = sqm_df["period"].astype(str)
-    sqm_df["sqm"]    = sqm_df["sqm"].fillna(0).astype(float)
-    sqm_df["labour"] = sqm_df["labour"].fillna(0).astype(float)
-
-    bonus_df = _get_participants_bonus(period_from, period_to, section)
-    bonus_cols = ["section", "period", "gang",
-                  "total_bonus", "total_stm_bonus",
-                  "total_safety_bonus", "total_driller_bonus"]
-    if not bonus_df.empty:
-        sqm_df = sqm_df.merge(bonus_df[bonus_cols],
-                              on=["section", "period", "gang"], how="left")
-    for col in ["total_bonus", "total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
-        if col not in sqm_df.columns:
-            sqm_df[col] = 0.0
-        else:
-            sqm_df[col] = sqm_df[col].fillna(0).astype(float)
-
-    sqm_df["stm_r_per_sqm"] = sqm_df.apply(
-        lambda r: r["total_stm_bonus"] / r["sqm"] if r["sqm"] > 0 else 0.0, axis=1
-    )
-
-    period_order = sorted(sqm_df["period"].unique())
-    sections     = sorted(sqm_df["section"].unique())
-
-    sec_agg = sqm_df.groupby("section")[["sqm", "total_stm_bonus"]].sum()
-    section_stm_rates: dict = {}
-    for sec in sections:
-        if sec in sec_agg.index:
-            s = float(sec_agg.loc[sec, "sqm"])
-            b = float(sec_agg.loc[sec, "total_stm_bonus"])
-            section_stm_rates[sec] = round(b / s, 4) if s > 0 else 0.0
-
-    total_sqm_all       = float(sqm_df["sqm"].sum())
-    total_bonus_all     = float(sqm_df["total_bonus"].sum())
-    total_stm_bonus_all = float(sqm_df["total_stm_bonus"].sum())
-    overall_stm_rate    = round(total_stm_bonus_all / total_sqm_all, 4) if total_sqm_all > 0 else 0.0
-
-    gangs = []
-    for _, row in sqm_df.iterrows():
-        gangs.append({
-            "section":       row["section"],
-            "period":        _period_label(int(row["period"])),
-            "period_raw":    row["period"],
-            "gang":          row["gang"],
-            "crewno":        row["crewno"],
-            "actual_sqm":    round(float(row["sqm"]), 0),
-            "labour":        round(float(row["labour"]), 1),
-            "actual_bonus":  round(float(row["total_bonus"]), 2),
-            "stm_bonus":     round(float(row["total_stm_bonus"]), 2),
-            "safety_bonus":  round(float(row["total_safety_bonus"]), 2),
-            "driller_bonus": round(float(row["total_driller_bonus"]), 2),
-            "stm_r_per_sqm": round(float(row["stm_r_per_sqm"]), 4),
-        })
-
-    return {
-        "gangs":              gangs,
-        "periods":            [_period_label(int(p)) for p in period_order],
-        "period_keys":        period_order,
-        "sections":           sections,
-        "section_stm_rates":  section_stm_rates,
-        "overall_stm_rate":   overall_stm_rate,
-        "total_actual_sqm":   round(total_sqm_all, 0),
-        "total_actual_bonus": round(total_bonus_all, 2),
-    }
 
 
 def get_forecast_data(period_from: int, period_to: int,
@@ -1425,7 +1476,7 @@ def get_section_ranking(period_from: int, period_to: int) -> list[dict]:
     # _get_participants_bonus() on its own returns every gang type for the section, which
     # would silently mix STOPE CLEANING/CENTRE GULLY/etc. bonus into a ratio the UI labels
     # "Stope Breaking only" (see the section-header caption). Match the merge-on-gang-keys
-    # pattern already used correctly in get_simulation_data/get_forecast_data.
+    # pattern already used correctly in get_section_ranking/get_forecast_data.
     bonus_df = _get_participants_bonus(period_from, period_to)
     if not bonus_df.empty:
         sb_keys = sqm_df[["section", "period", "gang"]].drop_duplicates()
@@ -1501,70 +1552,29 @@ BONUS_POLICY_DEFAULTS = {
 }
 
 
-def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") -> dict:
-    """Per-gang STOPE BREAKING bonus data for the Bonus Policy Simulator tab.
+def _pull_stope_breaking_rows(period_from: int, period_to: int, section: str = "ALL") -> pd.DataFrame:
+    """One row per STOPE BREAKING (section, period, gang) in the selected range, carrying the
+    GANGPRODUCTIONDETAIL per-gang ESTIMATE of every bonus component (per-person rate x
+    GANGLABOUR) together with the real PARTICIPANTSDETAIL totals for the same gang keys
+    (total_stm_bonus / total_safety_bonus / total_driller_bonus / total_awop_bonus).
 
-    Tshepong schema has four bonus components: efficiency, driller, sweeping penalty, safety.
-    sweep_penalty is signed (usually ≤0) — GANGFINALSWEEPINGSBONUS is a penalty deduction for
-    failing the sweepings standard (policy §5.14), not an actual bonus, despite the column name.
+    Shared by the Bonus Policy Simulator (get_bonus_rule_data) and the Bonus Analysis
+    breakdown tables (get_bonus_composition / get_bonus_outcomes / get_policy_discrepancies)
+    so every "what the bonus is built from" figure starts from identical ingredients. No
+    anchoring is applied here -- the two consumers anchor differently (see each one), so the
+    raw ingredients are kept in one place and each caller documents its own step.
+
     Adj SQM from GANGTOTALSQMADJUSTED; pre-adj from SUM(WORKPLACETOTALSQM) per gang/period.
-
-    IMPORTANT — dollar totals are anchored to PARTICIPANTSDETAIL, not GANGPRODUCTIONDETAIL:
-    GANGPRODUCTIONDETAIL's bonus columns are per-person rates that, multiplied by GANGLABOUR
-    (a rounded-up *average* headcount used for the efficiency calc), only ever produce an
-    ESTIMATE of the gang's total payout — not the real amount paid to real individuals. That
-    estimate was found to diverge from PARTICIPANTSDETAIL (the canonical payroll source, also
-    what "Bonus Analysis"/Bonus by Gang Type is built from) by double digits of a percent: for
-    one real period range, GANGLABOUR summed to 3,650 "labour units" against 4,220 real
-    employee-period records in PARTICIPANTSDETAIL for the identical gangs. So every gang row
-    here is re-anchored: Driller and Safety take PARTICIPANTSDETAIL's own EMPLOYEEDRILLERBONUS/
-    EMPLOYEESAFETYBONUS totals directly (already isolated there); Efficiency and Sweep are
-    bundled into one real figure in PARTICIPANTSDETAIL (EMPLOYEESTOPETEAMBONUS / "STM" —
-    confirmed empirically: the raw GANGPRODUCTIONBONUS column equals efficiency + sweep +
-    safety, driller excluded), so they're split back out of the real STM total using the
-    GANGPRODUCTIONDETAIL estimate's own efficiency:sweep ratio as weights. This means the
-    grand total this function returns matches "Bonus by Gang Type"'s Stope Breaking total for
-    the same period/section exactly (both ultimately sum PARTICIPANTSDETAIL for the same gang
-    keys) — only the split between components, and the lever mechanics, come from the
-    GANGPRODUCTIONDETAIL-side estimate, because only it has the raw ingredients (efficiency,
-    netting flag, B-Reef factor, safety indicators) the simulator's levers need.
-
-    The (now anchored) Efficiency Bonus is decomposed into a lever-independent "raw_qualifying"
-    amount so the simulator can recompute it under different policy parameters instead of just
-    scaling the actual paid figure:
-        efficiency_bonus_anchored = raw_qualifying × netting_mult × sw_mult × safety_mult
-    netting_mult/sw_mult are empirically verified to multiply exactly onto the *estimate*
-    (WORKPLACENETTINGRATE and B_REEF_SW_FACTOR multiply exactly onto GANGFULLSTOPINGBONUS to
-    produce GANGFINALBREAKBONUS, checked across 39 gangs spanning 100m² to 600m² — also
-    confirming there is no tier effect; see BONUS_POLICY_DEFAULTS comment above for why the
-    old tier escalator is gone from both the current policy and this model). Applying those
-    same verified ratios to the anchored dollar figure is an extrapolation, not something
-    independently re-verified against real anchored data — flagged in the simulator UI.
-    The entry-level gate is applied separately (a hard cutoff, not a multiplier), using the
-    real GANGEFFICIENCY (m²/empl) figure, which the anchoring doesn't touch. Wide Raise
-    workplaces (WORKPLACERATETYPE) are exempted from it per policy §5.4, confirmed against
-    real low-efficiency Wide Raise gangs that still earn a nonzero efficiency bonus.
-    Gangs that already earn $0 (gated below the entry level, or a fatal incident zeroed them
-    out) cannot be reconstructed upward — there is no data signal to recover what they would
-    have qualified for, so they are flagged "gated" and held at $0 regardless of lever changes.
-
-    Not modelled here (see BONUS_POLICY_DEFAULTS comment for why): the §5.10/§5.11 Steep
-    Stope m² uplift (real, active, but already baked into GANGTOTALSQMADJUSTED upstream of
-    this data, not a separate Rand lever) and the §6.1.1/§6.1.2 Physical Conditions Rating
-    safety forfeiture (searched PRODUCTIONEARN/GANGLINKEARN/RATES for any CONDITION/RATING/
-    INSPECT column — none exists, so there's no data to drive it; every "clean" gang in a
-    full year of data got exactly the full +25%, zero exceptions, so it either hasn't
-    triggered yet or isn't wired into this data source).
+    sweep_penalty is signed (usually <= 0) -- GANGFINALSWEEPINGSBONUS is a penalty deduction
+    for failing the sweepings standard (policy REV04 s5.14), not a bonus, despite the name.
     """
     sf = _section_filter(section)
-    # Qualified with g. — this query LEFT JOINs PRODUCTIONWPDETAIL (alias p), which also has
+    # Qualified with g. -- this query LEFT JOINs PRODUCTIONWPDETAIL (alias p), which also has
     # a SECTION column, so the unqualified filter from _section_filter() would be ambiguous.
     sf_g = sf.replace("SECTION", "g.SECTION") if sf else ""
-    period_filter = f"TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}"
-    _empty: dict = {"gangs": [], "summary": {}, "policy_defaults": BONUS_POLICY_DEFAULTS}
 
     # Dedupe WORKPLACETOTALSQM (and the other repeating gang-level columns) per (gang,
-    # workplace) before summing/collapsing — see get_pre_adj_trend for why this matters.
+    # workplace) before summing/collapsing -- see get_pre_adj_trend for why this matters.
     df = read_sql(f"""
         SELECT
             section, period, gang, crewno,
@@ -1636,7 +1646,7 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
         GROUP BY section, period, gang, crewno
     """)
     if df.empty:
-        return _empty
+        return df
 
     df["period"]    = df["period"].astype(str)
     df["sqm"]       = df["sqm"].fillna(0).astype(float)
@@ -1645,51 +1655,223 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
     df["had_wideraise"] = df["is_wideraise"].fillna(0).astype(float) > 0
     labour = df["labour"].fillna(0).astype(float)
 
+    # GANGPRODUCTIONDETAIL's bonus columns are per-person rates; x GANGLABOUR gives the
+    # production-formula ESTIMATE of the gang's payout. That estimate measurably diverges from
+    # real payroll (GANGLABOUR is a rounded-up average headcount: one real period range had
+    # 3,650 "labour units" against 4,220 real employee-period records in PARTICIPANTSDETAIL for
+    # the identical gangs, a 15.6% headcount-basis gap), which is why callers anchor these to
+    # the real PARTICIPANTSDETAIL totals merged below instead of showing them directly.
     for bc in ["efficiency_bonus", "drill_bonus", "sweep_penalty", "safety_bonus"]:
         df[bc] = df[bc].fillna(0).astype(float) * labour
 
-    # Anchor to PARTICIPANTSDETAIL — the canonical record of what was actually paid to real
-    # individuals (this is what "Bonus Analysis"/Bonus by Gang Type is built from). Without
-    # this, GANGPRODUCTIONDETAIL's bonus columns are a production-formula ESTIMATE (per-person
-    # rate × GANGLABOUR, a rounded-up average headcount) that measurably diverges from real
-    # payroll: checked one real period range where GANGLABOUR summed to 3,650 "labour units"
-    # against 4,220 real employee-period records in PARTICIPANTSDETAIL for the identical
-    # gangs — a 15.6% headcount-basis gap, which is why the Simulator's totals didn't match
-    # Bonus Analysis's Stope Breaking total for the same period/section.
-    # PARTICIPANTSDETAIL tracks Driller and Safety independently (EMPLOYEEDRILLERBONUS,
-    # EMPLOYEESAFETYBONUS), so those anchor directly. Efficiency and Sweep are bundled into
-    # one real figure there (EMPLOYEESTOPETEAMBONUS / "STM" — confirmed empirically: the raw
-    # GANGPRODUCTIONBONUS column equals efficiency + sweep + safety, driller excluded), so
-    # they're split back out using the GANGPRODUCTIONDETAIL estimate's own efficiency:sweep
-    # ratio as weights — this preserves the formula's relative split (which only
-    # GANGPRODUCTIONDETAIL can estimate, since it alone has the per-gang levers) while
-    # anchoring the absolute total to real payroll.
+    # Real PARTICIPANTSDETAIL totals for the same gang keys. Driller and Safety are tracked
+    # independently there (EMPLOYEEDRILLERBONUS, EMPLOYEESAFETYBONUS); Efficiency, Safety and
+    # Sweep are bundled into one real paid figure (EMPLOYEESTOPETEAMBONUS / "STM" -- confirmed
+    # empirically on 541/541 Stope Breaking gang-periods Jul-25..Apr-26: the raw
+    # GANGPRODUCTIONBONUS column equals GANGFINALBREAKBONUS + GANGFINALSWEEPINGSBONUS +
+    # GANGFINALSAFETYBONUS exactly, driller excluded). EMPLOYEEAWOPPENALTY is already netted
+    # inside STM (raw PARTICIPANTSEARN: EMPLOYEETOTALBONUS equals STM, never STM + AWOP, on
+    # every AWOP row checked) -- it is carried as a reference figure only.
     participants = _get_participants_bonus(period_from, period_to, section)
+    real_cols = ["total_stm_bonus", "total_safety_bonus", "total_driller_bonus", "total_awop_bonus"]
     if not participants.empty:
         keys = df[["section", "period", "gang"]].drop_duplicates()
-        real = keys.merge(
-            participants[["section", "period", "gang",
-                          "total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]],
-            on=["section", "period", "gang"], how="left"
-        )
+        real = keys.merge(participants[["section", "period", "gang"] + real_cols],
+                          on=["section", "period", "gang"], how="left")
     else:
         real = df[["section", "period", "gang"]].drop_duplicates()
-        real["total_stm_bonus"] = 0.0
-        real["total_safety_bonus"] = 0.0
-        real["total_driller_bonus"] = 0.0
-    for col in ["total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
+        for col in real_cols:
+            real[col] = 0.0
+    for col in real_cols:
         real[col] = real[col].fillna(0).astype(float)
     df = df.merge(real, on=["section", "period", "gang"], how="left")
-    for col in ["total_stm_bonus", "total_safety_bonus", "total_driller_bonus"]:
+    for col in real_cols:
         df[col] = df[col].fillna(0).astype(float)
 
+    # netting_rate / sw_factor come through as 1.0 (no uplift) or the applied multiplier
+    # (1.2 netting, 1.1 B-Reef SW) -- default missing values to 1.0 (no uplift), never 0, to
+    # keep the decomposition division-safe.
+    df["netting_rate"] = df["netting_rate"].fillna(1.0).astype(float).replace(0, 1.0)
+    df["sw_factor"]    = df["sw_factor"].fillna(1.0).astype(float).replace(0, 1.0)
+    df["lti_ind"]      = df["lti_ind"].fillna(0).astype(float)
+    df["dress_ind"]    = df["dress_ind"].fillna(0).astype(float)
+    df["fatal_ind"]    = df["fatal_ind"].fillna(0).astype(float)
+    return df
+
+
+def _safety_rung(row) -> str:
+    if row["fatal_ind"] >= 1:
+        return "fatal"
+    if row["lti_ind"] >= 1:
+        return "lti"
+    if row["dress_ind"] >= 1:
+        return "dressing"
+    return "clean"
+
+
+def _decompose_bonus_row(row, safety_defaults: dict) -> tuple[float, float, bool]:
+    """Return (raw_qualifying, safety_pct, gated) for one anchored Stope Breaking row.
+
+    safety_pct is the written-ladder rate for the gang's real incident indicators (policy
+    REV04 s6.1.3-6.1.6) -- independent of whether the efficiency bonus happens to be gated
+    to zero, since a gang can be efficiency-gated while still having a genuine non-clean
+    safety record and a real, separate safety figure. The Simulator uses it as the "old %"
+    baseline to ratio-scale FROM when a Safety % lever changes.
+    `gated` only describes whether raw_qualifying (the efficiency component) can be
+    reconstructed -- a gang already at R0 efficiency has no signal to recover a base from.
+
+    combined_mult = netting_rate x sw_factor only, NO safety term. Netting and B-Reef SW are
+    multipliers on the efficiency bonus (WORKPLACENETTINGRATE 1.2 and B_REEF_SW_FACTOR 1.1
+    multiply the pre-uplift efficiency estimate onto GANGFINALBREAKBONUS exactly); the safety
+    ladder is NOT -- it is a separate additive component sitting inside STM alongside
+    efficiency (GANGPRODUCTIONBONUS = efficiency + sweep + safety on every real row). An
+    earlier version baked (1 + safety_pct/100) into combined_mult; that only reproduced the
+    real number at the exact default by construction and diverged the moment a lever moved.
+    (Note for anyone re-checking: real EMPLOYEESAFETYBONUS is ~20% of real STM for clean
+    gangs -- that is the same thing as the written +25% of Efficiency, because STM already
+    contains the safety piece: 0.25E / 1.25E = 20%. It is not a discrepancy with the ladder.)
+    """
+    rung = _safety_rung(row)
+    safety_pct = safety_defaults[rung]
+
+    actual_bonus = float(row["efficiency_bonus"])
+    if actual_bonus <= 0:
+        return 0.0, safety_pct, True  # gated: no signal to recover a base for this component
+
+    combined_mult = float(row["netting_rate"]) * float(row["sw_factor"])
+    if combined_mult <= 1e-9:
+        return 0.0, safety_pct, True
+    return actual_bonus / combined_mult, safety_pct, False
+
+
+def _anchor_components(df: pd.DataFrame) -> pd.DataFrame:
+    """Three-way anchor for the Bonus Analysis breakdown tables: scale the estimate's
+    Efficiency / Safety / Sweep -- whose sum is the estimate of STM (GANGPRODUCTIONBONUS x
+    labour; identity verified on 541/541 gang-periods) -- by one common ratio onto the real
+    STM total, so anchored efficiency + safety + sweep = real STM exactly per gang-period and
+    the relative split between the three is the production formula's own.
+
+    This deliberately differs from get_bonus_rule_data()'s two-way anchor, which splits real
+    STM across efficiency + sweep only (its 'efficiency' therefore carries the safety share
+    inside it, and its total is efficiency + sweep). Both land on the same grand total; the
+    Simulator's verified lever mechanics are left exactly as they were, and this tab shows
+    the safety piece on its own line instead.
+
+    Gated rows (no estimate signal to split by): the whole real STM is carried on efficiency,
+    consistent with the Simulator's choice, so no rand is lost from the total.
+    """
+    est_total = df["efficiency_bonus"] + df["sweep_penalty"] + df["safety_bonus"]
+    real_stm  = df["total_stm_bonus"]
+    has_est   = est_total.abs() > 1e-9
+    ratio     = (real_stm / est_total.where(has_est, 1.0)).where(has_est, 0.0)
+    df["efficiency_bonus"] = (df["efficiency_bonus"] * ratio).where(has_est, real_stm)
+    df["sweep_penalty"]    = (df["sweep_penalty"]    * ratio).where(has_est, 0.0)
+    df["safety_bonus"]     = (df["safety_bonus"]     * ratio).where(has_est, 0.0)
+    df["drill_bonus"]      = df["total_driller_bonus"]
+    return df
+
+
+def _composition_frame(period_from: int, period_to: int, section: str = "ALL") -> pd.DataFrame:
+    """Anchored (three-way) Stope Breaking rows with the sequential efficiency build-up
+    attached: raw_step -> x netting -> x B-Reef SW = efficiency_bonus (exact by construction
+    for non-gated rows; gated rows carry their real efficiency unchanged with zero uplift
+    attributed). Shared by get_bonus_composition / get_bonus_outcomes / get_policy_discrepancies
+    so the Rand in each of those reconciles to the others by construction.
+    """
+    df = _pull_stope_breaking_rows(period_from, period_to, section)
+    if df.empty:
+        return df
+    df = _anchor_components(df)
+    safety_defaults = BONUS_POLICY_DEFAULTS["safety_pct"]
+    decomposed = df.apply(lambda r: _decompose_bonus_row(r, safety_defaults), axis=1, result_type="expand")
+    df["raw_qualifying"], df["safety_pct_tier"], df["gated"] = decomposed[0], decomposed[1], decomposed[2]
+    gated = df["gated"]
+    step0 = df["raw_qualifying"].where(~gated, df["efficiency_bonus"])
+    step1 = (step0 * df["netting_rate"]).where(~gated, step0)
+    step2 = (step1 * df["sw_factor"]).where(~gated, step1)
+    df["raw_step"]      = step0
+    df["netting_delta"] = step1 - step0
+    df["sw_delta"]      = step2 - step1
+    df["had_netting"]   = df["netting_rate"] > 1.0001
+    df["had_sw"]        = df["sw_factor"]    > 1.0001
+    df["safety_rung"]   = df.apply(_safety_rung, axis=1)
+    return df
+
+
+def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """Per-gang STOPE BREAKING bonus data for the Bonus Policy Simulator tab.
+
+    Tshepong schema has four bonus components: efficiency, driller, sweeping penalty, safety.
+    sweep_penalty is signed (usually ≤0) — GANGFINALSWEEPINGSBONUS is a penalty deduction for
+    failing the sweepings standard (policy §5.14), not an actual bonus, despite the column name.
+    Adj SQM from GANGTOTALSQMADJUSTED; pre-adj from SUM(WORKPLACETOTALSQM) per gang/period.
+
+    IMPORTANT — dollar totals are anchored to PARTICIPANTSDETAIL, not GANGPRODUCTIONDETAIL:
+    GANGPRODUCTIONDETAIL's bonus columns are per-person rates that, multiplied by GANGLABOUR
+    (a rounded-up *average* headcount used for the efficiency calc), only ever produce an
+    ESTIMATE of the gang's total payout — not the real amount paid to real individuals. That
+    estimate was found to diverge from PARTICIPANTSDETAIL (the canonical payroll source, also
+    what "Bonus Analysis"/Bonus by Gang Type is built from) by double digits of a percent: for
+    one real period range, GANGLABOUR summed to 3,650 "labour units" against 4,220 real
+    employee-period records in PARTICIPANTSDETAIL for the identical gangs. So every gang row
+    here is re-anchored: Driller and Safety take PARTICIPANTSDETAIL's own EMPLOYEEDRILLERBONUS/
+    EMPLOYEESAFETYBONUS totals directly (already isolated there); Efficiency and Sweep are
+    bundled into one real figure in PARTICIPANTSDETAIL (EMPLOYEESTOPETEAMBONUS / "STM" —
+    confirmed empirically: the raw GANGPRODUCTIONBONUS column equals efficiency + sweep +
+    safety, driller excluded), so they're split back out of the real STM total using the
+    GANGPRODUCTIONDETAIL estimate's own efficiency:sweep ratio as weights. This means the
+    grand total this function returns matches "Bonus by Gang Type"'s Stope Breaking total for
+    the same period/section exactly (both ultimately sum PARTICIPANTSDETAIL for the same gang
+    keys) — only the split between components, and the lever mechanics, come from the
+    GANGPRODUCTIONDETAIL-side estimate, because only it has the raw ingredients (efficiency,
+    netting flag, B-Reef factor, safety indicators) the simulator's levers need.
+
+    The (now anchored) Efficiency Bonus is decomposed into a lever-independent "raw_qualifying"
+    amount so the simulator can recompute it under different policy parameters instead of just
+    scaling the actual paid figure:
+        efficiency_bonus_anchored = raw_qualifying × netting_mult × sw_mult × safety_mult
+    netting_mult/sw_mult are empirically verified to multiply exactly onto the *estimate*
+    (WORKPLACENETTINGRATE and B_REEF_SW_FACTOR multiply exactly onto GANGFULLSTOPINGBONUS to
+    produce GANGFINALBREAKBONUS, checked across 39 gangs spanning 100m² to 600m² — also
+    confirming there is no tier effect; see BONUS_POLICY_DEFAULTS comment above for why the
+    old tier escalator is gone from both the current policy and this model). Applying those
+    same verified ratios to the anchored dollar figure is an extrapolation, not something
+    independently re-verified against real anchored data — flagged in the simulator UI.
+    The entry-level gate is applied separately (a hard cutoff, not a multiplier), using the
+    real GANGEFFICIENCY (m²/empl) figure, which the anchoring doesn't touch. Wide Raise
+    workplaces (WORKPLACERATETYPE) are exempted from it per policy §5.4, confirmed against
+    real low-efficiency Wide Raise gangs that still earn a nonzero efficiency bonus.
+    Gangs that already earn $0 (gated below the entry level, or a fatal incident zeroed them
+    out) cannot be reconstructed upward — there is no data signal to recover what they would
+    have qualified for, so they are flagged "gated" and held at $0 regardless of lever changes.
+
+    Not modelled here (see BONUS_POLICY_DEFAULTS comment for why): the §5.10/§5.11 Steep
+    Stope m² uplift (real, active, but already baked into GANGTOTALSQMADJUSTED upstream of
+    this data, not a separate Rand lever) and the §6.1.1/§6.1.2 Physical Conditions Rating
+    safety forfeiture (searched PRODUCTIONEARN/GANGLINKEARN/RATES for any CONDITION/RATING/
+    INSPECT column — none exists, so there's no data to drive it; every "clean" gang in a
+    full year of data got exactly the full +25%, zero exceptions, so it either hasn't
+    triggered yet or isn't wired into this data source).
+    """
+    _empty: dict = {"gangs": [], "summary": {}, "policy_defaults": BONUS_POLICY_DEFAULTS}
+    df = _pull_stope_breaking_rows(period_from, period_to, section)
+    if df.empty:
+        return _empty
+
+    # Two-way anchor to PARTICIPANTSDETAIL: Efficiency and Sweep are split back out of the
+    # real STM total using the GANGPRODUCTIONDETAIL estimate's own efficiency:sweep ratio as
+    # weights -- this preserves the formula's relative split (which only GANGPRODUCTIONDETAIL
+    # can estimate, since it alone has the per-gang levers) while anchoring the absolute total
+    # to real payroll. Driller and Safety take PARTICIPANTSDETAIL's own totals directly.
+    # (The Bonus Analysis breakdown tables use _anchor_components() instead, which also splits
+    # the safety share out of STM -- same grand total, finer split; see its docstring.)
     def _anchor(row):
         est_eff, est_sweep = float(row["efficiency_bonus"]), float(row["sweep_penalty"])
         est_stm, real_stm = est_eff + est_sweep, float(row["total_stm_bonus"])
         if abs(est_stm) > 1e-9:
             ratio = real_stm / est_stm
             return est_eff * ratio, est_sweep * ratio
-        # No estimate signal to split by (e.g. a gated gang) — if real payroll shows
+        # No estimate signal to split by (e.g. a gated gang) -- if real payroll shows
         # something anyway, there's no basis to allocate it between efficiency/sweep,
         # so keep the whole real figure on efficiency rather than lose it from the total.
         return real_stm, 0.0
@@ -1700,67 +1882,9 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
     df["drill_bonus"]      = df["total_driller_bonus"]
     df["safety_bonus"]     = df["total_safety_bonus"]
 
-    # netting_rate / sw_factor come through as 1.0 (no uplift) or the applied multiplier
-    # (e.g. 1.2, 1.1) — default missing values to 1.0 (no uplift), never 0, to keep the
-    # decomposition division-safe.
-    df["netting_rate"] = df["netting_rate"].fillna(1.0).astype(float).replace(0, 1.0)
-    df["sw_factor"]    = df["sw_factor"].fillna(1.0).astype(float).replace(0, 1.0)
-    df["lti_ind"]      = df["lti_ind"].fillna(0).astype(float)
-    df["dress_ind"]    = df["dress_ind"].fillna(0).astype(float)
-    df["fatal_ind"]    = df["fatal_ind"].fillna(0).astype(float)
-
     defaults = BONUS_POLICY_DEFAULTS
     safety_defaults = defaults["safety_pct"]
-
-    def _decompose(row) -> tuple[float, float, bool]:
-        """Return (raw_qualifying, actual_safety_pct, gated).
-
-        actual_safety_pct is derived purely from the gang's real incident indicators —
-        independent of whether the efficiency bonus happens to be gated to zero, since a
-        gang can be efficiency-gated (e.g. below the entry level) while still having a
-        genuine non-clean safety record and a real, separate safety payout. It's also the
-        gang's own real (default-policy) safety percentage, used by the frontend as the
-        "old %" baseline to ratio-scale FROM when the Safety % lever changes — see the
-        Simulator's projSafety comment for why that's a ratio scale of the real figure,
-        not a recompute through efficiency.
-        `gated` only describes whether raw_qualifying (the efficiency component) can be
-        reconstructed — it does not apply to the safety bonus, which is scaled directly
-        off the gang's own real safety_bonus independent of gating.
-
-        combined_mult does NOT include a safety term. It used to (netting_rate * sw_factor
-        * (1 + safety_pct/100)), on the assumption that a real gang's efficiency_bonus had
-        the safety ladder multiplicatively baked in — checked against the anchored real
-        data (PARTICIPANTSDETAIL, not the old GANGPRODUCTIONDETAIL estimate) and that's
-        false: grouping all 541 real gang-periods by their assigned tier, "clean" gangs'
-        real safety_bonus is ~20.0% of real STM (533 samples, tight), not the policy's 25%;
-        LTI real ratio is ~-38% (only 6 samples) vs the assumed -25%; a fatal-tier gang
-        carried a real penalty despite R0 STM (1 sample), meaning it isn't a multiplier on
-        efficiency at all for that tier either. Baking that false 25%-for-clean assumption
-        into combined_mult made raw_qualifying — and therefore the whole efficiency
-        reconstruction — only reproduce the real number at the exact default value by
-        construction (division and re-multiplication by the same wrong constant cancel out),
-        and diverge the moment any lever moved. Efficiency and safety are independent real
-        payout figures; only netting_rate/sw_factor legitimately scale efficiency.
-        """
-        if row["fatal_ind"] >= 1:
-            safety_pct = safety_defaults["fatal"]
-        elif row["lti_ind"] >= 1:
-            safety_pct = safety_defaults["lti"]
-        elif row["dress_ind"] >= 1:
-            safety_pct = safety_defaults["dressing"]
-        else:
-            safety_pct = safety_defaults["clean"]
-
-        actual_bonus = float(row["efficiency_bonus"])
-        if actual_bonus <= 0:
-            return 0.0, safety_pct, True  # gated: no signal to recover a base for this component
-
-        combined_mult = float(row["netting_rate"]) * float(row["sw_factor"])
-        if combined_mult <= 1e-9:
-            return 0.0, safety_pct, True
-        return actual_bonus / combined_mult, safety_pct, False
-
-    decomposed = df.apply(_decompose, axis=1, result_type="expand")
+    decomposed = df.apply(lambda r: _decompose_bonus_row(r, safety_defaults), axis=1, result_type="expand")
     df["raw_qualifying"], df["actual_safety_pct"], df["gated"] = (
         decomposed[0], decomposed[1], decomposed[2]
     )
@@ -1783,6 +1907,7 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
         {
             "section":      row["section"],
             "period":       _period_label(int(row["period"])),
+            "period_raw":   str(row["period"]),
             "gang":         row["gang"],
             "sqm_adj":      round(float(row["sqm"] or 0), 0),
             "sqm_preadj":   round(float(row["sqm_preadj"] or 0), 0),
@@ -1793,6 +1918,8 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
             "sweep_penalty":  round(float(row["sweep_penalty"] or 0), 2),
             "safety_bonus": round(float(row["safety_bonus"] or 0), 2),
             "raw_qualifying": round(float(row["raw_qualifying"] or 0), 2),
+            "netting_rate": round(float(row["netting_rate"] or 1.0), 6),
+            "sw_factor":    round(float(row["sw_factor"] or 1.0), 6),
             "had_netting":  bool(row["had_netting"]),
             "had_sw":       bool(row["had_sw"]),
             "had_wideraise": bool(row["had_wideraise"]),
@@ -1826,3 +1953,376 @@ def get_bonus_rule_data(period_from: int, period_to: int, section: str = "ALL") 
         },
         "policy_defaults": defaults,
     }
+
+
+# ── Bonus Analysis breakdown tables (Mponeng/Pakisa pattern, Tshepong data) ──────────────────
+
+def get_bonus_composition(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """"What the Bonus Is Made Of" -- the paid STM Bonus built up step by step, Stope Breaking.
+
+    Tshepong's STM (EMPLOYEESTOPETEAMBONUS, the real paid total) is NOT a flat sum of the
+    schema's bonus columns: the efficiency part is MULTIPLICATIVE and the safety/sweep parts
+    are ADDITIVE inside it (verified 541/541 gang-periods Jul-25..Apr-26, GANGPRODUCTIONBONUS
+    = GANGFINALBREAKBONUS + GANGFINALSWEEPINGSBONUS + GANGFINALSAFETYBONUS, driller excluded):
+
+        raw_qualifying -> x Netting (REV04 s5.13.4, 1.2) -> x B-Reef SW (s5.12, 1.1)
+                       -> = Efficiency Bonus
+        + Safety ladder (s6.1.3-6.1.6: clean +25% of Efficiency, dressing 0, LTI -25, fatal -100)
+        + Sweeping Penalty (s5.14, signed, <= 0)
+        = STM Bonus (paid)
+
+    Each step's Rand is exact, not an approximation: the efficiency steps multiply in sequence
+    onto the anchored efficiency figure, and anchored efficiency + safety + sweep = real STM
+    by construction (_anchor_components). Gated gangs (R0 efficiency, no basis to reconstruct
+    a raw base) carry their real figure through unchanged at every step, landing in Raw
+    Qualifying rather than being misattributed to Netting/B-Reef.
+
+    Reference rows (never added to the total): real PARTICIPANTSDETAIL Safety (cross-check
+    against the anchored safety step), Driller (REV07 Quality Drilling -- tracked separately;
+    the source system's EMPLOYEETOTALBONUS equals STM alone, so it is not part of STM) and
+    AWOP (already netted inside STM).
+    """
+    df = _composition_frame(period_from, period_to, section)
+    if df.empty:
+        return {"waterfall": [], "reference": [], "by_section": [], "summary": {}}
+
+    raw_total     = float(df["raw_step"].sum())
+    netting_up    = float(df["netting_delta"].sum())
+    sw_up         = float(df["sw_delta"].sum())
+    eff_total     = float(df["efficiency_bonus"].sum())
+    safety_total  = float(df["safety_bonus"].sum())
+    sweep_total   = float(df["sweep_penalty"].sum())
+    stm_total     = float(df["total_stm_bonus"].sum())
+    real_safety   = float(df["total_safety_bonus"].sum())
+    driller_total = float(df["total_driller_bonus"].sum())
+    awop_total    = float(df["total_awop_bonus"].sum())
+
+    waterfall = [
+        {"step": "raw_qualifying", "label": "Raw Qualifying Bonus", "rand": round(raw_total, 2),
+         "rule": "REV04 s5.4: efficiency-based (m2/empl) production bonus above the 14 m2/empl entry level "
+                 "(Wide Raise exempt), looked up by team size -- before any uplift. Gated gangs' real figure, "
+                 "where any, is carried here unchanged."},
+        {"step": "netting", "label": "+ Netting Uplift", "rand": round(netting_up, 2),
+         "rule": "s5.13.4: +20% of the Efficiency Bonus for workplaces with permanent netting installed "
+                 "(real WORKPLACENETTINGRATE = 1.2). Applies to Efficiency only."},
+        {"step": "breef", "label": "+ B-Reef Stope-Width Uplift", "rand": round(sw_up, 2),
+         "rule": "s5.12: +10% where B-Reef stoping width is >= 1.60 m (real B_REEF_SW_FACTOR = 1.1)."},
+        {"step": "efficiency", "label": "= Efficiency Bonus", "rand": round(eff_total, 2), "subtotal": True,
+         "rule": "GANGFINALBREAKBONUS, anchored to real payroll. Raw Qualifying x Netting x B-Reef SW."},
+        {"step": "safety", "label": "+/- Safety Ladder", "rand": round(safety_total, 2),
+         "rule": "s6.1.3-6.1.6: clean record +25% of Efficiency, dressing-station failure 0%, LTI -25%, "
+                 "fatality -100%. A separate component paid inside STM, not a multiplier on Efficiency."},
+        {"step": "sweep", "label": "- Sweeping Penalty", "rand": round(sweep_total, 2),
+         "rule": "s5.14: deduction for failing the sweepings standard (GANGFINALSWEEPINGSBONUS, signed)."},
+        {"step": "total", "label": "= STM Bonus (paid)", "rand": round(stm_total, 2),
+         "rule": "EMPLOYEESTOPETEAMBONUS -- the real paid total, the same figure as every Total Bonus on this "
+                 "dashboard. Efficiency + Safety + Sweeping Penalty reconcile to it exactly."},
+    ]
+    reference = [
+        {"key": "safety_real", "label": "Safety Bonus -- real payroll (reference)", "rand": round(real_safety, 2),
+         "rule": "Real EMPLOYEESAFETYBONUS total. Already inside STM above (the Safety Ladder step is the same "
+                 f"money, anchored); difference vs that step: {real_safety - safety_total:,.2f}."},
+        {"key": "driller", "label": "Driller Bonus -- REV07 Quality Drilling (reference)", "rand": round(driller_total, 2),
+         "rule": "Real EMPLOYEEDRILLERBONUS total -- a separate scheme tracked on its own. Not part of STM and "
+                 "never added into any STM total on this dashboard (the source system's EMPLOYEETOTALBONUS "
+                 "equals STM alone)."},
+        {"key": "awop", "label": "AWOP Penalty (reference)", "rand": round(awop_total, 2),
+         "rule": "Real EMPLOYEEAWOPPENALTY total -- already netted into STM above (raw payroll: "
+                 "EMPLOYEETOTALBONUS equals STM, never STM + AWOP). Shown for visibility only."},
+    ]
+
+    def _comp_row(grp) -> dict:
+        return {
+            "raw_qualifying": round(float(grp["raw_step"].sum()), 2),
+            "netting":        round(float(grp["netting_delta"].sum()), 2),
+            "breef":          round(float(grp["sw_delta"].sum()), 2),
+            "efficiency":     round(float(grp["efficiency_bonus"].sum()), 2),
+            "safety":         round(float(grp["safety_bonus"].sum()), 2),
+            "sweep":          round(float(grp["sweep_penalty"].sum()), 2),
+            "total":          round(float(grp["total_stm_bonus"].sum()), 2),
+            "gang_periods":   int(len(grp)),
+        }
+
+    by_section = [{"section": str(sec), **_comp_row(grp)} for sec, grp in df.groupby("section")]
+    period_order = sorted(df["period"].unique())
+    by_section_period = [
+        {"section": str(sec), "period_raw": str(p), "period": _period_label(int(p)), **_comp_row(grp)}
+        for (sec, p), grp in df.groupby(["section", "period"])
+    ]
+
+    return {
+        "waterfall": waterfall,
+        "reference": reference,
+        "by_section": by_section,
+        "by_section_period": by_section_period,
+        "periods": [_period_label(int(p)) for p in period_order],
+        "period_keys": [str(p) for p in period_order],
+        "sections": sorted(df["section"].unique().tolist()),
+        "summary": {
+            "stm_total":        round(stm_total, 2),
+            "efficiency_total": round(eff_total, 2),
+            "gang_count":       int(len(df)),
+            "gated_count":      int(df["gated"].sum()),
+            "reconciles":       bool(abs((eff_total + safety_total + sweep_total) - stm_total) < 0.05),
+        },
+    }
+
+
+def get_bonus_outcomes(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """"Who Earned What -- Gang-Periods per Bonus Outcome", Stope Breaking.
+
+    Classifies GANG-PERIODS (the finest grain every other table in this dashboard uses; the
+    policy levers -- entry level, netting flag, B-Reef factor, incident indicators -- are all
+    gang-level facts) by what each one earned on every lever. AWOP is the one personal signal
+    (EMPLOYEEAWOPPENALTY, per employee) and is rolled up to "did this gang-period have any
+    AWOP deduction" to stay on the same grain.
+
+    Each outcome's Rand comes from the exact same per-row figures get_bonus_composition()
+    sums, so the rows add back to that table by construction: the two Netting rows sum to its
+    Netting Uplift; the two B-Reef rows to its B-Reef uplift; the four Safety rows to its
+    Safety Ladder; the two Entry Level rows to its Efficiency Bonus; the AWOP "docked" row to
+    its AWOP reference.
+    """
+    df = _composition_frame(period_from, period_to, section)
+    if df.empty:
+        return {"components": [], "total_gang_periods": 0}
+
+    def _bucket(mask, rand_series):
+        return int(mask.sum()), round(float(rand_series[mask].sum()), 2)
+
+    gated = df["gated"]
+    q_n,  q_rand  = _bucket(~gated, df["efficiency_bonus"])
+    g_n,  g_rand  = _bucket(gated,  df["efficiency_bonus"])
+    n_n,  n_rand  = _bucket(df["had_netting"],  df["netting_delta"])
+    nn_n, nn_rand = _bucket(~df["had_netting"], df["netting_delta"])
+    s_n,  s_rand  = _bucket(df["had_sw"],  df["sw_delta"])
+    ns_n, ns_rand = _bucket(~df["had_sw"], df["sw_delta"])
+
+    safety_rows = []
+    for rung, label, rule in [
+        ("clean",    "Clean -- +25%",            "s6.1.3: no reportable incident, full +25% safety bonus on Efficiency."),
+        ("dressing", "Dressing station -- 0%",    "s6.1.4: dressing-station failure, safety bonus forfeited (0%)."),
+        ("lti",      "LTI -- -25%",               "s6.1.5: lost-time injury, -25% safety penalty."),
+        ("fatal",    "Fatal -- -100%",            "s6.1.6: fatality, -100% (bonus forfeited)."),
+    ]:
+        n, rand = _bucket(df["safety_rung"] == rung, df["safety_bonus"])
+        safety_rows.append({"key": rung, "label": label, "rule": rule, "gang_periods": n, "rand": rand})
+
+    awop_mask = df["total_awop_bonus"] != 0
+    a_n,  a_rand  = _bucket(awop_mask,  df["total_awop_bonus"])
+    na_n, na_rand = _bucket(~awop_mask, df["total_awop_bonus"])
+
+    return {
+        "total_gang_periods": int(len(df)),
+        "components": [
+            {"component": "entry", "title": "Entry Level (s5.4)", "rows": [
+                {"key": "qualified", "label": "Earned Efficiency Bonus", "gang_periods": q_n, "rand": q_rand,
+                 "rule": "Cleared the 14 m2/empl qualifying efficiency (or Wide Raise exempt) and earned a nonzero Efficiency Bonus."},
+                {"key": "gated", "label": "No Efficiency Bonus (R0)", "gang_periods": g_n, "rand": g_rand,
+                 "rule": "Real Efficiency Bonus of R0 -- below the entry level, or zeroed by a fatal incident."}]},
+            {"component": "netting", "title": "Netting (s5.13.4)", "rows": [
+                {"key": "netted", "label": "Netted -- +20%", "gang_periods": n_n, "rand": n_rand,
+                 "rule": "Permanent netting installed (WORKPLACENETTINGRATE 1.2): +20% on Efficiency."},
+                {"key": "not_netted", "label": "Not netted", "gang_periods": nn_n, "rand": nn_rand,
+                 "rule": "No permanent netting -- no uplift."}]},
+            {"component": "breef", "title": "B-Reef Stope-Width (s5.12)", "rows": [
+                {"key": "uplifted", "label": "Uplifted -- +10%", "gang_periods": s_n, "rand": s_rand,
+                 "rule": "B-Reef stoping width >= 1.60 m (B_REEF_SW_FACTOR 1.1): +10% on Efficiency."},
+                {"key": "not_uplifted", "label": "Not uplifted", "gang_periods": ns_n, "rand": ns_rand,
+                 "rule": "No B-Reef stope-width uplift applied."}]},
+            {"component": "safety", "title": "Safety Ladder (s6.1)", "rows": safety_rows},
+            {"component": "awop", "title": "AWOP", "rows": [
+                {"key": "docked", "label": "AWOP deduction applied", "gang_periods": a_n, "rand": a_rand,
+                 "rule": "At least one employee in the gang had an EMPLOYEEAWOPPENALTY this period. Already netted into STM -- visibility only."},
+                {"key": "none", "label": "No AWOP", "gang_periods": na_n, "rand": na_rand,
+                 "rule": "No AWOP deduction recorded for anyone in the gang."}]},
+        ],
+    }
+
+
+def get_policy_discrepancies(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """"Where the System Differs from the Policy" -- each written REV04 rule already examined in
+    this project, checked live against the selected range. Reports only what has actually been
+    verified; anything not checked record-by-record is listed in the UI as not yet checked
+    rather than guessed at.
+    """
+    df = _composition_frame(period_from, period_to, section)
+    if df.empty:
+        return {"items": [], "gang_count": 0}
+    n = int(len(df))
+
+    netted = df[df["had_netting"]]
+    netting_avg = round(float(netted["netting_rate"].mean()), 4) if len(netted) else None
+    netting_exact = int((abs(netted["netting_rate"] - 1.2) < 1e-6).sum())
+
+    sw = df[df["had_sw"]]
+    sw_avg = round(float(sw["sw_factor"].mean()), 4) if len(sw) else None
+    sw_exact = int((abs(sw["sw_factor"] - 1.1) < 1e-6).sum())
+
+    clean = df[(df["safety_rung"] == "clean") & (df["efficiency_bonus"] > 0)]
+    clean_n = int(len(clean))
+    # Anchoring scales efficiency and safety by one common ratio per row, so the per-row
+    # safety/efficiency ratio here IS the production formula's own (GANGFINALSAFETYBONUS /
+    # GANGFINALBREAKBONUS) -- a real check of the calc engine against the written +25%.
+    clean_row_ratio = (clean["safety_bonus"] / clean["efficiency_bonus"] * 100) if clean_n else None
+    clean_at_25 = int((abs(clean_row_ratio - 25.0) < 0.01).sum()) if clean_n else 0
+    real_vs_anchored_gap = round(float((df["total_safety_bonus"] - df["safety_bonus"]).sum()), 2)
+    anchored_safety_total = float(df["safety_bonus"].sum())
+    gap_pct = round(real_vs_anchored_gap / anchored_safety_total * 100, 2) if anchored_safety_total else None
+    clean_real_stm_ratio = round(float(clean["total_safety_bonus"].sum() / clean["total_stm_bonus"].sum() * 100), 2) if clean_n and clean["total_stm_bonus"].sum() > 0 else None
+
+    lti = df[df["safety_rung"] == "lti"]
+    lti_n = int(len(lti))
+    lti_ratios = (lti["safety_bonus"] / lti["efficiency_bonus"].where(lti["efficiency_bonus"] > 0)).dropna() * 100
+    lti_at_25 = int((abs(lti_ratios + 25) < 0.5).sum())
+    lti_at_50 = int((abs(lti_ratios + 50) < 0.5).sum())
+    lti_rand  = round(float(lti["safety_bonus"].sum()), 2)
+
+    fatal = df[df["safety_rung"] == "fatal"]
+    fatal_n = int(len(fatal))
+    fatal_stm = round(float(fatal["total_stm_bonus"].sum()), 2)
+    fatal_real_safety = round(float(fatal["total_safety_bonus"].sum()), 2)
+
+    sweep_rows = int((df["sweep_penalty"].abs() > 0.005).sum())
+    sweep_total = round(float(df["sweep_penalty"].sum()), 2)
+
+    below = df[df["efficiency"] < BONUS_POLICY_DEFAULTS["entry_threshold"]]
+    below_n = int(len(below))
+    below_paid = below[below["efficiency_bonus"] > 0]
+    below_paid_n = int(len(below_paid))
+    below_paid_wr = int(below_paid["had_wideraise"].sum())
+    below_paid_rand = round(float(below_paid["efficiency_bonus"].sum()), 2)
+
+    gated_n = int(df["gated"].sum())
+
+    items = [
+        {"key": "netting", "status": "matches" if netting_avg is not None and abs(netting_avg - 1.2) < 1e-6 else ("unverifiable" if netting_avg is None else "differs"),
+         "title": "Netting Uplift -- matches the written 20% exactly",
+         "policy": "s5.13.4: +20% of the Efficiency Bonus where permanent netting is installed (Efficiency only, not the total).",
+         "system": f"Real WORKPLACENETTINGRATE is exactly 1.2 on {netting_exact} of {len(netted)} netted gang-periods (average {netting_avg}); 1.0 on the rest.",
+         "rand": 0.0, "rand_label": "No discrepancy"},
+        {"key": "breef", "status": "matches" if sw_avg is not None and abs(sw_avg - 1.1) < 1e-6 else ("unverifiable" if sw_avg is None else "differs"),
+         "title": "B-Reef Stope-Width Uplift -- applied at the written 10%" if sw_avg is not None else "B-Reef Stope-Width Uplift -- not applied to any gang in this selection",
+         "policy": "s5.12: +10% on the Efficiency Bonus where B-Reef stoping width is >= 1.60 m.",
+         "system": (f"B_REEF_SW_FACTOR is exactly 1.1 on {sw_exact} of {len(sw)} uplifted gang-periods ({len(sw)} of {n} in this selection)."
+                    if sw_avg is not None else f"0 of {n} gang-periods in this selection carry a B_REEF_SW_FACTOR above 1.0."),
+         "rand": round(float(df["sw_delta"].sum()), 2), "rand_label": "Uplift paid in this selection"},
+        {"key": "clean_safety",
+         "status": ("unverifiable" if not clean_n else
+                    "matches" if clean_at_25 == clean_n and gap_pct is not None and abs(gap_pct) < 2.0 else "differs"),
+         "title": "Clean Safety Bonus -- the written +25% of Efficiency",
+         "policy": "s6.1.3: a clean safety record earns a safety bonus of +25% of the Efficiency Bonus.",
+         "system": (f"Calc engine: GANGFINALSAFETYBONUS is exactly 25% of GANGFINALBREAKBONUS on {clean_at_25} of {clean_n} clean gang-periods. "
+                    f"Real payroll: EMPLOYEESAFETYBONUS is {clean_real_stm_ratio}% of real STM for the same gangs -- which is the same rule seen from "
+                    f"the other side, because STM already contains the safety piece (0.25E / 1.25E = 20%). Real payroll safety sits "
+                    f"{gap_pct}% away from the formula's share over all gangs."),
+         "rand": real_vs_anchored_gap, "rand_label": "Real payroll safety minus the formula's safety share, all gangs"},
+        {"key": "lti", "status": "differs" if lti_at_50 else ("matches" if lti_n else "unverifiable"),
+         "title": "LTI penalty -- the system applied -50% on some gangs, the single written -25% on others",
+         "policy": "s6.1.5 as modelled in the Simulator: one LTI rate of -25% of the Efficiency Bonus.",
+         "system": (f"{lti_n} LTI gang-periods in this selection: {lti_at_25} at -25%, {lti_at_50} at -50% (production-formula ratio). "
+                    "A second, steeper LTI tier is being applied by the calc engine that the Simulator's single -25% lever does not model."
+                    if lti_n else "No LTI gang-periods in this selection."),
+         "rand": lti_rand, "rand_label": "Total LTI safety penalty in this selection"},
+        {"key": "fatal", "status": "differs" if fatal_n and fatal_real_safety != 0 else ("matches" if fatal_n else "unverifiable"),
+         "title": "Fatal -- bonus forfeited, but a real safety deduction still posted",
+         "policy": "s6.1.6: a fatality forfeits the bonus (-100%).",
+         "system": (f"{fatal_n} fatal gang-period(s): real STM R{fatal_stm:,.2f} (forfeited as written) but real EMPLOYEESAFETYBONUS of R{fatal_real_safety:,.2f} "
+                    "was still recorded against the gang -- a penalty posted on top of a zero bonus, which is not a percentage of anything."
+                    if fatal_n else "No fatal gang-periods in this selection."),
+         "rand": fatal_real_safety, "rand_label": "Real safety figure on fatal gang-periods"},
+        {"key": "sweep", "status": "matches" if sweep_rows else "unverifiable",
+         "title": "Sweeping Penalty -- active in the data",
+         "policy": "s5.14: a deduction for failing the sweepings standard for the period.",
+         "system": f"{sweep_rows} of {n} gang-periods carry a nonzero GANGFINALSWEEPINGSBONUS (always <= 0, i.e. a penalty, despite the column name).",
+         "rand": sweep_total, "rand_label": "Total sweeping penalty in this selection (anchored)"},
+        {"key": "entry", "status": "differs" if (below_paid_n - below_paid_wr) > 0 else ("matches" if below_n else "unverifiable"),
+         "title": "Entry-Level Gate (14 m2/empl) -- gangs below the gate still earned an Efficiency Bonus",
+         "policy": "s5.4: below 14 m2/empl no Efficiency Bonus is earned; Wide Raise panels are exempt.",
+         "system": (f"{below_n} gang-periods are below 14 m2/empl on GANGEFFICIENCY; {below_paid_n} of them still earned a nonzero Efficiency Bonus, "
+                    f"of which {below_paid_wr} are Wide Raise (exempt) and {below_paid_n - below_paid_wr} are not. {gated_n} gang-periods in total earned R0 efficiency. "
+                    "Real payroll can carry pro-rata/acting amounts the production formula gates to zero, so this is a flag, not a proven breach."),
+         "rand": below_paid_rand, "rand_label": "Efficiency Bonus paid to gangs below the gate"},
+        {"key": "tier", "status": "matches",
+         "title": "m2 Tier Escalator -- removed in REV04, and absent from the data",
+         "policy": "REV02 s5.3 paid an extra 5-50% for 300m2+; REV04 has no such clause.",
+         "system": "GANGFINALBREAKBONUS equals the pre-uplift efficiency estimate x netting x B-Reef SW regardless of m2 band -- no tier multiplier is applied.",
+         "rand": 0.0, "rand_label": "No discrepancy"},
+        {"key": "steep", "status": "matches",
+         "title": "Steep Stope m2 uplift -- applied upstream, inside the m2 figure",
+         "policy": "s5.10-5.11: dip 35-44 degrees adds +10% to a panel's m2, >= 45 degrees adds +20%.",
+         "system": "PRODUCTIONWPDETAIL: WPTOTALM2 = WPPRETOTALM2 x DIP_FACTOR exactly, so it is already inside GANGTOTALSQMADJUSTED and every bonus derived from it.",
+         "rand": None, "rand_label": "Not a Rand-side rule"},
+        {"key": "conditions", "status": "unverifiable",
+         "title": "Physical Conditions Rating safety forfeiture -- no data to check against",
+         "policy": "s6.1.1-6.1.2: the safety bonus can be forfeited on a physical-conditions rating.",
+         "system": "No CONDITION/RATING/INSPECT column exists in PRODUCTIONEARN, GANGLINKEARN or RATES; every clean gang in a full year earned the full +25% with zero exceptions.",
+         "rand": None, "rand_label": "Not computable from available data"},
+        {"key": "driller", "status": "unverifiable",
+         "title": "Driller Bonus (REV07 Quality Drilling) -- tracked, but not part of the stope-team total",
+         "policy": "REV07: a separate Quality Drilling incentive for the driller.",
+         "system": (f"Real EMPLOYEEDRILLERBONUS totals R{float(df['total_driller_bonus'].sum()):,.2f} in this selection, yet the source system's EMPLOYEETOTALBONUS equals STM alone "
+                    "even for driller-role employees. Whether and how it is paid sits outside this data, so it is shown as a reference figure only."),
+         "rand": round(float(df["total_driller_bonus"].sum()), 2), "rand_label": "Driller figure recorded (not in STM)"},
+    ]
+    return {"items": items, "gang_count": n}
+
+
+def get_crew_performance(period_from: int, period_to: int, section: str = "ALL") -> list[dict]:
+    """Per-gang (crew) summary across the selected periods, for Gang Analysis -> Crew
+    Performance. STOPE BREAKING only, same scoping/anchoring as get_section_ranking() /
+    _get_participants_bonus() -- real PARTICIPANTSDETAIL bonus, not the GANGPRODUCTIONDETAIL
+    per-person-rate estimate. m2/Man = total adj m2 / total GANGLABOUR over the gang's months.
+    """
+    sf = _section_filter(section)
+    sqm_df = read_sql(f"""
+        SELECT section, period, gang, MAX(sqm) AS sqm, MAX(labour) AS labour
+        FROM (
+            SELECT
+                LTRIM(RTRIM(SECTION)) AS section,
+                LTRIM(RTRIM(PERIOD))  AS period,
+                LTRIM(RTRIM(GANG))    AS gang,
+                TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT) AS sqm,
+                TRY_CAST(GANGLABOUR           AS FLOAT) AS labour
+            FROM [GANGPRODUCTIONDETAIL]
+            WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
+              AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+              AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+              {sf}
+        ) AS q
+        GROUP BY section, period, gang
+    """)
+    if sqm_df.empty:
+        return []
+    sqm_df["sqm"]    = sqm_df["sqm"].fillna(0).astype(float)
+    sqm_df["labour"] = sqm_df["labour"].fillna(0).astype(float)
+    sqm_df["period"] = sqm_df["period"].astype(str)
+
+    bonus_df = _get_participants_bonus(period_from, period_to, section)
+    if not bonus_df.empty:
+        keys = sqm_df[["section", "period", "gang"]].drop_duplicates()
+        bonus_sb = keys.merge(bonus_df[["section", "period", "gang", "total_bonus"]],
+                              on=["section", "period", "gang"], how="left")
+        bonus_sb["total_bonus"] = bonus_sb["total_bonus"].fillna(0).astype(float)
+    else:
+        bonus_sb = sqm_df[["section", "period", "gang"]].copy()
+        bonus_sb["total_bonus"] = 0.0
+    sqm_df = sqm_df.merge(bonus_sb, on=["section", "period", "gang"], how="left")
+    sqm_df["total_bonus"] = sqm_df["total_bonus"].fillna(0.0)
+
+    agg = sqm_df.groupby(["section", "gang"]).agg(
+        total_sqm    = ("sqm",         "sum"),
+        total_bonus  = ("total_bonus", "sum"),
+        total_labour = ("labour",      "sum"),
+        months       = ("period",      "nunique"),
+    ).reset_index()
+    agg["sqm_per_man"] = agg.apply(lambda r: r["total_sqm"] / r["total_labour"] if r["total_labour"] > 0 else 0.0, axis=1)
+    agg["r_per_sqm"]   = agg.apply(lambda r: r["total_bonus"] / r["total_sqm"] if r["total_sqm"] > 0 else 0.0, axis=1)
+    agg = agg.sort_values("total_sqm", ascending=False).reset_index(drop=True)
+    return [
+        {"section": str(r["section"]), "gang": str(r["gang"]),
+         "total_sqm": round(float(r["total_sqm"]), 0), "total_bonus": round(float(r["total_bonus"]), 2),
+         "months": int(r["months"]), "sqm_per_man": round(float(r["sqm_per_man"]), 2),
+         "r_per_sqm": round(float(r["r_per_sqm"]), 2)}
+        for _, r in agg.iterrows()
+    ]

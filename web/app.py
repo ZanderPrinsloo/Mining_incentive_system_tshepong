@@ -12,11 +12,13 @@ os.environ.setdefault("DB_DATABASE", "STPTM4000")
 
 import logging
 import traceback
+from datetime import datetime
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file
 from web import queries as q
 from web import target_store as ts
 from web import scenario_store as ss
+from web import audit_pack as ap
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +57,12 @@ def create_app() -> Flask:
         gangtype = request.args.get("gangtype",  "ALL")
         return jsonify(q.get_kpi_summary(p_from, p_to, section, gangtype))
 
+    @app.route("/api/scope_note")
+    def api_scope_note():
+        p_from = int(request.args.get("from", 202507))
+        p_to   = int(request.args.get("to",   202606))
+        return jsonify(q.get_scope_note(p_from, p_to))
+
     @app.route("/api/trend")
     def api_trend():
         p_from  = int(request.args.get("from",   202507))
@@ -82,12 +90,59 @@ def create_app() -> Flask:
         p_to   = int(request.args.get("to",   202606))
         return jsonify(q.get_bonus_by_section(p_from, p_to))
 
+    @app.route("/api/section_rsqm_trend")
+    def api_section_rsqm_trend():
+        p_from = int(request.args.get("from", 202507))
+        p_to   = int(request.args.get("to",   202606))
+        return jsonify(q.get_section_rsqm_trend(p_from, p_to))
+
+    @app.route("/api/bonus_composition")
+    def api_bonus_composition():
+        p_from  = int(request.args.get("from",   202507))
+        p_to    = int(request.args.get("to",     202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_bonus_composition(p_from, p_to, section))
+
+    @app.route("/api/bonus_outcomes")
+    def api_bonus_outcomes():
+        p_from  = int(request.args.get("from",   202507))
+        p_to    = int(request.args.get("to",     202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_bonus_outcomes(p_from, p_to, section))
+
+    @app.route("/api/policy_discrepancies")
+    def api_policy_discrepancies():
+        p_from  = int(request.args.get("from",   202507))
+        p_to    = int(request.args.get("to",     202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_policy_discrepancies(p_from, p_to, section))
+
+    @app.route("/api/crew_performance")
+    def api_crew_performance():
+        p_from  = int(request.args.get("from",   202507))
+        p_to    = int(request.args.get("to",     202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_crew_performance(p_from, p_to, section))
+
     @app.route("/api/sqm_range")
     def api_sqm_range():
         p_from  = int(request.args.get("from",   202507))
         p_to    = int(request.args.get("to",     202606))
         section = request.args.get("section", "ALL")
         return jsonify(q.get_sqm_range_analysis(p_from, p_to, section))
+
+    @app.route("/api/audit_pack")
+    def api_audit_pack():
+        p_from   = int(request.args.get("from",     202507))
+        p_to     = int(request.args.get("to",       202606))
+        section  = request.args.get("section",  "ALL")
+        gangtype = request.args.get("gangtype", "ALL")
+        buf = ap.build_audit_pack(p_from, p_to, section, gangtype)
+        filename = f"Tshepong_Audit_Pack_{p_from}_{p_to}_{datetime.now():%Y%m%d_%H%M}.xlsx"
+        return send_file(
+            buf, as_attachment=True, download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     @app.route("/api/gang_detail")
     def api_gang_detail():
@@ -103,13 +158,6 @@ def create_app() -> Flask:
         p_to    = int(request.args.get("to",     202606))
         section = request.args.get("section", "ALL")
         return jsonify(q.get_rands_per_sqm(p_from, p_to, section))
-
-    @app.route("/api/simulation_data")
-    def api_simulation_data():
-        p_from  = int(request.args.get("from",   202507))
-        p_to    = int(request.args.get("to",     202606))
-        section = request.args.get("section", "ALL")
-        return jsonify(q.get_simulation_data(p_from, p_to, section))
 
     @app.route("/api/forecast_data")
     def api_forecast_data():
