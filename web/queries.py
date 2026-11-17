@@ -2464,14 +2464,14 @@ def get_crew_labour(period_from: int, period_to: int, section: str = "ALL") -> d
                 "wagecode": r["wagecode"], "descr": r["descr"], "employees": int(r["employees"] or 0),
                 "reps": float(r["reps"] or 0), "shifts": float(r["shifts"] or 0), "eff": float(r["eff"] or 0),
                 "awop_shifts": float(r["awop_shifts"] or 0), "ms": float(r["ms"] or 0),
-                "prod": round(stm - safety, 2), "safety": round(safety, 2), "awop_pen": round(float(r["awop_pen"] or 0), 2),
+                "prod": stm - safety, "safety": safety, "awop_pen": float(r["awop_pen"] or 0),
                 "sick": lab["sick"].get((r["gang"], r["wagecode"]), 0.0),
             })
         per = {}
         for g in month.to_dict("records"):
             c = per.setdefault((g["section"], g["crew"]), {"period": str(p), "section": g["section"], "crew": g["crew"],
                                                            "m2": 0.0, "lab_t": 0.0, "lab_b": 0.0, "lab_c": 0.0,
-                                                           "lti": 0, "reps": []})
+                                                           "lti": 0, "reps": [], "_emps": set()})
             c["lab_t"] = max(c["lab_t"], g["lab"] or 0)
             sh = gang_sh.get(g["gang"])
             ratio = (sh["gs"] / sh["ms"]) if sh and sh["ms"] and sh["ms"] > 0 and sh["gs"] is not None else 0.0
@@ -2484,10 +2484,12 @@ def get_crew_labour(period_from: int, period_to: int, section: str = "ALL") -> d
                 c["lti"] = 1
         for x in lab["persons"]:
             hit = crew_of.get(x["gang"])
-            if hit and hit[0] == x["section"] and x["rep"]:
-                per[hit]["reps"].append(x["emp"])
+            if hit and hit[0] == x["section"]:
+                per[hit]["_emps"].add(x["emp"])
+                if x["rep"]:
+                    per[hit]["reps"].append(x["emp"])
         for c in per.values():
             c["reps"] = sorted(set(c["reps"]))
-            c["lab_b"], c["lab_c"] = round(c["lab_b"], 4), round(c["lab_c"], 4)
+            c["people"] = len(c.pop("_emps"))
             crews.append(c)
     return {"people": people, "crews": crews, "period_labels": {str(p): _period_label(int(p)) for p in periods}}

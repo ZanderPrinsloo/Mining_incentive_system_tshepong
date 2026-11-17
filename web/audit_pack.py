@@ -76,7 +76,74 @@ def _fmt_period_list(period_from: int, period_to: int) -> str:
 
 # ── SQL Setup (the independent verification path) ───────────────────────────
 
-def _sql_setup_script(period_from: int, period_to: int) -> str:
+def _labour_setup_sql(period_from: int, period_to: int, labour_periods: list) -> str:
+    """Steps 3-6 of the SQL Setup: the Labour Analysis temp tables (#crewmap, #crewlab,
+    #crewgang, #sick). Written from the database's own tables, independent of queries.py."""
+    types = "'STOPE BREAKING', 'STOPE CLEANING'"
+    union = "\n    UNION ALL\n".join(
+        f"    SELECT '{p}' AS PERIOD, RTRIM(SECTION) AS SECTION, RTRIM(GANG) AS GANG, UPPER(RTRIM(GANGTYPE)) AS GANGTYPE,\n"
+        f"           RTRIM(EMPLOYEE_NO) AS EMPLOYEE_NO, RTRIM(WAGECODE) AS WAGECODE,\n"
+        f"           ISNULL(TRY_CAST(SHIFTS_WORKED AS FLOAT), 0) AS SHIFTS_WORKED, ISNULL(TRY_CAST(EFF_SHIFTS AS FLOAT), 0) AS EFF_SHIFTS,\n"
+        f"           ISNULL(TRY_CAST(AWOP_SHIFTS AS FLOAT), 0) AS AWOP_SHIFTS, TRY_CAST(MONTHSHIFTS AS FLOAT) AS MONTHSHIFTS,\n"
+        f"           ISNULL(TRY_CAST(SAFETYREPIND AS FLOAT), 0) AS SAFETYREPIND, ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0) AS STM,\n"
+        f"           ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT), 0) AS SAFETY, ISNULL(TRY_CAST(EMPLOYEEAWOPPENALTY AS FLOAT), 0) AS AWOP_PEN\n"
+        f"    FROM PARTICIPANTSEARN{p}\n"
+        f"    WHERE RTRIM(EMPLOYEETYPE) <> '1 - OFFICIALS' AND UPPER(RTRIM(GANGTYPE)) IN ({types})"
+        for p in labour_periods)
+    gunion = "\n    UNION ALL\n".join(
+        f"    SELECT '{p}' AS PERIOD, RTRIM(GANG) AS GANG, MAX(TRY_CAST(GANGSHIFTS AS FLOAT)) AS GS, MAX(TRY_CAST(MONTHSHIFTS AS FLOAT)) AS MS\n"
+        f"    FROM PARTICIPANTSEARN{p} WHERE UPPER(RTRIM(GANGTYPE)) IN ({types}) GROUP BY RTRIM(GANG)"
+        for p in labour_periods)
+    day = " + ".join(f"CASE WHEN RTRIM(b.DAY{i}) COLLATE Latin1_General_CS_AS IN ({q.SICK_CODES}) THEN 1 ELSE 0 END" for i in range(45))
+    if not labour_periods:
+        return ""
+    return f"""
+-- ===== Labour Analysis (Crew Labour) setup =====
+IF OBJECT_ID('tempdb..#crewmap') IS NOT NULL DROP TABLE #crewmap;
+IF OBJECT_ID('tempdb..#crewlab') IS NOT NULL DROP TABLE #crewlab;
+IF OBJECT_ID('tempdb..#crewgang') IS NOT NULL DROP TABLE #crewgang;
+IF OBJECT_ID('tempdb..#sick') IS NOT NULL DROP TABLE #sick;
+
+-- 3. #crewmap: crew of every breaking / cleaning gang per month (GANGPRODUCTIONDETAIL). The crew is CREWNO, which equals
+--    the breaking gang's own code; GANGLABOUR is the crew's labour as the bonus system counts it; GANGLTIIND = lost-time incident.
+SELECT LTRIM(RTRIM(PERIOD)) AS PERIOD, LTRIM(RTRIM(SECTION)) AS SECTION, LTRIM(RTRIM(GANG)) AS GANG,
+       UPPER(LTRIM(RTRIM(GANGTYPE))) AS GANGTYPE, LTRIM(RTRIM(CREWNO)) AS CREW,
+       MAX(TRY_CAST(GANGLABOUR AS FLOAT)) AS LAB, MAX(TRY_CAST(GANGLTIIND AS FLOAT)) AS LTI
+INTO #crewmap
+FROM GANGPRODUCTIONDETAIL
+WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) IN ({types}) AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+  AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
+GROUP BY LTRIM(RTRIM(PERIOD)), LTRIM(RTRIM(SECTION)), LTRIM(RTRIM(GANG)), UPPER(LTRIM(RTRIM(GANGTYPE))), LTRIM(RTRIM(CREWNO));
+
+-- 4. #crewlab: the participants' rows (PARTICIPANTSEARN<month>), officials left out, breaking and cleaning gangs only,
+--    each mapped to its crew through the gang.
+SELECT u.*, m.CREW INTO #crewlab FROM (
+{union}
+) u
+JOIN (SELECT DISTINCT PERIOD, SECTION, GANG, CREW FROM #crewmap) m ON m.PERIOD = u.PERIOD AND m.SECTION = u.SECTION AND m.GANG = u.GANG;
+
+-- 5. #crewgang: each gang's labour as shifts / month shifts (GANGSHIFTS / MONTHSHIFTS from PARTICIPANTSEARN<month>), next to
+--    its crew. The crew's own total labour (LAB) is GANGLABOUR = the crew's breaking + cleaning shifts / MONTHSHIFTS rounded up.
+SELECT m.PERIOD, m.SECTION, m.GANG, m.GANGTYPE, m.CREW, m.LAB, m.LTI, g.GS / NULLIF(g.MS, 0) AS LABOUR
+INTO #crewgang
+FROM #crewmap m
+JOIN (
+{gunion}
+) g ON g.PERIOD = m.PERIOD AND g.GANG = m.GANG;
+
+-- 6. #sick: sick-leave days per person per gang from the attendance register (BONUSSHIFTS, DAY0..DAY44). Codes are
+--    case-sensitive (p = sick, P = Sunday off): C S c s f F m M p 2 7. Only the rows of the same people as #crewlab.
+SELECT x.PERIOD, x.SECTION, x.GANG, x.WAGECODE, x.EMPLOYEE_NO, SUM({day}) AS SICK
+INTO #sick
+FROM BONUSSHIFTS b
+JOIN (SELECT DISTINCT PERIOD, SECTION, GANG, WAGECODE, EMPLOYEE_NO FROM #crewlab) x
+  ON x.PERIOD = RTRIM(b.PERIOD) AND x.SECTION = RTRIM(b.SECTION) AND x.GANG = RTRIM(b.GANG)
+ AND x.WAGECODE = RTRIM(b.WAGECODE) AND x.EMPLOYEE_NO = RTRIM(b.EMPLOYEE_NO)
+GROUP BY x.PERIOD, x.SECTION, x.GANG, x.WAGECODE, x.EMPLOYEE_NO;
+"""
+
+
+def _sql_setup_script(period_from: int, period_to: int, labour_periods: list | None = None) -> str:
     """Builds #participants and #sqm — the ONLY two temp tables every per-value
     check query in this workbook reads from. Written independently of
     queries.py's _participants_dedup_sql — same dedup key, re-typed by hand, so
@@ -135,7 +202,7 @@ WHERE TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
   AND UPPER(LTRIM(RTRIM(GANGTYPE))) = 'STOPE BREAKING'
   AND LEN(LTRIM(RTRIM(CREWNO))) >= 8
 GROUP BY LTRIM(RTRIM(SECTION)), LTRIM(RTRIM(PERIOD)), LTRIM(RTRIM(GANG));
-"""
+""" + _labour_setup_sql(period_from, period_to, labour_periods or [])
 
 
 def _run(cursor: "pyodbc.Cursor", sql: str) -> float | None:
@@ -157,10 +224,10 @@ def _df(cursor: "pyodbc.Cursor", sql: str) -> pd.DataFrame:
     return pd.DataFrame.from_records(rows, columns=cols)
 
 
-def _col(label, value, source, columns, explanation, sql=None, sql_result=None, is_formula=False):
+def _col(label, value, source, columns, explanation, sql=None, sql_result=None, is_formula=False, fmt="#,##0.00"):
     return {"label": label, "value": value, "source": source, "columns": columns,
             "explanation": explanation, "sql": sql, "sql_result": sql_result,
-            "is_formula": is_formula}
+            "is_formula": is_formula, "fmt": fmt}
 
 
 # ── Column builders (each takes the shared cursor so its SQL checks run in the
@@ -173,9 +240,9 @@ def _headline_columns(cursor, period_from: int, period_to: int,
     sf_sql = "" if section == "ALL" else f" AND SECTION = '{section}'"
 
     sqm_sql = f"SELECT ROUND(SUM(SQM), 2) AS value FROM #sqm WHERE 1=1{sf_sql};"
-    stm_sql = f"SELECT ROUND(SUM(STM), 2) AS value FROM #participants WHERE 1=1{sf_sql};"
-    safety_sql = f"SELECT ROUND(SUM(SAFETY), 2) AS value FROM #participants WHERE 1=1{sf_sql};"
-    driller_sql = f"SELECT ROUND(SUM(DRILLER), 2) AS value FROM #participants WHERE 1=1{sf_sql};"
+    stm_sql = f"SELECT ROUND(SUM(STM), 2) AS value FROM #participants WHERE GANGTYPE = 'STOPE BREAKING'{sf_sql};"
+    safety_sql = f"SELECT ROUND(SUM(SAFETY), 2) AS value FROM #participants WHERE GANGTYPE = 'STOPE BREAKING'{sf_sql};"
+    driller_sql = f"SELECT ROUND(SUM(DRILLER), 2) AS value FROM #participants WHERE GANGTYPE = 'STOPE BREAKING'{sf_sql};"
     gangcount_sql = f"SELECT COUNT(DISTINCT SECTION + '|' + GANG) AS value FROM #sqm WHERE 1=1{sf_sql};"
     avgsqm_sql = f"SELECT ROUND(AVG(SQM), 1) AS value FROM #sqm WHERE 1=1{sf_sql};"
 
@@ -190,7 +257,8 @@ def _headline_columns(cursor, period_from: int, period_to: int,
         _col("Total Bonus (STM, KPI card)", kpi.get("total_bonus", 0),
              "PARTICIPANTSDETAIL (deduplicated)",
              "SECTION, PERIOD, EMPLOYEE_NO, GANG, WAGECODE, EMPLOYEESTOPETEAMBONUS",
-             "SUM(EMPLOYEESTOPETEAMBONUS) across every real employee-period record, after "
+             "SUM(EMPLOYEESTOPETEAMBONUS) for STOPE BREAKING gangs only (the same scope as the m² "
+             "above, so R/m² compares like with like), across every real employee-period record, after "
              "deduplicating the view's GANGLINKEARN join fan-out (see SQL Setup) and excluding "
              "GANG='xxx'/CREWNO='-' placeholder rows. This is the figure that actually reconciles "
              "with the source system's own EMPLOYEETOTALBONUS column, verified per-employee across "
@@ -340,6 +408,94 @@ def _month_columns(cursor, period_from: int, period_to: int, section: str) -> li
     return cols
 
 
+def _labour_columns(cursor, period_from: int, period_to: int, section: str) -> list[dict]:
+    """Labour Analysis sheet: the Crew Labour figures, each checked against #crewmap / #crewlab / #crewgang / #sick."""
+    d = q.get_crew_labour(period_from, period_to, section)
+    pp, cc = d["people"], d["crews"]
+    if not cc:
+        return []
+    n = len({c["period"] for c in cc})
+    sec = "" if section == "ALL" else f" AND SECTION = '{section}'"
+    tot = lambda k: sum(r[k] or 0 for r in pp)  # noqa: E731
+    src = "PARTICIPANTSEARN<month> \u2192 #crewlab (SQL Setup step 4)"
+    note = ("From the bonus calculation's participant rows: officials left out, only the Stope Breaking and Stope Cleaning gangs of a "
+            "real crew (Centre Gully, Surface Assistant and ANCILLARY left out), each person's row mapped to its crew through the gang. "
+            "The Gang Types filter does not apply to this sheet. ")
+    gsrc = "GANGPRODUCTIONDETAIL + PARTICIPANTSEARN<month> \u2192 #crewgang (SQL Setup step 5)"
+    gnote = ("Labour as the bonus system counts it. Breaking / cleaning: the gang's own GANGSHIFTS \u00f7 MONTHSHIFTS, added over the crews and "
+             f"months, \u00f7 {n} months. Total: the crew's GANGLABOUR (its breaking + cleaning shifts \u00f7 MONTHSHIFTS, rounded up), "
+             "added over the crews and months, \u00f7 {n} months, so it can exceed breaking + cleaning by up to 1 per crew.")
+    cols = []
+    for label, key, t_ in (("Avg labour breaking (per month, all crews)", "lab_b", "STOPE BREAKING"),
+                           ("Avg labour cleaning (per month, all crews)", "lab_c", "STOPE CLEANING")):
+        sql = f"SELECT ROUND(SUM(LABOUR) / {n}.0, 4) AS value FROM #crewgang WHERE GANGTYPE = '{t_}'{sec};"
+        cols.append(_col(label, round(sum(c[key] for c in cc) / n, 4), gsrc, "GANG, SECTION, GANGTYPE, CREWNO, GANGSHIFTS, MONTHSHIFTS",
+                         gnote.replace("{n}", str(n)), sql, _run(cursor, sql), fmt="#,##0.0"))
+    sql = (f"SELECT ROUND(SUM(L) / {n}.0, 4) AS value FROM (SELECT PERIOD, SECTION, CREW, MAX(LAB) AS L FROM #crewmap "
+           f"WHERE 1=1{sec} GROUP BY PERIOD, SECTION, CREW) x;")
+    cols.append(_col("Total avg labour (per month, all crews)", round(sum(c["lab_t"] for c in cc) / n, 4), gsrc,
+                     "SECTION, CREWNO, GANGLABOUR", gnote.replace("{n}", str(n)), sql, _run(cursor, sql), fmt="#,##0.0"))
+    sql = f"SELECT COUNT(*) AS value FROM (SELECT DISTINCT PERIOD, SECTION, CREW, EMPLOYEE_NO FROM #crewlab WHERE 1=1{sec}) x;"
+    cols.append(_col("People (person-crew-months)", sum(c["people"] for c in cc), src, "EMPLOYEE_NO, CREW",
+                     note + "Each person counted once per crew per month.", sql, _run(cursor, sql), fmt="#,##0"))
+    reps = {}
+    for c in cc:
+        reps.setdefault((c["section"], c["crew"]), set()).update(c["reps"])
+    sql = f"SELECT COUNT(*) AS value FROM (SELECT DISTINCT SECTION, CREW, EMPLOYEE_NO FROM #crewlab WHERE SAFETYREPIND > 0{sec}) x;"
+    cols.append(_col("Safety reps (different people per crew)", sum(len(v) for v in reps.values()), src,
+                     "SAFETYREPIND, EMPLOYEE_NO, CREW",
+                     note + "Safety representatives (SAFETYREPIND not 0), each person counted once per crew over the chosen months, "
+                     "added over the crews. This is the total under the Safety Rep column.", sql, _run(cursor, sql), fmt="#,##0"))
+    for label, k, col, why, fmt in (
+            ("Total shifts worked", "shifts", "SHIFTS_WORKED", "Shifts worked by the crew members (payroll).", "#,##0"),
+            ("Effective shifts", "eff", "EFF_SHIFTS", "Efficiency shifts: the shifts that count for the crew's labour and the bonus.", "#,##0"),
+            ("Shifts lost due to AWOP", "awop_shifts", "AWOP_SHIFTS", "Shifts absent without permission (payroll).", "#,##0"),
+            ("Production bonus paid (participants)", "prod", "EMPLOYEESTOPETEAMBONUS \u2212 EMPLOYEESAFETYBONUS",
+             "The Stope Team Bonus (STM) without its safety part. STM already contains the safety share, so Production + Safety = STM.", "#,##0.00"),
+            ("Safety bonus paid (participants)", "safety", "EMPLOYEESAFETYBONUS", "The safety part of the Stope Team Bonus.", "#,##0.00")):
+        if k == "prod":
+            sql = "SELECT ROUND(SUM(STM) - SUM(SAFETY), 2) AS value FROM #crewlab WHERE 1=1" + sec + ";"
+        elif k == "safety":
+            sql = "SELECT ROUND(SUM(SAFETY), 2) AS value FROM #crewlab WHERE 1=1" + sec + ";"
+        else:
+            sql = f"SELECT ROUND(SUM({col}), 2) AS value FROM #crewlab WHERE 1=1{sec};"
+        cols.append(_col(label, tot(k), src, col, note + why, sql, _run(cursor, sql), fmt=fmt))
+    sql = f"SELECT ROUND(SUM(AWOP_PEN), 2) AS value FROM #crewlab WHERE 1=1{sec};"
+    cols.append(_col("AWOP penalties", tot("awop_pen"), src, "EMPLOYEEAWOPPENALTY",
+                     note + "Bonus deducted for absence without permission; already netted into the STM above.", sql, _run(cursor, sql)))
+    avail = sum((r["employees"] or 0) * (r["ms"] or 0) for r in pp)
+    grp = "GROUP BY PERIOD, SECTION, GANG, GANGTYPE, WAGECODE"
+    avail_sql = (f"SELECT SUM(n * ms) FROM (SELECT COUNT(DISTINCT EMPLOYEE_NO) AS n, MAX(MONTHSHIFTS) AS ms FROM #crewlab "
+                 f"WHERE 1=1{sec} {grp}) g")
+    cols.append(_col("Shifts available (employees \u00d7 measuring shifts)", avail, src, "EMPLOYEE_NO, MONTHSHIFTS",
+                     note + "For each gang and wage code: employees \u00d7 the month's measuring shifts (MONTHSHIFTS), added up. "
+                     "Used for Attendance % and Other Shifts Lost.", avail_sql.replace("SELECT SUM(n * ms)", "SELECT SUM(n * ms) AS value", 1) + ";",
+                     _run(cursor, avail_sql + ";"), fmt="#,##0"))
+    sick_sql = f"SELECT SUM(SICK) AS value FROM #sick WHERE 1=1{sec}"
+    cols.append(_col("Shifts lost due to sick leave", tot("sick"), "BONUSSHIFTS (attendance register) \u2192 #sick (SQL Setup step 6)",
+                     "DAY0..DAY44 (day codes), EMPLOYEE_NO, GANG, SECTION, WAGECODE",
+                     note + "Days with a sick code in the attendance register for the same people. Sick codes (case-sensitive): "
+                     "C sick note Harm Drs, S sick hospital, c sick note private Dr, f / F TB cases, m / M mine accident sick / hospital, "
+                     "p sick OHC PD 449, s sick reporting, 2 sick leave covid policy, 7 covid side effect.", sick_sql + ";",
+                     _run(cursor, sick_sql + ";"), fmt="#,##0"))
+    other_sql = (f"SELECT ({avail_sql}) - (SELECT SUM(SHIFTS_WORKED + AWOP_SHIFTS) FROM #crewlab WHERE 1=1{sec}) - "
+                 f"({sick_sql}) AS value;")
+    cols.append(_col("Other shifts lost", avail - tot("shifts") - tot("awop_shifts") - tot("sick"), src,
+                     "MONTHSHIFTS, SHIFTS_WORKED, AWOP_SHIFTS, sick days",
+                     note + "Shifts available \u2212 shifts worked \u2212 AWOP shifts \u2212 sick shifts (leave, training, off days and other absences).",
+                     other_sql, _run(cursor, other_sql), fmt="#,##0"))
+    att_sql = (f"SELECT (SELECT SUM(SHIFTS_WORKED) FROM #crewlab WHERE 1=1{sec}) / NULLIF(({avail_sql}), 0) AS value;")
+    cols.append(_col("Attendance %", tot("shifts") / avail if avail else 0, src, "SHIFTS_WORKED, MONTHSHIFTS",
+                     note + "Shifts worked \u00f7 shifts available.", att_sql, _run(cursor, att_sql), fmt="0.0%"))
+    lti_sql = ("SELECT COUNT(*) AS value FROM (SELECT PERIOD, SECTION, CREW FROM #crewmap WHERE 1=1" + sec +
+               " GROUP BY PERIOD, SECTION, CREW HAVING MAX(LTI) > 0) x;")
+    cols.append(_col("Safety incidents (crew-months with a lost-time incident)", sum(c["lti"] for c in cc),
+                     "GANGPRODUCTIONDETAIL \u2192 #crewmap (SQL Setup step 3)", "GANGLTIIND",
+                     "Crew-months in which one of the crew's breaking or cleaning gangs had a lost-time incident (GANGLTIIND > 0), counted once per crew-month.",
+                     lti_sql, _run(cursor, lti_sql), fmt="0"))
+    return cols
+
+
 # ── Workbook assembly ─────────────────────────────────────────────────────────
 
 ROW_HEIGHTS = {1: 32, 2: 20, 3: 40, 4: 55, 5: 150, 6: 110, 7: 20, 8: 18}
@@ -363,7 +519,7 @@ def _write_value_sheet(wb: Workbook, title: str, columns: list[dict]) -> None:
         c2 = ws.cell(row=2, column=ci, value=col["value"])
         c2.font = VALUE_FONT
         c2.fill = VALUE_FILL
-        c2.number_format = "#,##0.00"
+        c2.number_format = col.get("fmt", "#,##0.00")
 
         for r, key in ((3, "source"), (4, "columns"), (5, "explanation")):
             cell = ws.cell(row=r, column=ci, value=col[key])
@@ -378,7 +534,7 @@ def _write_value_sheet(wb: Workbook, title: str, columns: list[dict]) -> None:
         c7 = ws.cell(row=7, column=ci, value=sql_result if sql_result is not None else "n/a")
         c7.font = VALUE_FONT
         if sql_result is not None:
-            c7.number_format = "#,##0.00"
+            c7.number_format = col.get("fmt", "#,##0.00")
 
         c8 = ws.cell(row=8, column=ci)
         if col["is_formula"] or sql_result is None:
@@ -431,7 +587,8 @@ def _write_readme_sheet(wb: Workbook, period_from: int, period_to: int,
         ("1. Open SQL Server Management Studio, connect to the bonus database and open a new "
          "query window.", False),
         ("2. Copy column A of the 'SQL Setup' sheet (from A3 down), paste it and run it. It "
-         "builds two temporary tables (#participants, #sqm) that only exist in that window.", False),
+         "builds temporary tables (#participants, #sqm and, for the Labour Analysis sheet, #crewmap, #crewlab, #crewgang, #sick) "
+         "that only exist in that window.", False),
         ("3. Copy any value's row-6 query, run it in the same window and compare with row 2.", False),
         ("4. To check the dedup/filter rules themselves, read the comments in the SQL Setup "
          "script — each rule (the GANGLINKEARN join fan-out, the GANG='xxx'/CREWNO='-' "
@@ -440,6 +597,7 @@ def _write_readme_sheet(wb: Workbook, period_from: int, period_to: int,
         ("Sheets", True),
         ("Headline Values — the KPI cards. By Section — m\xb2 and bonus per section. "
          "By Gang Type — bonus per gang type. By Month — m\xb2 and bonus per period. "
+         "Labour Analysis — the Crew Labour figures (labour, shifts, attendance, sick leave, labour bonus, incidents). "
          "SQL Setup — the script to run first.", False),
         ("", False),
         ("Notes", True),
@@ -476,12 +634,18 @@ def build_audit_pack(period_from: int, period_to: int,
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(_sql_setup_script(period_from, period_to))
+        lab_periods = _df(cursor, f"""SELECT SUBSTRING(TABLE_NAME, 17, 6) AS P FROM INFORMATION_SCHEMA.TABLES
+                                      WHERE TABLE_NAME LIKE 'PARTICIPANTSEARN2%' AND LEN(TABLE_NAME) = 22
+                                        AND TRY_CAST(SUBSTRING(TABLE_NAME, 17, 6) AS BIGINT) BETWEEN {period_from} AND {period_to}
+                                      ORDER BY 1""")["P"].tolist()
+        setup_sql = _sql_setup_script(period_from, period_to, lab_periods)
+        cursor.execute(setup_sql)
 
         headline = _headline_columns(cursor, period_from, period_to, section, gangtype)
         by_section = _section_columns(cursor, period_from, period_to)
         by_gangtype = _gangtype_columns(cursor, period_from, period_to, section)
         by_month = _month_columns(cursor, period_from, period_to, section)
+        labour = _labour_columns(cursor, period_from, period_to, section)
 
     wb = Workbook()
     wb.remove(wb.active)  # drop the default blank sheet
@@ -491,7 +655,9 @@ def build_audit_pack(period_from: int, period_to: int,
     _write_value_sheet(wb, "By Section", by_section)
     _write_value_sheet(wb, "By Gang Type", by_gangtype)
     _write_value_sheet(wb, "By Month", by_month)
-    _write_sql_setup_sheet(wb, _sql_setup_script(period_from, period_to))
+    if labour:
+        _write_value_sheet(wb, "Labour Analysis", labour)
+    _write_sql_setup_sheet(wb, setup_sql)
 
     buf = BytesIO()
     wb.save(buf)
