@@ -117,6 +117,13 @@ def create_app() -> Flask:
         section = request.args.get("section", "ALL")
         return jsonify(q.get_policy_discrepancies(p_from, p_to, section))
 
+    @app.route("/api/crew_labour")
+    def api_crew_labour():
+        p_from  = int(request.args.get("from",    202507))
+        p_to    = int(request.args.get("to",      202606))
+        section = request.args.get("section", "ALL")
+        return jsonify(q.get_crew_labour(p_from, p_to, section))
+
     @app.route("/api/crew_performance")
     def api_crew_performance():
         p_from  = int(request.args.get("from",   202507))

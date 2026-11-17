@@ -49,7 +49,7 @@
     #sticky-top .navbar-brand { font-size: 1rem; padding: 0; }
     #sticky-top #filter-bar { padding-top: .25rem !important; padding-bottom: .3rem !important; }
     #sticky-top #filter-bar label { font-size: .7rem; margin-bottom: 0; }
-    #sticky-top #filter-bar select, #sticky-top #filter-bar .btn, #sticky-top #btn-gangtype { font-size: .75rem; padding-top: .1rem; padding-bottom: .1rem; }
+    #sticky-top #filter-bar select, #sticky-top #filter-bar .btn, #sticky-top #btn-gangtype-menu { font-size: .75rem; padding-top: .1rem; padding-bottom: .1rem; }
     #sticky-top #filter-bar .mt-3 { margin-top: .9rem !important; }
     #sticky-top > .container-fluid { padding-top: .4rem !important; }
     #kpi-row { --bs-gutter-y: .4rem; --bs-gutter-x: .6rem; margin-bottom: .4rem !important; }
@@ -139,8 +139,8 @@
     .exec-kpi-lbl   { font-size: .70rem; color: #6c757d; text-transform: uppercase; letter-spacing: .5px; }
     .exec-kpi-val   { font-size: 1.35rem; font-weight: 700; color: var(--hg-dark); line-height: 1.1; }
     .exec-kpi-delta { font-size: .78rem; font-weight: 600; }
-    .delta-good { color: #198754; }
-    .delta-warn { color: #dc3545; }
+    .delta-good { color: #198754 !important; font-weight: 600; }
+    .delta-warn { color: #dc3545 !important; font-weight: 600; }
 
     /* ── Section Performance Ranking ── */
     .sec-rank-best td  { background-color: #d4edda !important; }
@@ -185,12 +185,13 @@
       </select>
     </div>
     <div>
-      <label for="btn-gangtype">Gang Types</label>
+      <label class="d-block" for="btn-gangtype-menu">Gang Types</label>
       <div class="dropdown">
-        <button class="form-select form-select-sm text-start" type="button" id="btn-gangtype"
-                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                style="min-width:170px">All Types</button>
-        <div class="dropdown-menu p-2" id="gangtype-menu" style="min-width:200px"></div>
+        <button id="btn-gangtype-menu" class="btn btn-sm btn-light dropdown-toggle text-start" type="button"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" style="min-width:160px" aria-expanded="false">
+          <span id="gangtype-picked-label">All Types</span>
+        </button>
+        <div class="dropdown-menu p-2" id="gangtype-menu" style="min-width:180px"></div>
       </div>
     </div>
     <div class="ms-auto d-flex gap-2">
@@ -844,8 +845,92 @@
 
     <!-- ══ TAB: Labour Analysis ══════════════════════════════════════════════ -->
     <div class="tab-pane fade" id="tab-labour">
-      <div class="subtab-placeholder"><i class="bi bi-hourglass-split"></i>
-        Labour Analysis (Selection Totals, Process/Wage Code breakdown) &mdash; coming soon (Phase 4).</div>
+      <ul class="nav nav-pills mb-3 sub-tabs" id="labourTabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#lab-crew">1. Crew Labour</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#lab-dd">2. Crew Drill Down</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#lab-bw">3. Best vs Worst Crews</button></li>
+      </ul>
+      <div class="tab-content">
+      <div class="tab-pane fade show active" id="lab-crew">
+      <div class="card shadow-sm mb-3" id="card-crew-labour">
+        <div class="card-body">
+          <div class="d-flex align-items-center flex-wrap gap-3 mb-1">
+            <div class="section-header mb-0">Crew Labour</div>
+            <div class="ms-auto d-flex align-items-center gap-2 small">
+              <label class="fw-semibold" for="cl-sec-btn">Section</label>
+              <div class="dropdown">
+                <button id="cl-sec-btn" class="btn btn-sm btn-light dropdown-toggle text-start" type="button"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside" style="min-width:130px" aria-expanded="false">
+                  <span id="cl-sec-label">All Sections</span>
+                </button>
+                <div class="dropdown-menu p-2" id="cl-sec-menu" style="min-width:170px"></div>
+              </div>
+              <label class="fw-semibold ms-2" for="cl-f-period">Period</label>
+              <select class="form-select form-select-sm" id="cl-f-period" style="width:auto"></select>
+            </div>
+          </div>
+          <p class="small text-muted mb-2">One row per crew in the section: its Stope Breaking gang plus its Stope Cleaning gang (Centre Gully
+            and Surface Assistant gangs are shared between crews and are not included, and the Gang Types filter does not apply here).
+            From the bonus system's participant rows, officials excluded, whose bonus adds up to payroll. Averages are per month.
+            Click a crew to see its wage codes (sub-tab 2).</p>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0" id="tbl-cl-crews">
+            <thead><tr><th class="">Crew<span class="ib" data-k="cl-crew"></span></th><th class="text-end">Avg Labour Breaking<span class="ib" data-k="cl-avgb"></span></th><th class="text-end">Avg Labour Cleaning<span class="ib" data-k="cl-avgc"></span></th><th class="text-end">Total Avg<span class="ib" data-k="cl-avgt"></span></th><th class="text-end">Shifts Lost due to AWOP<span class="ib" data-k="cl-awop"></span></th><th class="text-end">Shifts Lost due to Sick Leave<span class="ib" data-k="cl-sick"></span></th><th class="text-end">Total Shifts (SHIFTS_WORKED)<span class="ib" data-k="cl-shifts"></span></th><th class="text-end">Other Shifts Lost<span class="ib" data-k="cl-other"></span></th><th class="text-end">m² / Man<span class="ib" data-k="cl-m2man"></span></th><th class="">Safety Rep<span class="ib" data-k="cl-rep"></span></th><th class="text-end">Physical Cond<span class="ib" data-k="cl-phys"></span></th><th class="text-end">Safety Incidents<span class="ib" data-k="cl-inc"></span></th></tr></thead><tbody id="tbl-cl-crews-body"><tr><td colspan="12" class="empty-state">Open this tab to load.</td></tr></tbody>
+            <tfoot id="tbl-cl-crews-foot"></tfoot></table></div>
+        </div>
+      </div>
+      </div><!-- /#lab-crew -->
+      <div class="tab-pane fade" id="lab-dd">
+      <div class="card shadow-sm mb-3" id="cl-hint"><div class="card-body empty-state">Click a crew in the Crew Labour table (sub-tab 1) to see its wage codes.</div></div>
+      <div class="card shadow-sm mb-3 d-none" id="card-crew-dd">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <div class="section-header mb-0">Crew Drill Down</div>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" id="btn-cl-back"><i class="bi bi-arrow-left me-1"></i>Back to crews</button>
+          </div>
+          <div class="section-header mb-2" style="font-size:.95rem" id="cl-dd1-title">Drill Down &mdash; Shifts by Wage Code</div>
+          <div class="table-wrap mb-3"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th class="">Breaking Crew<span class="ib" data-k="cl-crew"></span></th><th class="">Wage Code<span class="ib" data-k="cl-wc"></span></th><th class="">Wage Code Description<span class="ib" data-k="cl-wcd"></span></th><th class="text-end">Safety Reps<span class="ib" data-k="cl-reps"></span></th><th class="text-end">No of Employees<span class="ib" data-k="cl-emp"></span></th><th class="text-end">Total Shifts Worked<span class="ib" data-k="cl-shifts"></span></th><th class="text-end">Eff Shifts<span class="ib" data-k="cl-eff"></span></th><th class="text-end">Paid Shifts<span class="ib" data-k="cl-paid"></span></th><th class="text-end">Shifts Lost due to AWOP<span class="ib" data-k="cl-awop"></span></th><th class="text-end">Shifts Lost due to Sick Leave<span class="ib" data-k="cl-sick"></span></th><th class="text-end">Attendance %<span class="ib" data-k="cl-att"></span></th><th class="text-end">Safety Incidents<span class="ib" data-k="cl-inc"></span></th></tr></thead><tbody id="tbl-cl-dd1-body"></tbody><tfoot id="tbl-cl-dd1-foot"></tfoot></table></div>
+          <div class="section-header mb-2" style="font-size:.95rem" id="cl-dd2-title">Drill Down &mdash; Bonus by Wage Code</div>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th class="">Breaking Crew<span class="ib" data-k="cl-crew"></span></th><th class="">Wage Code<span class="ib" data-k="cl-wc"></span></th><th class="">Wage Code Description<span class="ib" data-k="cl-wcd"></span></th><th class="text-end">Safety Reps<span class="ib" data-k="cl-reps"></span></th><th class="text-end">Production Bonus Paid<span class="ib" data-k="cl-prod"></span></th><th class="text-end">Safety Bonus Paid<span class="ib" data-k="cl-safe"></span></th><th class="text-end">Total Bonus Paid<span class="ib" data-k="cl-tot"></span></th><th class="text-end">Eff Shifts Bonus Paid<span class="ib" data-k="cl-effb"></span></th><th class="text-end">Paid Shifts<span class="ib" data-k="cl-paid"></span></th><th class="text-end">AWOP Penalties<span class="ib" data-k="cl-awpen"></span></th><th class="text-end">Bonus Lost due to Sick Leave<span class="ib" data-k="cl-sickb"></span></th><th class="text-end">Safety Penalty (Rands)<span class="ib" data-k="cl-safepen"></span></th></tr></thead><tbody id="tbl-cl-dd2-body"></tbody><tfoot id="tbl-cl-dd2-foot"></tfoot></table></div>
+        </div>
+      </div>
+      </div><!-- /#lab-dd -->
+      <div class="tab-pane fade" id="lab-bw">
+      <div class="card shadow-sm mb-3" id="card-crew-drivers">
+        <div class="card-body">
+          <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+            <div class="section-header mb-0">Best vs Worst Crews</div>
+            <div class="ms-auto d-flex align-items-center gap-2 small">
+              <span class="fw-semibold">Compare</span>
+              <select class="form-select form-select-sm" id="dr-n" style="width:auto">
+                <option value="5">5 vs 5</option><option value="10" selected>10 vs 10</option><option value="15">15 vs 15</option></select></div>
+          </div>
+          <p class="small text-muted mb-2">Crews ranked by m² per man (m² &divide; the crew's labour) over the selected months and sections. Tshepong's
+            policy sets no planned m² per crew, so there is no achievement ranking. What do the best crews do differently from the worst?
+            Arrows show where the worst crews are clearly worse (red) or better (green).</p>
+          <div class="alert alert-light border small py-2 mb-2" id="dr-summary"></div>
+          <div class="table-wrap mb-3"><table class="table table-sm table-bordered mb-0">
+            <thead><tr><th class="">Measure<span class="ib" data-k="bw-measure"></span></th><th class="text-end">Best crews (average)<span class="ib" data-k="bw-best"></span></th><th class="text-end">Worst crews (average)<span class="ib" data-k="bw-worst"></span></th><th class="">Worst vs best<span class="ib" data-k="bw-diff"></span></th></tr></thead>
+            <tbody id="tbl-bw-body"><tr><td colspan="4" class="empty-state">Open this tab to load.</td></tr></tbody></table></div>
+          <div class="d-flex align-items-center flex-wrap gap-2 mb-1 small">
+            <span class="fw-semibold">Graph: m² per man against</span>
+            <select class="form-select form-select-sm" id="bw-factor" style="width:auto"></select>
+            <span class="text-muted">Each dot is a crew &middot; <span style="color:#2E7D32">&#9679; best</span> &middot; <span style="color:#E53935">&#9679; worst</span> &middot; <span style="color:#9E9E9E">&#9679; others</span></span>
+          </div>
+          <div class="chart-wrap mb-3" style="height:380px"><canvas id="chart-bw"></canvas></div>
+          <div class="row g-3">
+            <div class="col-lg-6"><div class="fw-semibold small mb-1" style="color:#2E7D32">Best crews</div>
+              <div class="table-wrap"><table class="table table-sm table-bordered mb-0"><thead><tr><th class="">Crew<span class="ib" data-k="bw-crew"></span></th><th class="">Section<span class="ib" data-k="bw-sec"></span></th><th class="text-end">m² / Man<span class="ib" data-k="bw-perf"></span></th></tr></thead>
+              <tbody id="tbl-bw-best"></tbody></table></div></div>
+            <div class="col-lg-6"><div class="fw-semibold small mb-1" style="color:#E53935">Worst crews</div>
+              <div class="table-wrap"><table class="table table-sm table-bordered mb-0"><thead><tr><th class="">Crew<span class="ib" data-k="bw-crew"></span></th><th class="">Section<span class="ib" data-k="bw-sec"></span></th><th class="text-end">m² / Man<span class="ib" data-k="bw-perf"></span></th></tr></thead>
+              <tbody id="tbl-bw-worst"></tbody></table></div></div>
+          </div>
+        </div>
+      </div>
+      </div><!-- /#lab-bw -->
+      </div><!-- /labour tab-content -->
     </div><!-- /tab-labour -->
 
     <!-- ══ TAB: Forecast (merged: Production/Cost/Required/Mid-Month + Trend Forecast) ══ -->
@@ -2020,49 +2105,54 @@ async function loadSections() {
 // not listed here).
 const GANGTYPES = ['STOPE BREAKING', 'STOPE CLEANING', 'CENTRE GULLY', 'STOPING', 'SURFACE ASSISTANT'];
 
+let _gangtypePicked = new Set(GANGTYPES);
+
 function _buildGangtypeMenu() {
   const menu = document.getElementById('gangtype-menu');
   if (!menu || menu.dataset.built) return;
   menu.dataset.built = '1';
-  const label = t => t.split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' ');
-  menu.innerHTML =
-    `<div class="form-check mb-1 border-bottom pb-1">
-      <input class="form-check-input" type="checkbox" id="gt-all" checked>
-      <label class="form-check-label small fw-semibold" for="gt-all">All Types</label>
-    </div>` +
-    GANGTYPES.map(t => `
-      <div class="form-check mb-1">
-        <input class="form-check-input gt-cb" type="checkbox" value="${t}" id="gt-${t.replace(/\s+/g,'-')}">
-        <label class="form-check-label small" for="gt-${t.replace(/\s+/g,'-')}">${label(t)}</label>
-      </div>`).join('');
-
-  const allCb = document.getElementById('gt-all');
-  const cbs   = () => Array.from(menu.querySelectorAll('.gt-cb'));
-
-  allCb.addEventListener('change', () => {
-    if (allCb.checked) cbs().forEach(cb => cb.checked = false);
-    _updateGangtypeButton();
-  });
-  cbs().forEach(cb => cb.addEventListener('change', () => {
-    if (cbs().some(c => c.checked)) allCb.checked = false;
-    else allCb.checked = true;
+  const titleCase = s => s.replace(/\w\S*/g, w => w[0] + w.slice(1).toLowerCase());
+  menu.innerHTML = GANGTYPES.map(t => `<div class="form-check mb-1">
+      <input class="form-check-input gt-cb" type="checkbox" value="${t}" id="gt-${t.replace(/\s+/g,'-')}" checked>
+      <label class="form-check-label small" for="gt-${t.replace(/\s+/g,'-')}">
+        <span class="badge" style="background:${gtColor(t)}">${titleCase(t)}</span>
+      </label></div>`).join('')
+    + '<hr class="my-2"><div class="d-flex gap-2">'
+    + '<button class="btn btn-sm btn-outline-secondary flex-fill" type="button" id="gt-select-all">All</button>'
+    + '<button class="btn btn-sm btn-outline-secondary flex-fill" type="button" id="gt-select-none">None</button></div>'
+    + '<div class="small text-muted mt-2">Click <b>Apply</b> to update the dashboard.</div>';
+  menu.querySelectorAll('.gt-cb').forEach(cb => cb.addEventListener('change', () => {
+    if (cb.checked) _gangtypePicked.add(cb.value); else _gangtypePicked.delete(cb.value);
     _updateGangtypeButton();
   }));
+  document.getElementById('gt-select-all').addEventListener('click', () => {
+    _gangtypePicked = new Set(GANGTYPES);
+    menu.querySelectorAll('.gt-cb').forEach(cb => cb.checked = true);
+    _updateGangtypeButton();
+  });
+  document.getElementById('gt-select-none').addEventListener('click', () => {
+    _gangtypePicked = new Set();
+    menu.querySelectorAll('.gt-cb').forEach(cb => cb.checked = false);
+    _updateGangtypeButton();
+  });
   _updateGangtypeButton();
 }
 
+// All five checked (the default) or none checked both mean "ALL" — the dashboard's
+// standard scope — so the backend only receives a list when it is a real subset.
 function _getSelectedGangtypes() {
-  const checked = Array.from(document.querySelectorAll('#gangtype-menu .gt-cb:checked')).map(cb => cb.value);
-  return checked.length ? checked.join(',') : 'ALL';
+  return (_gangtypePicked.size === 0 || _gangtypePicked.size === GANGTYPES.length)
+    ? 'ALL' : [..._gangtypePicked].join(',');
 }
 
 function _updateGangtypeButton() {
-  const btn = document.getElementById('btn-gangtype');
-  if (!btn) return;
-  const checked = Array.from(document.querySelectorAll('#gangtype-menu .gt-cb:checked')).map(cb => cb.value);
-  if (!checked.length) { btn.textContent = 'All Types'; return; }
-  const label = t => t.split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' ');
-  btn.textContent = checked.length <= 2 ? checked.map(label).join(' + ') : `${checked.length} types`;
+  const label = document.getElementById('gangtype-picked-label');
+  if (!label) return;
+  if (_gangtypePicked.size === 0) { label.textContent = 'None selected'; return; }
+  if (_gangtypePicked.size === GANGTYPES.length) { label.textContent = 'All Types'; return; }
+  label.textContent = _gangtypePicked.size <= 2
+    ? [..._gangtypePicked].join(' + ')
+    : `${_gangtypePicked.size} types selected`;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2115,6 +2205,262 @@ async function exportAuditPack() {
     btn.disabled = false;
     btn.innerHTML = original;
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Labour Analysis — Crew Labour / Drill Down / Best vs Worst (lazy, per tab)
+// ════════════════════════════════════════════════════════════════════════════
+const fmtPct = (v, dp = 1) => (v == null || isNaN(v)) ? '—' : (v * 100).toFixed(dp) + '%';
+let _cl = null, _clCrew = null;
+
+async function loadLazyLabour() {
+  if (_lazyLoaded.labour) return;
+  _lazyLoaded.labour = true;
+  showLoading();
+  try {
+    const p = { from: state.from, to: state.to, section: state.section };
+    renderCrewLabour(await api('/api/crew_labour', p));
+  } catch (e) {
+    _lazyLoaded.labour = false;
+    document.getElementById('tbl-cl-crews-body').innerHTML =
+      `<tr><td colspan="12" class="empty-state text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${esc(e.message.slice(0, 300))}</td></tr>`;
+  } finally { hideLoading(); }
+}
+
+function _labShow(i) {
+  const b = document.querySelectorAll('#labourTabs button')[i];
+  if (b) bootstrap.Tab.getOrCreateInstance(b).show();
+}
+
+function renderCrewLabour(d) {
+  _cl = d;
+  _clCrew = null;
+  const pLbl = p => (d.period_labels && d.period_labels[p]) || p;
+  const secs = [...new Set(d.people.map(r => r.section))].sort(), pers = [...new Set(d.people.map(r => r.period))].sort();
+  const fill = (id, opts, all) => { const el = document.getElementById(id), keep = el.value;
+    el.innerHTML = (all ? `<option value="">${all}</option>` : '') + opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+    el.value = opts.some(([v]) => v === keep) ? keep : (all ? '' : (opts[0] || [''])[0]);
+    el.onchange = () => { _clCrew = null; drawCrewLabour(); }; };
+  document.getElementById('btn-cl-back').onclick = () => _labShow(0);
+  _clSecs = secs;
+  _clSecPicked = new Set(secs);
+  _clBuildSectionMenu();
+  fill('cl-f-period', pers.map(x => [x, pLbl(x)]), 'All selected months');
+  drawCrewLabour();
+  renderDrivers();
+}
+
+// Section filter: a checkbox dropdown (any mix of sections), same pattern as the Gang Types filter.
+let _clSecs = [], _clSecPicked = new Set();
+function _clBuildSectionMenu() {
+  const menu = document.getElementById('cl-sec-menu');
+  menu.innerHTML = _clSecs.map(s => `<div class="form-check mb-1">
+      <input class="form-check-input cl-sec-cb" type="checkbox" value="${esc(s)}" id="cl-sec-${esc(s)}" ${_clSecPicked.has(s) ? 'checked' : ''}>
+      <label class="form-check-label small" for="cl-sec-${esc(s)}">${esc(s)}</label></div>`).join('')
+    + '<hr class="my-2"><div class="d-flex gap-2">'
+    + '<button class="btn btn-sm btn-outline-secondary flex-fill" type="button" id="cl-sec-all">All Sections</button>'
+    + '<button class="btn btn-sm btn-outline-secondary flex-fill" type="button" id="cl-sec-none">None</button></div>';
+  const changed = () => { _clUpdateSectionLabel(); _clCrew = null; drawCrewLabour(); };
+  menu.querySelectorAll('.cl-sec-cb').forEach(cb => cb.addEventListener('change', () => {
+    if (cb.checked) _clSecPicked.add(cb.value); else _clSecPicked.delete(cb.value);
+    changed();
+  }));
+  document.getElementById('cl-sec-all').onclick = () => {
+    _clSecPicked = new Set(_clSecs); menu.querySelectorAll('.cl-sec-cb').forEach(cb => cb.checked = true); changed(); };
+  document.getElementById('cl-sec-none').onclick = () => {
+    _clSecPicked = new Set(); menu.querySelectorAll('.cl-sec-cb').forEach(cb => cb.checked = false); changed(); };
+  _clUpdateSectionLabel();
+}
+function _clUpdateSectionLabel() {
+  const n = _clSecPicked.size, el = document.getElementById('cl-sec-label');
+  el.textContent = n === 0 ? 'None selected' : n === _clSecs.length ? 'All Sections'
+    : n <= 2 ? [..._clSecPicked].sort().join(' + ') : `${n} sections`;
+}
+
+function drawCrewLabour() {
+  const per = document.getElementById('cl-f-period').value;
+  const ok = r => _clSecPicked.has(r.section) && (!per || r.period === per);
+  const people = _cl.people.filter(ok), crews = _cl.crews.filter(ok);
+  const NA = '<td class="text-end text-muted" title="Not available in Tshepong\'s data — see the column ⓘ">n/a</td>';
+  const sum = (rs, k) => rs.reduce((a, r) => a + (r[k] || 0), 0);
+  const months = rs => new Set(rs.map(r => r.period)).size || 1;
+  const avail = rs => rs.reduce((a, r) => a + (r.employees || 0) * (r.ms || 0), 0);
+  const names = [...new Set(people.map(r => r.crew))].sort();
+  const crewRow = name => {
+    const rs = people.filter(r => r.crew === name), cs = crews.filter(c => c.crew === name), m = months(rs);
+    const cm = Math.max(1, cs.length), tot = sum(cs, 'lab_t') / cm;
+    const repPeople = new Set(cs.flatMap(c => c.reps)).size;
+    return { name, m, avgB: sum(cs, 'lab_b') / cm, avgC: sum(cs, 'lab_c') / cm, tot, repPeople, awop: sum(rs, 'awop_shifts'), shifts: sum(rs, 'shifts'),
+             sick: sum(rs, 'sick'), other: Math.max(0, avail(rs) - sum(rs, 'shifts') - sum(rs, 'awop_shifts') - sum(rs, 'sick')), m2: sum(cs, 'm2') / m, reps: sum(rs, 'reps'),
+             inc: sum(cs, 'lti') };
+  };
+  const list = names.map(crewRow);
+  if (!names.includes(_clCrew)) _clCrew = null;
+  document.getElementById('card-crew-dd').classList.toggle('d-none', !_clCrew);
+  document.getElementById('cl-hint').classList.toggle('d-none', !!_clCrew);
+  document.getElementById('tbl-cl-crews-body').innerHTML = list.length ? list.map(c => `<tr class="${c.name === _clCrew ? 'table-warning' : ''}" style="cursor:pointer" data-crew="${esc(c.name)}">
+      <td class="fw-semibold">${esc(c.name)}</td><td class="text-end">${fmtN(c.avgB, 1)}</td><td class="text-end">${fmtN(c.avgC, 1)}</td><td class="text-end fw-bold">${fmtN(c.tot, 1)}</td>
+      <td class="text-end">${fmtN(c.awop)}</td><td class="text-end">${fmtN(c.sick)}</td><td class="text-end">${fmtN(c.shifts)}</td><td class="text-end">${fmtN(c.other)}</td>
+      <td class="text-end">${fmtN(c.tot ? c.m2 / c.tot : null, 2)}</td><td>${c.repPeople > 0 ? `Y (${fmtN(c.repPeople)})` : 'N'}</td>
+      ${NA}<td class="text-end ${c.inc ? 'delta-warn' : ''}">${fmtN(c.inc)}</td></tr>`).join('')
+    : '<tr><td colspan="12" class="empty-state">No crews in this section / period.</td></tr>';
+  const T = list.reduce((a, c) => { ['avgB', 'avgC', 'tot', 'awop', 'sick', 'shifts', 'other', 'm2', 'repPeople', 'inc'].forEach(k => a[k] += c[k]); return a; },
+                        { avgB: 0, avgC: 0, tot: 0, awop: 0, sick: 0, shifts: 0, other: 0, m2: 0, repPeople: 0, inc: 0 });
+  document.getElementById('tbl-cl-crews-foot').innerHTML = list.length ? `<tr class="tr-grand-total"><td>Total (${list.length} crews)</td>
+    <td class="text-end">${fmtN(T.avgB, 1)}</td><td class="text-end">${fmtN(T.avgC, 1)}</td><td class="text-end">${fmtN(T.tot, 1)}</td><td class="text-end">${fmtN(T.awop)}</td>
+    <td class="text-end">${fmtN(T.sick)}</td><td class="text-end">${fmtN(T.shifts)}</td><td class="text-end">${fmtN(T.other)}</td><td class="text-end">${fmtN(T.tot ? T.m2 / T.tot : null, 2)}</td>
+    <td class="fw-bold">${fmtN(T.repPeople)}</td><td></td><td class="text-end">${fmtN(T.inc)}</td></tr>` : '';
+  document.querySelectorAll('#tbl-cl-crews-body tr[data-crew]').forEach(tr => tr.addEventListener('click', () => { _clCrew = tr.dataset.crew; drawCrewLabour(); _labShow(1); }));
+
+  // Drill-downs for the selected crew, one row per wage code
+  const rs = people.filter(r => r.crew === _clCrew), m = months(rs), inc = sum(crews.filter(c => c.crew === _clCrew), 'lti');
+  const byWc = {};
+  rs.forEach(r => { const w = byWc[r.wagecode] || (byWc[r.wagecode] = { wc: r.wagecode, descr: r.descr, rows: [] }); w.rows.push(r); });
+  const wcs = Object.values(byWc).sort((a, b) => sum(b.rows, 'shifts') - sum(a.rows, 'shifts'));
+  document.getElementById('cl-dd1-title').textContent = `Drill Down — Shifts by Wage Code: ${_clCrew || '—'}`;
+  document.getElementById('cl-dd2-title').textContent = `Drill Down — Bonus by Wage Code: ${_clCrew || '—'}`;
+  const lead = (w, i) => `<td class="fw-semibold">${i ? '' : esc(_clCrew)}</td><td>${esc(w.wc)}</td><td>${esc(w.descr || '')}</td><td class="text-end">${fmtN(sum(w.rows, 'reps'))}</td>`;
+  const att = r => avail(r) ? sum(r, 'shifts') / avail(r) : null;
+  document.getElementById('tbl-cl-dd1-body').innerHTML = wcs.length ? wcs.map((w, i) => `<tr>${lead(w, i)}
+      <td class="text-end">${fmtN(sum(w.rows, 'employees') / m, 1)}</td><td class="text-end">${fmtN(sum(w.rows, 'shifts'))}</td><td class="text-end">${fmtN(sum(w.rows, 'eff'))}</td>
+      ${NA}<td class="text-end">${fmtN(sum(w.rows, 'awop_shifts'))}</td><td class="text-end">${fmtN(sum(w.rows, 'sick'))}</td><td class="text-end">${fmtPct(att(w.rows), 0)}</td><td class="text-end text-muted">—</td></tr>`).join('')
+    : '<tr><td colspan="12" class="empty-state">Click a crew above.</td></tr>';
+  document.getElementById('tbl-cl-dd1-foot').innerHTML = wcs.length ? `<tr class="tr-grand-total"><td>TOTAL</td><td></td><td></td><td class="text-end">${fmtN(sum(rs, 'reps'))}</td>
+    <td class="text-end">${fmtN(sum(rs, 'employees') / m, 1)}</td><td class="text-end">${fmtN(sum(rs, 'shifts'))}</td><td class="text-end">${fmtN(sum(rs, 'eff'))}</td><td class="text-end">n/a</td>
+    <td class="text-end">${fmtN(sum(rs, 'awop_shifts'))}</td><td class="text-end">${fmtN(sum(rs, 'sick'))}</td><td class="text-end">${fmtPct(att(rs), 0)}</td><td class="text-end ${inc ? 'delta-warn' : ''}">${fmtN(inc)}</td></tr>` : '';
+  const effB = r => sum(r, 'eff') ? (sum(r, 'prod') + sum(r, 'safety')) / sum(r, 'eff') : null;
+  document.getElementById('tbl-cl-dd2-body').innerHTML = wcs.length ? wcs.map((w, i) => `<tr>${lead(w, i)}
+      <td class="text-end">${fmtR(sum(w.rows, 'prod'))}</td><td class="text-end">${fmtR(sum(w.rows, 'safety'))}</td><td class="text-end fw-bold">${fmtR(sum(w.rows, 'prod') + sum(w.rows, 'safety'))}</td>
+      <td class="text-end">${fmtR(effB(w.rows))}</td>${NA}<td class="text-end">${fmtR(sum(w.rows, 'awop_pen'))}</td><td class="text-end">${fmtR(effB(w.rows) == null ? null : sum(w.rows, 'sick') * effB(w.rows))}</td>${NA}</tr>`).join('')
+    : '<tr><td colspan="12" class="empty-state">Click a crew above.</td></tr>';
+  document.getElementById('tbl-cl-dd2-foot').innerHTML = wcs.length ? `<tr class="tr-grand-total"><td>TOTAL</td><td></td><td></td><td class="text-end">${fmtN(sum(rs, 'reps'))}</td>
+    <td class="text-end">${fmtR(sum(rs, 'prod'))}</td><td class="text-end">${fmtR(sum(rs, 'safety'))}</td><td class="text-end">${fmtR(sum(rs, 'prod') + sum(rs, 'safety'))}</td>
+    <td class="text-end">${fmtR(effB(rs))}</td><td class="text-end">n/a</td><td class="text-end">${fmtR(sum(rs, 'awop_pen'))}</td><td class="text-end">${fmtR(wcs.reduce((a, w) => a + (effB(w.rows) == null ? 0 : sum(w.rows, 'sick') * effB(w.rows)), 0))}</td><td class="text-end">n/a</td></tr>` : '';
+  _labInfoInit();
+}
+
+// Labour Analysis -> 3. Best vs Worst Crews: how labour / attendance / safety factors move with m² per man
+const BW = [ // key, label, higher is good?, format
+  ['m2man', 'm² per man', true, v => fmtN(v, 1)], ['att', 'Attendance', true, v => fmtPct(v, 0)],
+  ['eff', 'Effective-shift share', true, v => fmtPct(v, 0)], ['sick', 'Sick leave (share of shifts)', false, v => fmtPct(v, 1)],
+  ['awop', 'AWOP (share of shifts)', false, v => fmtPct(v, 1)], ['other', 'Other shifts lost (leave, training…)', false, v => fmtPct(v, 1)],
+  ['lti', 'Months with a safety incident (LTI)', false, v => fmtPct(v, 0)], ['rep', 'Months with a safety rep', true, v => fmtPct(v, 0)],
+  ['lab', 'Labour (crew labour per month)', null, v => fmtN(v, 1)],
+  ['bpp', 'Bonus per person per month', null, v => fmtR(v)]];
+
+function driverPoints() {
+  const key = r => r.period + '|' + r.section + '|' + r.crew, agg = {};
+  _cl.people.forEach(r => { const a = agg[key(r)] || (agg[key(r)] = { emp: 0, avail: 0, shifts: 0, eff: 0, awop: 0, sick: 0, reps: 0, bonus: 0 });
+    a.emp += r.employees || 0; a.avail += (r.employees || 0) * (r.ms || 0); a.shifts += r.shifts || 0; a.eff += r.eff || 0;
+    a.awop += r.awop_shifts || 0; a.sick += r.sick || 0; a.reps += r.reps || 0; a.bonus += (r.prod || 0) + (r.safety || 0); });
+  return _cl.crews.filter(c => c.m2 > 0 && c.lab_t > 0 && agg[key(c)]).map(c => { const a = agg[key(c)];
+    return { section: c.section, crew: c.crew, period: c.period, m2man: c.m2 / c.lab_t,
+      att: a.avail ? a.shifts / a.avail : null, sick: a.avail ? a.sick / a.avail : null, awop: a.avail ? a.awop / a.avail : null,
+      other: a.avail ? Math.max(0, a.avail - a.shifts - a.awop - a.sick) / a.avail : null, lab: c.lab_t, eff: a.shifts ? a.eff / a.shifts : null,
+      lti: c.lti ? 1 : 0, rep: c.reps.length ? 1 : 0, bpp: a.emp ? a.bonus / a.emp : null }; });
+}
+
+function crewTotals() {
+  const pts = driverPoints(), by = {};
+  pts.forEach(p => { const k = p.section + '|' + p.crew, c = by[k] || (by[k] = { crew: p.crew, section: p.section, rows: [] }); c.rows.push(p); });
+  const mean = (rs, k) => { const v = rs.map(r => r[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  return Object.values(by).map(c => { const o = { crew: c.crew, section: c.section, months: c.rows.length };
+    BW.forEach(([k]) => o[k] = mean(c.rows, k)); return o; });
+}
+
+function renderDrivers() {
+  const sel = document.getElementById('dr-n'); sel.onchange = renderDrivers;
+  const rk = 'm2man', rkLabel = 'm² per man', rkF = v => fmtN(v, 1);
+  const all = crewTotals().filter(c => c[rk] != null), minM = Math.min(3, Math.max(...all.map(c => c.months), 1));
+  const n = +sel.value, crews = all.filter(c => c.months >= minM).sort((a, b) => b[rk] - a[rk]);   // ignore crews that only mined a month or two
+  if (crews.length < n * 2) {
+    document.getElementById('tbl-bw-body').innerHTML = '<tr><td colspan="4" class="empty-state">Not enough crews in the selection.</td></tr>';
+    document.getElementById('tbl-bw-best').innerHTML = ''; document.getElementById('tbl-bw-worst').innerHTML = '';
+    document.getElementById('dr-summary').innerHTML = ''; if (charts['chart-bw']) charts['chart-bw'].destroy();
+    return;
+  }
+  const best = crews.slice(0, n), worst = crews.slice(-n).reverse();
+  const avg = (rs, k) => { const v = rs.map(r => r[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const worse = [];
+  document.getElementById('tbl-bw-body').innerHTML = BW.map(([k, label, good, f]) => {
+    const b = avg(best, k), w = avg(worst, k), rel = b ? (w - b) / Math.abs(b) : 0;
+    let cell = '<span class="text-muted">— about the same</span>';
+    if (k === rk) cell = '';
+    else if (good !== null && Math.abs(rel) >= 0.1) {
+      const bad = (w > b) !== good;
+      cell = `<span class="${bad ? 'delta-warn' : 'delta-good'}">${w > b ? '▲ higher' : '▼ lower'} (${bad ? 'worse' : 'better'})</span>`;
+      if (bad) worse.push(`${w > b ? 'more' : 'less'} ${label.replace(/ \(.*\)/, '').replace('Months with a ', '').replace(/^[A-Z](?![A-Z])/, c => c.toLowerCase())}`);
+    } else if (good === null && Math.abs(rel) >= 0.1) cell = `<span class="text-muted">${w > b ? '▲ higher' : '▼ lower'}</span>`;
+    return `<tr${k === rk ? ' class="tr-grand-total"' : ''}><td class="fw-semibold">${label}</td><td class="text-end">${f(b)}</td><td class="text-end">${f(w)}</td><td>${cell}</td></tr>`;
+  }).join('');
+  document.getElementById('dr-summary').innerHTML = `<b>At a glance:</b> ranked on ${rkLabel}, the best ${n} crews average <b>${rkF(avg(best, rk))}</b>, the worst ${n} only <b>${rkF(avg(worst, rk))}</b>. `
+    + (worse.length ? `Compared with the best, the worst crews have <b>${worse.join('</b>, <b>')}</b> — the place to look first.`
+                    : 'Their labour, attendance and safety look about the same, so the difference is more likely in the workplaces (ground conditions, planning, equipment).');
+  const list = rs => rs.map(c => `<tr><td class="fw-semibold">${esc(c.crew)}</td><td>${esc(c.section)}</td><td class="text-end">${rkF(c[rk])}</td></tr>`).join('');
+  document.getElementById('tbl-bw-best').innerHTML = list(best);
+  // Graph: every crew, m² per man against the chosen labour factor; best / worst coloured
+  const fsel = document.getElementById('bw-factor');
+  if (!fsel.options.length) { fsel.innerHTML = BW.filter(x => !['m2man', 'bpp'].includes(x[0])).map(([k, l]) => `<option value="${k}">${l}</option>`).join(''); fsel.onchange = renderDrivers; }
+  const fk = fsel.value, [, flabel, , ff] = BW.find(x => x[0] === fk);
+  const bestSet = new Set(best.map(c => c.section + '|' + c.crew)), worstSet = new Set(worst.map(c => c.section + '|' + c.crew));
+  const id = c => c.section + '|' + c.crew;
+  const grp = (set, label, col) => ({ label, backgroundColor: col, pointRadius: 6, pointHoverRadius: 8,
+    data: crews.filter(c => set(c) && c[fk] != null).map(c => ({ x: c[fk], y: c.m2man, c })) });
+  makeChart('chart-bw', { type: 'scatter', data: { datasets: [
+      grp(c => !bestSet.has(id(c)) && !worstSet.has(id(c)), 'Other crews', 'rgba(158,158,158,.55)'),
+      grp(c => bestSet.has(id(c)), `Best ${n}`, '#2E7D32'), grp(c => worstSet.has(id(c)), `Worst ${n}`, '#E53935')] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
+      tooltip: { callbacks: { label: ctx => { const c = ctx.raw.c; return ` ${c.crew} (${c.section}): ${flabel} ${ff(c[fk])}, ${rkLabel} ${rkF(c[rk])}`; } } } },
+      scales: { x: { title: { display: true, text: flabel }, grid: { color: '#eee' }, ticks: { callback: v => fk === 'lab' ? fmtN(v, 0) : fmtPct(v, 0) } },
+                y: { title: { display: true, text: 'm² per man' }, grid: { color: '#eee' }, ticks: { callback: v => fmtN(v, 0) } } } } });
+  document.getElementById('tbl-bw-worst').innerHTML = list(worst);
+  _labInfoInit();
+}
+
+const LAB_INFO = {
+  'cl-crew': ['Crew', 'A crew is a Stope Breaking gang and the Stope Cleaning gang that works with it. The crew carries the breaking gang\'s code (GANGPRODUCTIONDETAIL CREWNO). Centre Gully and Surface Assistant gangs are shared between crews and are not part of crew labour.'],
+  'cl-avgb': ['Avg Labour Breaking', 'The breaking gang\'s own shifts (GANGSHIFTS, its efficiency shifts) ÷ the shifts in the month (MONTHSHIFTS), per month, to one decimal. With several months chosen: the average per month.'],
+  'cl-avgc': ['Avg Labour Cleaning', 'The same for the crew\'s Stope Cleaning gang: its GANGSHIFTS ÷ MONTHSHIFTS, per month.'],
+  'cl-avgt': ['Total Avg', 'The crew\'s labour as the bonus system counts it (GANGLABOUR): all the crew\'s breaking + cleaning shifts ÷ MONTHSHIFTS, rounded UP — verified on every crew-month. So it can be up to 1 more than Avg Labour Breaking + Cleaning shown here.'],
+  'cl-awop': ['Shifts Lost due to AWOP', 'Shifts the crew members were absent without permission (AWOP_SHIFTS in payroll).'],
+  'cl-sick': ['Shifts Lost due to Sick Leave', 'Days with a sick code in the attendance register (BONUSSHIFTS): sick note Harm Drs (C), sick hospital (S), sick note private Dr (c), TB cases (f, F), mine accident sick / hospital (m, M), sick OHC PD 449 (p), sick reporting (s), sick leave covid (2), covid side effect (7). Codes are case-sensitive.'],
+  'cl-shifts': ['Total Shifts (SHIFTS_WORKED)', 'All shifts worked by the crew\'s people (SHIFTS_WORKED in payroll), officials excluded, including people whose bonus for the month was R0.'],
+  'cl-other': ['Other Shifts Lost', 'Shifts available (measuring shifts × people) − shifts worked − AWOP shifts − sick shifts: leave, training, off days and other absences.'],
+  'cl-m2man': ['m² / Man', 'The crew\'s m² (the m² credited to its breaking gang) ÷ Total Avg labour — the same figure as GANGEFFICIENCY. With several months: average m² ÷ average labour.'],
+  'cl-rep': ['Safety Rep', 'Y when at least one person in the crew was a safety representative in the selected months (SAFETYREPIND); the number is how many different people.'],
+  'cl-phys': ['Physical Cond', 'Not available: the policy mentions a physical-conditions rating (REV04 §6.1.1–6.1.2) but no table in the database holds a rating, so none can be shown.'],
+  'cl-inc': ['Safety Incidents', 'Months in which one of the crew\'s breaking or cleaning gangs had a lost-time incident (GANGLTIIND).'],
+  'cl-wc': ['Wage Code', 'The wage code of the people counted in the row (WAGECODE), e.g. Stoper, Miners Assistant, Scraper Winch Operator.'],
+  'cl-wcd': ['Wage Code Description', 'The description of the wage code (WAGE_DESCRIPTION).'],
+  'cl-reps': ['Safety Reps', 'Number of safety-representative records among the people in the row (SAFETYREPIND).'],
+  'cl-emp': ['No of Employees', 'Different employees with this wage code in the crew, per month (a person in both the breaking and cleaning gang counts in each).'],
+  'cl-eff': ['Eff Shifts', 'Efficiency shifts (EFF_SHIFTS): the shifts that count for the crew\'s labour and the bonus.'],
+  'cl-paid': ['Paid Shifts', 'Not available: Tshepong\'s payroll data has no separate paid-shifts figure.'],
+  'cl-att': ['Attendance %', 'Shifts worked ÷ shifts available (employees × MONTHSHIFTS).'],
+  'cl-prod': ['Production Bonus Paid', 'The Stope Team Bonus paid (EMPLOYEESTOPETEAMBONUS) without its safety part: STM − Safety Bonus Paid.'],
+  'cl-safe': ['Safety Bonus Paid', 'EMPLOYEESAFETYBONUS. It is a part of the Stope Team Bonus, not on top of it, so Production + Safety = Total.'],
+  'cl-tot': ['Total Bonus Paid', 'The Stope Team Bonus (STM) payroll paid — the same figure as every Total Bonus on this dashboard.'],
+  'cl-effb': ['Eff Shifts Bonus Paid', 'Total Bonus Paid ÷ Eff Shifts: the bonus earned per effective shift.'],
+  'cl-awpen': ['AWOP Penalties', 'EMPLOYEEAWOPPENALTY — what absence without permission took off the bonus. Already netted into the STM above; shown for visibility.'],
+  'cl-sickb': ['Bonus Lost due to Sick Leave', 'Sick shifts × the bonus earned per effective shift (Total Bonus Paid ÷ Eff Shifts): roughly what the sick days cost in bonus.'],
+  'cl-safepen': ['Safety Penalty (Rands)', 'Not available as a separate Rand figure: the safety ladder penalty is inside the Safety Bonus Paid.'],
+  'bw-measure': ['Measure', 'What is compared between the best and worst crews.'],
+  'bw-best': ['Best crews (average)', 'The average of the best crews (highest m² per man), over the months they mined.'],
+  'bw-worst': ['Worst crews (average)', 'The average of the worst crews (lowest m² per man).'],
+  'bw-diff': ['Worst vs best', 'Red = the worst crews are clearly worse on this measure (10% or more), green = clearly better, grey = about the same.'],
+  'bw-crew': ['Crew', 'The crew (its breaking gang code).'],
+  'bw-sec': ['Section', 'The mining section.'],
+  'bw-perf': ['m² / Man', 'The crew\'s m² ÷ its labour, averaged over its months.'],
+};
+function _labInfoInit() {
+  const root = document.getElementById('tab-labour');
+  if (!root) return;
+  root.querySelectorAll('.ib[data-k]').forEach(el => {
+    if (el.dataset.done) return;
+    const e = LAB_INFO[el.dataset.k];
+    if (e) { el.innerHTML = _infoBtn(e[0], e[1]); el.dataset.done = '1'; }
+  });
+  _initPopovers(root);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2193,12 +2539,12 @@ function renderCrewPerformance() {
 // ════════════════════════════════════════════════════════════════════════════
 //  Refresh all panels
 // ════════════════════════════════════════════════════════════════════════════
-let _lazyLoaded = { range: false, detail: false, crews: false, forecast: false, fct: false, bonusRule: false };
+let _lazyLoaded = { range: false, detail: false, crews: false, labour: false, forecast: false, fct: false, bonusRule: false };
 let _bonusRaw   = { gt: null, sec: null };
 
 async function refreshAll() {
   const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
-  _lazyLoaded = { range: false, detail: false, crews: false, forecast: false, fct: false, bonusRule: false };
+  _lazyLoaded = { range: false, detail: false, crews: false, labour: false, forecast: false, fct: false, bonusRule: false };
   _bonusRaw   = { gt: null, sec: null };
   _fcData     = null;
   _fctData    = null;
@@ -2253,6 +2599,7 @@ async function refreshAll() {
     if (_activeSubHref === '#fsub-trend') loadLazyForecast();
     else loadLazyFct();
   }
+  else if (_activeHref === '#tab-labour')     loadLazyLabour();
   else if (_activeHref === '#tab-bonus-rule') loadLazyBonusRuleSim();
 }
 
@@ -5854,12 +6201,13 @@ document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
     const target = e.target.getAttribute('href');
     if (target === '#tab-gang-analysis') loadLazyRange();
     if (target === '#tab-forecast')   loadLazyFct();
+    if (target === '#tab-labour')     loadLazyLabour();
     if (target === '#tab-bonus-rule') loadLazyBonusRuleSim();
   });
 });
 
 // Forecast sub-tab pills (Production vs Target / Cost Efficiency / Required to Hit
-// Target / Mid-Month Tracker share tab-forecast's main loadLazyFct() load; only
+// Target / Mid-Month Tracker) share tab-forecast's main loadLazyFct() load; only
 // "Trend Forecast" needs its own separate lazy load, same as the old standalone
 // Projection tab did.
 document.querySelectorAll('#forecastSubtabs button[data-bs-toggle="pill"]').forEach(pill => {
@@ -5883,7 +6231,7 @@ document.querySelectorAll('#gangAnalysisSubtabs button[data-bs-toggle="pill"]').
 // Bonus Analysis sub-tab pills: all content (Section/Gang Type/R per m²) is already
 // fetched eagerly in refreshAll() — no per-pill lazy load needed, just resize charts
 // that were hidden in an inactive pane when their pill is shown.
-document.querySelectorAll('#bonusSubtabs button[data-bs-toggle="pill"], #brsTabs button[data-bs-toggle="pill"]').forEach(pill => {
+document.querySelectorAll('#bonusSubtabs button[data-bs-toggle="pill"], #brsTabs button[data-bs-toggle="pill"], #labourTabs button[data-bs-toggle="pill"]').forEach(pill => {
   pill.addEventListener('shown.bs.tab', () => {
     Object.values(charts).forEach(c => c.resize());
   });

@@ -2326,3 +2326,168 @@ def get_crew_performance(period_from: int, period_to: int, section: str = "ALL")
          "r_per_sqm": round(float(r["r_per_sqm"]), 2)}
         for _, r in agg.iterrows()
     ]
+
+
+# ── Labour Analysis: Crew Labour / Drill Down / Best vs Worst (Mponeng pattern, Tshepong data) ──
+
+# Sick-leave day codes in the attendance register (BONUSSHIFTS, one code per day DAY0..DAY44).
+# Codes are case-sensitive (p = sick, P = Sunday off). From the EVENTCODE table: C sick note Harm
+# Drs, S sick (hospital), c sick note private Dr, f / F TB cases, m / M mine accident sick /
+# hospital, p sick (OHC PD 449), s sick reporting, 2 sick leave covid policy, 7 sick due to side
+# effect of covid.
+SICK_CODES = "'C', 'S', 'c', 'f', 'F', 'm', 'M', 'p', 's', '2', '7'"
+CREW_GANGTYPES = ("STOPE BREAKING", "STOPE CLEANING")
+
+
+def _crew_labour_period(p: int) -> dict:
+    """Raw per-month ingredients for the Crew Labour tab, from PARTICIPANTSEARN<p> (the bonus
+    calculation's participant rows, officials excluded) and the BONUSSHIFTS attendance register.
+
+    Crew = the breaking gang's code (GANGPRODUCTIONDETAIL.CREWNO equals the STOPE BREAKING gang
+    code on 541/541 Jul-25..Apr-26 crew-months; every breaking and cleaning gang belongs to
+    exactly one crew). PARTICIPANTSEARN has no crew column, so people are mapped to a crew
+    through their gang. Centre Gully / Surface Assistant gangs are shared between crews (165 of
+    their gang-months map to 2+ crews) so they are not part of crew labour.
+
+    Payroll supplies shifts worked, efficiency shifts, AWOP shifts and the bonus; the register
+    supplies sick days only (its own SHIFTS_WORKED / AWOP_SHIFTS differ from payroll's on 20 and
+    141 of 1,519 matched rows in Apr-26, so payroll stays the single source for those). Register
+    rows join on (section, employee, gang, wage code), unique on both sides.
+    """
+    types = ", ".join(f"'{t}'" for t in CREW_GANGTYPES)
+    tbl = f"PARTICIPANTSEARN{p}"
+    out = {"rows": [], "persons": [], "gang": [], "sick": {}}
+    base = f"""FROM [{tbl}]
+               WHERE RTRIM(EMPLOYEETYPE) <> '1 - OFFICIALS' AND UPPER(RTRIM(GANGTYPE)) IN ({types})"""
+    out["rows"] = read_sql(f"""
+        SELECT RTRIM(SECTION) AS section, RTRIM(GANG) AS gang, UPPER(RTRIM(GANGTYPE)) AS gang_type,
+               RTRIM(WAGECODE) AS wagecode, MAX(RTRIM(WAGE_DESCRIPTION)) AS descr,
+               COUNT(DISTINCT EMPLOYEE_NO) AS employees,
+               SUM(ISNULL(TRY_CAST(SAFETYREPIND AS FLOAT), 0)) AS reps,
+               SUM(ISNULL(TRY_CAST(SHIFTS_WORKED AS FLOAT), 0)) AS shifts,
+               SUM(ISNULL(TRY_CAST(EFF_SHIFTS AS FLOAT), 0)) AS eff,
+               SUM(ISNULL(TRY_CAST(AWOP_SHIFTS AS FLOAT), 0)) AS awop_shifts,
+               MAX(TRY_CAST(MONTHSHIFTS AS FLOAT)) AS ms,
+               SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS stm,
+               SUM(ISNULL(TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT), 0)) AS safety,
+               SUM(ISNULL(TRY_CAST(EMPLOYEEAWOPPENALTY AS FLOAT), 0)) AS awop_pen
+        {base}
+        GROUP BY RTRIM(SECTION), RTRIM(GANG), UPPER(RTRIM(GANGTYPE)), RTRIM(WAGECODE)
+    """).to_dict("records")
+    out["persons"] = read_sql(f"""
+        SELECT RTRIM(SECTION) AS section, RTRIM(GANG) AS gang, RTRIM(EMPLOYEE_NO) AS emp,
+               MAX(CASE WHEN TRY_CAST(SAFETYREPIND AS FLOAT) > 0 THEN 1 ELSE 0 END) AS rep
+        {base}
+        GROUP BY RTRIM(SECTION), RTRIM(GANG), RTRIM(EMPLOYEE_NO)
+    """).to_dict("records")
+    # Gang shifts and month shifts, for the labour as the bonus system counts it.
+    out["gang"] = read_sql(f"""
+        SELECT RTRIM(GANG) AS gang, MAX(TRY_CAST(GANGSHIFTS AS FLOAT)) AS gs,
+               MAX(TRY_CAST(MONTHSHIFTS AS FLOAT)) AS ms
+        FROM [{tbl}] WHERE UPPER(RTRIM(GANGTYPE)) IN ({types}) GROUP BY RTRIM(GANG)
+    """).to_dict("records")
+    day = " + ".join(f"CASE WHEN RTRIM(b.DAY{i}) COLLATE Latin1_General_CS_AS IN ({SICK_CODES}) THEN 1 ELSE 0 END"
+                     for i in range(45))
+    sick = read_sql(f"""
+        SELECT RTRIM(b.SECTION) AS section, RTRIM(b.GANG) AS gang, RTRIM(b.WAGECODE) AS wagecode, SUM({day}) AS sick
+        FROM BONUSSHIFTS b
+        JOIN (SELECT DISTINCT RTRIM(SECTION) AS section, RTRIM(EMPLOYEE_NO) AS emp, RTRIM(GANG) AS gang,
+                     RTRIM(WAGECODE) AS wagecode
+              {base}) x
+          ON x.emp = RTRIM(b.EMPLOYEE_NO) AND x.gang = RTRIM(b.GANG) AND x.section = RTRIM(b.SECTION)
+         AND x.wagecode = RTRIM(b.WAGECODE)
+        WHERE RTRIM(b.PERIOD) = '{p}'
+        GROUP BY RTRIM(b.SECTION), RTRIM(b.GANG), RTRIM(b.WAGECODE)
+    """)
+    out["sick"] = {(r["gang"], r["wagecode"]): float(r["sick"] or 0) for r in sick.to_dict("records")}
+    return out
+
+
+def get_crew_labour(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """Labour Analysis -> Crew Labour: one row per crew x gang x wage code x month ("people"),
+    plus per crew-month m2, labour and LTI ("crews"). The page adds them up for the chosen
+    section / month / crew.
+
+    Per crew-month (GANGPRODUCTIONDETAIL / PARTICIPANTSEARN, Stope Breaking + Cleaning gangs):
+      lab_t = GANGLABOUR, the crew's labour as the bonus system counts it -- verified on 541/541
+              crew-months to be CEIL((breaking GANGSHIFTS + cleaning GANGSHIFTS) / MONTHSHIFTS),
+              and GANGEFFICIENCY = m2 / GANGLABOUR exactly on 541/541;
+      lab_b / lab_c = the breaking / cleaning gang's own shifts / MONTHSHIFTS (unrounded; the
+              crew total is the ceiling of their sum, so it can exceed it by less than 1);
+      m2    = the breaking gang's adjusted m2 (the crew's m2);
+      lti   = 1 when any of the crew's breaking / cleaning gangs had GANGLTIIND > 0.
+    Bonus: prod = STM minus its safety part, safety = EMPLOYEESAFETYBONUS, so prod + safety = the
+    paid STM exactly (STM already contains the safety share -- see get_bonus_composition).
+    The Gang Types filter does not apply here: crew labour is defined for the breaking and
+    cleaning gangs together.
+    """
+    sf = _section_filter(section)
+    gpd = read_sql(f"""
+        SELECT LTRIM(RTRIM(SECTION)) AS section, LTRIM(RTRIM(PERIOD)) AS period, LTRIM(RTRIM(GANG)) AS gang,
+               UPPER(LTRIM(RTRIM(GANGTYPE))) AS gang_type, LTRIM(RTRIM(CREWNO)) AS crew,
+               MAX(TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT)) AS m2, MAX(TRY_CAST(GANGLABOUR AS FLOAT)) AS lab,
+               MAX(TRY_CAST(GANGLTIIND AS FLOAT)) AS lti
+        FROM [GANGPRODUCTIONDETAIL]
+        WHERE UPPER(LTRIM(RTRIM(GANGTYPE))) IN ('STOPE BREAKING', 'STOPE CLEANING')
+          AND TRY_CAST(PERIOD AS BIGINT) BETWEEN {period_from} AND {period_to}
+          AND LEN(LTRIM(RTRIM(CREWNO))) >= 8 {sf}
+        GROUP BY LTRIM(RTRIM(SECTION)), LTRIM(RTRIM(PERIOD)), LTRIM(RTRIM(GANG)),
+                 UPPER(LTRIM(RTRIM(GANGTYPE))), LTRIM(RTRIM(CREWNO))
+    """)
+    periods = sorted({p["value"] for p in get_available_periods() if period_from <= p["value"] <= period_to})
+    exists = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'PARTICIPANTSEARN2%'")
+    have = set(exists["TABLE_NAME"].str.upper()) if not exists.empty else set()
+    periods = [p for p in periods if f"PARTICIPANTSEARN{p}".upper() in have]
+    if gpd.empty or not periods:
+        return {"people": [], "crews": [], "period_labels": {}}
+    gpd["period"] = gpd["period"].astype(str)
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=5) as ex:      # one set of SQL queries per month: run them side by side
+        labs = dict(zip(periods, ex.map(_crew_labour_period, periods)))
+
+    people, crews = [], []
+    for p in periods:
+        lab = labs[p]
+        month = gpd[gpd["period"] == str(p)]
+        if month.empty:
+            continue
+        crew_of = {r["gang"]: (r["section"], r["crew"]) for r in month.to_dict("records")}
+        gang_sh = {r["gang"]: r for r in lab["gang"]}
+        for r in lab["rows"]:
+            hit = crew_of.get(r["gang"])
+            if not hit or hit[0] != r["section"]:
+                continue
+            stm, safety = float(r["stm"] or 0), float(r["safety"] or 0)
+            people.append({
+                "period": str(p), "section": r["section"], "crew": hit[1], "gang": r["gang"], "gang_type": r["gang_type"],
+                "wagecode": r["wagecode"], "descr": r["descr"], "employees": int(r["employees"] or 0),
+                "reps": float(r["reps"] or 0), "shifts": float(r["shifts"] or 0), "eff": float(r["eff"] or 0),
+                "awop_shifts": float(r["awop_shifts"] or 0), "ms": float(r["ms"] or 0),
+                "prod": round(stm - safety, 2), "safety": round(safety, 2), "awop_pen": round(float(r["awop_pen"] or 0), 2),
+                "sick": lab["sick"].get((r["gang"], r["wagecode"]), 0.0),
+            })
+        per = {}
+        for g in month.to_dict("records"):
+            c = per.setdefault((g["section"], g["crew"]), {"period": str(p), "section": g["section"], "crew": g["crew"],
+                                                           "m2": 0.0, "lab_t": 0.0, "lab_b": 0.0, "lab_c": 0.0,
+                                                           "lti": 0, "reps": []})
+            c["lab_t"] = max(c["lab_t"], g["lab"] or 0)
+            sh = gang_sh.get(g["gang"])
+            ratio = (sh["gs"] / sh["ms"]) if sh and sh["ms"] and sh["ms"] > 0 and sh["gs"] is not None else 0.0
+            if g["gang_type"] == "STOPE BREAKING":
+                c["m2"] = max(c["m2"], g["m2"] or 0)
+                c["lab_b"] += ratio
+            else:
+                c["lab_c"] += ratio
+            if (g["lti"] or 0) > 0:
+                c["lti"] = 1
+        for x in lab["persons"]:
+            hit = crew_of.get(x["gang"])
+            if hit and hit[0] == x["section"] and x["rep"]:
+                per[hit]["reps"].append(x["emp"])
+        for c in per.values():
+            c["reps"] = sorted(set(c["reps"]))
+            c["lab_b"], c["lab_c"] = round(c["lab_b"], 4), round(c["lab_c"], 4)
+            crews.append(c)
+    return {"people": people, "crews": crews, "period_labels": {str(p): _period_label(int(p)) for p in periods}}
