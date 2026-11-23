@@ -34,7 +34,7 @@ python run_service.py start
 if errorlevel 1 ( echo ERROR: service did not start - check Event Viewer & exit /b 1 )
 
 echo.
-echo Service 'TshepongDashboard' installed and STARTED.
+echo Service 'iCalcTshepongDashboard' installed and STARTED.
 echo Test on the server:  http://localhost:5001
 echo From other PCs:      http://%COMPUTERNAME%:5001
 pause

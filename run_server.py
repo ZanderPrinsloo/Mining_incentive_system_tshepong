@@ -1,9 +1,10 @@
 """Production entry point for the Tshepong Stoping Analysis dashboard.
 
-Serves the Flask app with Waitress on all network interfaces so colleagues
-on the intranet can open http://<server-hostname>:5001 in a browser.
+Serves the Flask app with Waitress on all network interfaces so colleagues on the intranet can open
+http://<server-hostname>:5001 in a browser.
 
-For local development use `python run_web.py` (Flask debug server) instead.
+Run from the project folder with the project's virtual environment:  .venv\\Scripts\\python.exe run_server.py
+(For local development with auto-reload use `python run_web.py` instead.)
 """
 import os
 import sys
@@ -23,5 +24,5 @@ THREADS = int(os.getenv("WEB_THREADS", "8"))
 
 if __name__ == "__main__":
     app = create_app()
-    print(f"Dashboard serving on http://{HOST}:{PORT}")
+    print(f"Dashboard serving on http://{HOST}:{PORT}", flush=True)
     serve(app, host=HOST, port=PORT, threads=THREADS)
