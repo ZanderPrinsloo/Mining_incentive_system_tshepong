@@ -270,6 +270,8 @@
       <i class="bi bi-distribute-vertical me-1"></i>Gang Analysis</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-labour">
       <i class="bi bi-people me-1"></i>Labour Analysis</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-safety">
+      <i class="bi bi-shield-exclamation me-1"></i>Safety</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-forecast">
       <i class="bi bi-table me-1"></i>Forecast</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-bonus-rule">
@@ -932,6 +934,135 @@
       </div><!-- /#lab-bw -->
       </div><!-- /labour tab-content -->
     </div><!-- /tab-labour -->
+
+    <!-- ══ TAB: Safety ═══════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade" id="tab-safety">
+      <ul class="nav nav-pills mb-3 sub-tabs" id="sfTabs">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#sf-bonus">1. Safety Bonus Paid &amp; Lost</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#sf-crews">2. Crew Safety Incidents</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#sf-patterns">3. Incident Patterns</button></li>
+      </ul>
+      <div class="tab-content">
+
+      <!-- 1. Safety bonus paid and lost -->
+      <div class="tab-pane fade show active" id="sf-bonus">
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="section-header mb-1">Safety Bonus Paid and Lost</div>
+          <p class="small text-muted mb-3">Under the policy (REV04 §6.1) a crew with a clean record earns a safety bonus of <b>25% of its efficiency (break) bonus</b>.
+            A dressing station failure takes it to 0%, each lost-time injury (LTI) to −25%, and a loss of life to −100%. <b>Paid</b> is the safety bonus payroll paid out
+            (EMPLOYEESAFETYBONUS). <b>Deducted</b> is the negative safety figure an incident took <i>off</i> the crew's production bonus. <b>Lost</b> is what the crew would
+            have earned with a clean record minus what the system gave it. The policy also forfeits the 25% when a working place's physical conditions rating is below 80% (§6.1.1–6.1.2),
+            and caps the safety and sweepings penalties together at 50% (§6.1 note); no rating exists in the database, so the first is not shown. Selected months and sections as set above; Stope Breaking crews with their Stope Cleaning gang.</p>
+          <div class="row g-3 mb-3" id="sf-kpis"></div>
+          <div class="row g-3">
+            <div class="col-xl-7">
+              <div class="fw-semibold small mb-1">Safety bonus paid and lost by month <span class="ib" data-k="sf-chart"></span></div>
+              <div class="chart-wrap" style="height:300px"><canvas id="chart-sf-month"></canvas></div>
+            </div>
+            <div class="col-xl-5">
+              <div class="fw-semibold small mb-1">Bonus lost by incident type <span class="ib" data-k="sf-type"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Indicator<span class="ib" data-k="sf-h-ind"></span></th><th>What happened<span class="ib" data-k="sf-h-what"></span></th><th class="text-end">Crew-months<span class="ib" data-k="sf-h-crew-months"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Share<span class="ib" data-k="sf-h-share"></span></th></tr></thead>
+                <tbody id="tbl-sf-type"></tbody><tfoot id="tbl-sf-type-foot"></tfoot></table></div>
+            </div>
+          </div>
+          <div class="fw-semibold small mt-3 mb-1">By section <span class="ib" data-k="sf-sec"></span></div>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th>Section<span class="ib" data-k="sf-h-section"></span></th><th class="text-end">Crew-months<span class="ib" data-k="sf-h-crew-months"></span></th><th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Lost % of Potential<span class="ib" data-k="sf-h-lostpct"></span></th><th class="text-end">Incidents<span class="ib" data-k="sf-h-incidents"></span></th><th class="text-end">Crew-months with Incident<span class="ib" data-k="sf-h-cmhit"></span></th><th class="text-end">Incident Rate<span class="ib" data-k="sf-h-rate"></span></th></tr></thead>
+            <tbody id="tbl-sf-sec"></tbody><tfoot id="tbl-sf-sec-foot"></tfoot></table></div>
+          <div class="fw-semibold small mt-3 mb-1">By month <span class="ib" data-k="sf-month"></span></div>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th>Month<span class="ib" data-k="sf-h-month"></span></th><th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Lost % of Potential<span class="ib" data-k="sf-h-lostpct"></span></th><th class="text-end">Dressings<span class="ib" data-k="sf-h-dress"></span></th><th class="text-end">LTIs<span class="ib" data-k="sf-h-lti"></span></th><th class="text-end">Loss of Life<span class="ib" data-k="sf-h-fatal"></span></th><th class="text-end">Crews<span class="ib" data-k="sf-h-crews"></span></th></tr></thead>
+            <tbody id="tbl-sf-month"></tbody><tfoot id="tbl-sf-month-foot"></tfoot></table></div>
+        </div></div>
+      </div><!-- /#sf-bonus -->
+
+      <!-- 2. Crew safety incidents -->
+      <div class="tab-pane fade" id="sf-crews">
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="d-flex align-items-center flex-wrap gap-3 mb-1">
+            <div class="section-header mb-0">Crew Safety Incidents</div>
+            <div class="ms-auto d-flex align-items-center gap-2 small flex-wrap">
+              <label class="fw-semibold" for="sf-f-section">Section</label>
+              <select class="form-select form-select-sm" id="sf-f-section" style="width:auto"></select>
+              <label class="fw-semibold ms-2" for="sf-f-show">Show</label>
+              <select class="form-select form-select-sm" id="sf-f-show" style="width:auto"><option value="inc">Crews with incidents</option><option value="all">All crews</option></select>
+              <label class="fw-semibold ms-2" for="sf-f-sort">Sort by</label>
+              <select class="form-select form-select-sm" id="sf-f-sort" style="width:auto"><option value="inc">Most incidents</option><option value="lost">Most bonus lost</option><option value="rate">Highest incident rate</option></select>
+              <input type="search" class="form-control form-control-sm" id="sf-f-crew" placeholder="Find a crew…" style="width:160px">
+            </div>
+          </div>
+          <p class="small text-muted mb-2"><i class="bi bi-hand-index-thumb me-1"></i><b>Double-click a crew</b> to see its wage codes, the workplace types it worked and every incident month.
+            Incidents = dressings + LTIs + loss of life over the selected months (the breaking gang's incident indicators).</p>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0" id="tbl-sf-crews">
+            <thead><tr><th>#</th><th>Crew<span class="ib" data-k="sf-h-crew"></span></th><th>Section<span class="ib" data-k="sf-h-section"></span></th><th>Main Workplace Type<span class="ib" data-k="sf-h-wtype"></span></th><th class="text-end">Incidents<span class="ib" data-k="sf-h-incidents"></span></th><th class="text-end">Dressings<span class="ib" data-k="sf-h-dress"></span></th><th class="text-end">LTIs<span class="ib" data-k="sf-h-lti"></span></th><th class="text-end">Loss of Life<span class="ib" data-k="sf-h-fatal"></span></th><th class="text-end">Months with Incident<span class="ib" data-k="sf-h-mhit"></span></th><th class="text-end">Months<span class="ib" data-k="sf-h-months"></span></th><th class="text-end">Incident Rate<span class="ib" data-k="sf-h-rate"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th>Last Incident<span class="ib" data-k="sf-h-last"></span></th></tr></thead>
+            <tbody id="tbl-sf-crews-body"><tr><td colspan="14" class="empty-state">Open this tab to load.</td></tr></tbody><tfoot id="tbl-sf-crews-foot"></tfoot></table></div>
+        </div></div>
+
+        <div class="card shadow-sm mb-3 d-none" id="card-sf-dd"><div class="card-body">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="section-header mb-0" id="sf-dd-title">Crew Drill Down</div>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" id="sf-dd-close"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+          <div class="row g-3 mb-3" id="sf-dd-kpis"></div>
+          <div class="row g-3">
+            <div class="col-xl-7">
+              <div class="fw-semibold small mb-1">Wage codes in the crew <span class="ib" data-k="sf-wage"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Wage Code<span class="ib" data-k="sf-h-wc"></span></th><th>Description<span class="ib" data-k="sf-h-wcd"></span></th><th class="text-end">People (avg / month)<span class="ib" data-k="sf-h-people"></span></th><th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lostwc"></span></th><th class="text-end">Safety Reps<span class="ib" data-k="sf-h-reps"></span></th></tr></thead>
+                <tbody id="tbl-sf-dd-wage"></tbody><tfoot id="tbl-sf-dd-wage-foot"></tfoot></table></div>
+            </div>
+            <div class="col-xl-5">
+              <div class="fw-semibold small mb-1">Workplace types the crew worked <span class="ib" data-k="sf-wtype"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Workplace Type<span class="ib" data-k="sf-h-wtype"></span></th><th class="text-end">Workplaces<span class="ib" data-k="sf-h-workplaces"></span></th><th class="text-end">Months<span class="ib" data-k="sf-h-months"></span></th><th class="text-end">m²<span class="ib" data-k="sf-h-m2"></span></th><th class="text-end">Months with Incident<span class="ib" data-k="sf-h-mhit"></span></th></tr></thead>
+                <tbody id="tbl-sf-dd-wtype"></tbody></table></div>
+            </div>
+          </div>
+          <div class="fw-semibold small mt-3 mb-1">Incidents month by month <span class="ib" data-k="sf-timeline"></span></div>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th>Month<span class="ib" data-k="sf-h-month"></span></th><th>What happened<span class="ib" data-k="sf-h-what"></span></th><th class="text-end">Dressings<span class="ib" data-k="sf-h-dress"></span></th><th class="text-end">LTIs<span class="ib" data-k="sf-h-lti"></span></th><th class="text-end">Loss of Life<span class="ib" data-k="sf-h-fatal"></span></th><th class="text-end">Safety % of Break Bonus<span class="ib" data-k="sf-h-pct"></span></th><th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th>Workplace Type<span class="ib" data-k="sf-h-wtype"></span></th><th>Workplaces<span class="ib" data-k="sf-h-workplaces"></span></th></tr></thead>
+            <tbody id="tbl-sf-dd-time"></tbody></table></div>
+        </div></div>
+      </div><!-- /#sf-crews -->
+
+      <!-- 3. Incident patterns -->
+      <div class="tab-pane fade" id="sf-patterns">
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="section-header mb-1">Incident Patterns</div>
+          <p class="small text-muted mb-3">Where incidents happen and what they cost. A crew-month is one crew in one month; the incident rate is crew-months with at least one incident ÷ crew-months.</p>
+          <div class="row g-3 mb-3">
+            <div class="col-xl-6">
+              <div class="fw-semibold small mb-1">Incidents by month and kind <span class="ib" data-k="sf-kinds"></span></div>
+              <div class="chart-wrap" style="height:260px"><canvas id="chart-sf-kinds"></canvas></div>
+            </div>
+            <div class="col-xl-6">
+              <div class="fw-semibold small mb-1">Incident rate by workplace type <span class="ib" data-k="sf-wtype-rate"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Workplace Type<span class="ib" data-k="sf-h-wtype"></span></th><th class="text-end">Crew-months<span class="ib" data-k="sf-h-crew-months"></span></th><th class="text-end">With Incident<span class="ib" data-k="sf-h-cmhit"></span></th><th class="text-end">Incident Rate<span class="ib" data-k="sf-h-rate"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Lost / Crew-month<span class="ib" data-k="sf-h-lostcm"></span></th></tr></thead>
+                <tbody id="tbl-sf-wtype"></tbody></table></div>
+              <div class="fw-semibold small mt-3 mb-1">Crews with and without a safety representative <span class="ib" data-k="sf-rep"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Safety Representative<span class="ib" data-k="sf-h-rep"></span></th><th class="text-end">Crew-months<span class="ib" data-k="sf-h-crew-months"></span></th><th class="text-end">With Incident<span class="ib" data-k="sf-h-cmhit"></span></th><th class="text-end">Incident Rate<span class="ib" data-k="sf-h-rate"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th></tr></thead>
+                <tbody id="tbl-sf-rep"></tbody></table></div>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-xl-7">
+              <div class="fw-semibold small mb-1">Safety bonus by wage code <span class="ib" data-k="sf-wage-all"></span></div>
+              <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+                <thead><tr><th>Wage Code<span class="ib" data-k="sf-h-wc"></span></th><th>Description<span class="ib" data-k="sf-h-wcd"></span></th><th class="text-end">Person-months<span class="ib" data-k="sf-h-pm"></span></th><th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lostwc"></span></th><th class="text-end">Lost % of Potential<span class="ib" data-k="sf-h-lostpct"></span></th></tr></thead>
+                <tbody id="tbl-sf-wage"></tbody><tfoot id="tbl-sf-wage-foot"></tfoot></table></div>
+            </div>
+            <div class="col-xl-5">
+              <div class="fw-semibold small mb-1">Other effects of safety incidents <span class="ib" data-k="sf-other"></span></div>
+              <div id="sf-other"></div>
+            </div>
+          </div>
+        </div></div>
+      </div><!-- /#sf-patterns -->
+      </div><!-- /safety tab-content -->
+    </div><!-- /tab-safety -->
 
     <!-- ══ TAB: Forecast (merged: Production/Cost/Required/Mid-Month + Trend Forecast) ══ -->
     <div class="tab-pane fade" id="tab-forecast">
@@ -2417,6 +2548,314 @@ function renderDrivers() {
   _labInfoInit();
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  Safety — Bonus Paid & Lost / Crew Safety Incidents / Incident Patterns (lazy)
+// ════════════════════════════════════════════════════════════════════════════
+let _sf = null, _sfCrew = null;
+
+// One request per filter selection, shared by the background prefetch and the tab itself
+let _sfP = null, _sfKey = '';
+function sfFetch() {
+  const key = `${state.from}|${state.to}|${state.section}`;
+  if (!_sfP || _sfKey !== key) {
+    _sfKey = key;
+    const p = api('/api/safety', { from: state.from, to: state.to, section: state.section });
+    _sfP = p;
+    p.catch(() => { if (_sfP === p) _sfP = null; });
+  }
+  return _sfP;
+}
+
+async function loadLazySafety() {
+  if (_lazyLoaded.safety) return;
+  _lazyLoaded.safety = true;
+  showLoading();
+  try {
+    _sf = await sfFetch();
+    _sfCrew = null;
+    renderSafety();
+  } catch (e) {
+    _lazyLoaded.safety = false;
+    document.getElementById('tbl-sf-crews-body').innerHTML =
+      `<tr><td colspan="14" class="empty-state text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${esc(e.message.slice(0, 300))}</td></tr>`;
+  } finally { hideLoading(); }
+}
+
+const fmtR0 = v => (v == null || isNaN(v)) ? '—' : 'R ' + fmtN(v, 0);
+const sfSum = (rs, k) => rs.reduce((a, r) => a + (r[k] || 0), 0);
+const sfPct = (a, b, dp = 1) => b ? fmtPct(a / b, dp) : '—';
+const sfWhat = r => {
+  const p = [];
+  if (r.fatal) p.push('Loss of life');
+  if (r.lti) p.push(`LTI${r.lti > 1 ? ' ×' + r.lti : ''}`);
+  if (r.dress) p.push(`Dressing station failure${r.dress > 1 ? ' ×' + r.dress : ''}`);
+  return p.length ? p.join(' + ') : 'No incident';
+};
+// Indicator code of a crew-month ("L1", "D1", "L2", "F", "D1 + L1") and its description, as on the bonus sheets
+const sfCode = r => [r.dress ? 'D' + r.dress : '', r.lti ? 'L' + r.lti : '', r.fatal ? 'LOL' : ''].filter(Boolean).join(' + ') || '—';
+const sfDescr = r => [r.dress ? `${r.dress} Dressing${r.dress > 1 ? 's' : ''}` : '', r.lti ? `${r.lti} Lost Time Incident${r.lti > 1 ? 's' : ''}` : '', r.fatal ? 'Loss of life' : ''].filter(Boolean).join(' · ');
+const sfBadge = r => r.inc ? `<span class="badge ${r.fatal ? 'bg-dark' : r.lti ? 'bg-danger' : 'bg-secondary'}">${esc(sfCode(r))}</span>` : '<span class="text-muted">—</span>';
+const sfKpi = (lbl, val, key, cls = '', sub = '') => `<div class="col-md-6 col-xl-2"><div class="card kpi-card shadow-sm h-100"><div class="card-body py-2">
+  <div class="kpi-lbl">${lbl}<span class="ib" data-k="${key}"></span></div><div class="kpi-val ${cls}" style="font-size:1.25rem">${val}</div>${sub ? `<div class="small text-muted">${sub}</div>` : ''}</div></div></div>`;
+
+function renderSafety() {
+  const d = _sf, cm = d.crew_months, lbl = p => d.period_labels[p] || p;
+  document.getElementById('sf-dd-close').onclick = () => { _sfCrew = null; renderSfCrews(); };
+  if (!cm.length) {
+    document.getElementById('sf-kpis').innerHTML = '<div class="col-12 empty-state">No safety data for this selection.</div>';
+    ['tbl-sf-type', 'tbl-sf-sec', 'tbl-sf-month', 'tbl-sf-wtype', 'tbl-sf-rep', 'tbl-sf-wage'].forEach(i => document.getElementById(i).innerHTML = '');
+    renderSfCrews(); return;
+  }
+  const paid = sfSum(cm, 'paid'), ded = sfSum(cm, 'ded'), lost = sfSum(cm, 'lost'), pot = sfSum(cm, 'potential');
+  const inc = sfSum(cm, 'inc'), withInc = cm.filter(r => r.inc > 0), hit = withInc.length;
+  const dress = sfSum(cm, 'dress'), lti = sfSum(cm, 'lti'), fatal = sfSum(cm, 'fatal');
+  const crewsHit = new Set(withInc.map(r => r.section + '|' + r.crew)).size, crewsAll = new Set(cm.map(r => r.section + '|' + r.crew)).size;
+  const fatalCm = cm.filter(r => r.fatal).length;
+  document.getElementById('sf-kpis').innerHTML =
+    sfKpi('Safety Bonus Paid', fmtR0(paid), 'sf-k-paid', '', ded ? `${fmtR0(ded)} more was deducted by incidents` : 'no deductions') +
+    sfKpi('Safety Bonus Lost', fmtR0(lost), 'sf-k-lost', lost ? 'delta-warn' : '', `${sfPct(lost, pot)} of what a clean record would have paid`) +
+    sfKpi('Incidents', fmtN(inc), 'sf-k-inc', '', `${fmtN(dress)} dressing${dress === 1 ? '' : 's'} · ${fmtN(lti)} LTI${lti === 1 ? '' : 's'} · ${fmtN(fatal)} loss of life`) +
+    sfKpi('Crew-months with an Incident', fmtN(hit), 'sf-k-hit', '', `${sfPct(hit, cm.length)} of ${fmtN(cm.length)} crew-months`) +
+    sfKpi('Crews Affected', fmtN(crewsHit), 'sf-k-affected', '', `of ${fmtN(crewsAll)} crews`) +
+    sfKpi('Loss of Life', fmtN(fatalCm), 'sf-k-fatal', '', fatalCm ? 'crew-months: the crew\'s bonus is cancelled' : 'crew-months');
+
+  // chart by month: paid / lost stacked, incidents as a line on the right axis
+  const mo = d.monthly;
+  makeChart('chart-sf-month', { type: 'bar', data: { labels: mo.map(m => lbl(m.period)), datasets: [
+      { label: 'Safety paid', data: mo.map(m => m.paid), backgroundColor: '#1A2744', stack: 's', yAxisID: 'y' },
+      { label: 'Safety lost', data: mo.map(m => m.lost), backgroundColor: '#dc3545', stack: 's', yAxisID: 'y' },
+      { type: 'line', label: 'Incidents', data: mo.map(m => m.dress + m.lti + m.fatal), borderColor: '#D4A017', backgroundColor: '#D4A01733',
+        yAxisID: 'y1', tension: 0, borderWidth: 2, pointRadius: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
+        tooltip: { mode: 'index', intersect: false, callbacks: { label: c => ' ' + c.dataset.label + ': ' + (c.dataset.yAxisID === 'y1' ? fmtN(c.parsed.y) : fmtR(c.parsed.y)) } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => fmtRm(v) }, grid: { color: '#eee' } },
+                y1: { position: 'right', grid: { display: false }, ticks: { precision: 0 }, title: { display: true, text: 'Incidents' }, beginAtZero: true } } } });
+
+  // by incident type (indicator code of the crew-month)
+  const byType = {};
+  withInc.forEach(r => { const k = sfCode(r); const t = byType[k] || (byType[k] = { r, n: 0, lost: 0 }); t.n++; t.lost += r.lost; });
+  const types = Object.values(byType).sort((a, b) => b.lost - a.lost || b.n - a.n);
+  document.getElementById('tbl-sf-type').innerHTML = types.length ? types.map(t => `<tr><td>${sfBadge(t.r)}</td><td class="small">${esc(sfDescr(t.r))}</td>
+      <td class="text-end">${fmtN(t.n)}</td><td class="text-end fw-semibold">${fmtR0(t.lost)}</td><td class="text-end">${sfPct(t.lost, lost)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty-state">No safety incidents in the selected months.</td></tr>';
+  document.getElementById('tbl-sf-type-foot').innerHTML = `<tr class="tr-grand-total"><td colspan="2">Total</td><td class="text-end">${fmtN(hit)}</td><td class="text-end">${fmtR0(lost)}</td><td class="text-end">${lost ? '100%' : '—'}</td></tr>`;
+
+  // by section
+  const secs = [...new Set(cm.map(r => r.section))].sort();
+  document.getElementById('tbl-sf-sec').innerHTML = secs.map(s => { const rs = cm.filter(r => r.section === s), h = rs.filter(r => r.inc > 0).length;
+    return `<tr><td class="fw-semibold">${esc(s)}</td><td class="text-end">${fmtN(rs.length)}</td><td class="text-end">${fmtR0(sfSum(rs, 'paid'))}</td><td class="text-end">${fmtR0(sfSum(rs, 'ded'))}</td>
+      <td class="text-end ${sfSum(rs, 'lost') ? 'delta-warn' : ''}">${fmtR0(sfSum(rs, 'lost'))}</td><td class="text-end">${sfPct(sfSum(rs, 'lost'), sfSum(rs, 'potential'))}</td><td class="text-end">${fmtN(sfSum(rs, 'inc'))}</td>
+      <td class="text-end">${fmtN(h)}</td><td class="text-end">${sfPct(h, rs.length)}</td></tr>`; }).join('');
+  document.getElementById('tbl-sf-sec-foot').innerHTML = `<tr class="tr-grand-total"><td>Total</td><td class="text-end">${fmtN(cm.length)}</td><td class="text-end">${fmtR0(paid)}</td><td class="text-end">${fmtR0(ded)}</td>
+    <td class="text-end">${fmtR0(lost)}</td><td class="text-end">${sfPct(lost, pot)}</td><td class="text-end">${fmtN(inc)}</td><td class="text-end">${fmtN(hit)}</td><td class="text-end">${sfPct(hit, cm.length)}</td></tr>`;
+
+  // by month (newest first)
+  document.getElementById('tbl-sf-month').innerHTML = [...mo].reverse().map(m => `<tr><td class="fw-semibold">${lbl(m.period)}</td><td class="text-end">${fmtR0(m.paid)}</td><td class="text-end">${fmtR0(m.ded)}</td>
+    <td class="text-end ${m.lost ? 'delta-warn' : ''}">${fmtR0(m.lost)}</td><td class="text-end">${sfPct(m.lost, m.potential)}</td><td class="text-end">${fmtN(m.dress)}</td><td class="text-end">${fmtN(m.lti)}</td>
+    <td class="text-end">${fmtN(m.fatal)}</td><td class="text-end">${fmtN(m.crews)}</td></tr>`).join('');
+  document.getElementById('tbl-sf-month-foot').innerHTML = `<tr class="tr-grand-total"><td>Total</td><td class="text-end">${fmtR0(paid)}</td><td class="text-end">${fmtR0(ded)}</td><td class="text-end">${fmtR0(lost)}</td>
+    <td class="text-end">${sfPct(lost, pot)}</td><td class="text-end">${fmtN(dress)}</td><td class="text-end">${fmtN(lti)}</td><td class="text-end">${fmtN(fatal)}</td><td class="text-end">—</td></tr>`;
+
+  // crew table filters
+  const sel = document.getElementById('sf-f-section'), keep = sel.value;
+  sel.innerHTML = '<option value="">All sections</option>' + secs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.value = secs.includes(keep) ? keep : '';
+  ['sf-f-section', 'sf-f-show', 'sf-f-sort'].forEach(i => document.getElementById(i).onchange = () => { _sfCrew = null; renderSfCrews(); });
+  document.getElementById('sf-f-crew').oninput = () => { _sfCrew = null; renderSfCrews(); };
+  renderSfCrews();
+  renderSfPatterns();
+  _sfInfoInit();
+}
+
+function sfCrewList() {
+  const secF = document.getElementById('sf-f-section').value, show = document.getElementById('sf-f-show').value,
+        sort = document.getElementById('sf-f-sort').value, q = document.getElementById('sf-f-crew').value.trim().toUpperCase();
+  const by = {};
+  _sf.crew_months.forEach(r => { if (secF && r.section !== secF) return; (by[r.section + '|' + r.crew] = by[r.section + '|' + r.crew] || []).push(r); });
+  let list = Object.entries(by).map(([key, rs]) => {
+    const wt = {}; rs.forEach(r => wt[r.wtype] = (wt[r.wtype] || 0) + 1);
+    const hits = rs.filter(r => r.inc > 0);
+    return { key, crew: rs[0].crew, section: rs[0].section, rs, wtype: Object.entries(wt).sort((a, b) => b[1] - a[1])[0][0],
+      inc: sfSum(rs, 'inc'), dress: sfSum(rs, 'dress'), lti: sfSum(rs, 'lti'), fatal: sfSum(rs, 'fatal'), months: rs.length, mhit: hits.length,
+      lost: sfSum(rs, 'lost'), ded: sfSum(rs, 'ded'), last: hits.length ? hits.map(r => r.period).sort().pop() : null };
+  });
+  if (show === 'inc') list = list.filter(c => c.inc > 0);
+  if (q) list = list.filter(c => c.crew.toUpperCase().includes(q));
+  const rate = c => c.mhit / c.months;
+  list.sort((a, b) => sort === 'lost' ? b.lost - a.lost || b.inc - a.inc : sort === 'rate' ? rate(b) - rate(a) || b.inc - a.inc : b.inc - a.inc || b.lost - a.lost);
+  return list;
+}
+
+function renderSfCrews() {
+  if (!_sf) return;
+  const lbl = p => _sf.period_labels[p] || p, list = sfCrewList();
+  if (_sfCrew && !list.some(c => c.key === _sfCrew)) _sfCrew = null;
+  document.getElementById('tbl-sf-crews-body').innerHTML = list.length ? list.map((c, i) => `<tr style="cursor:pointer" class="${c.key === _sfCrew ? 'table-warning' : ''}" data-key="${esc(c.key)}" title="Double-click for the wage codes, workplace types and incident months">
+      <td>${i + 1}</td><td class="fw-semibold">${esc(c.crew)}</td><td>${esc(c.section)}</td><td>${esc(c.wtype)}</td><td class="text-end ${c.inc ? 'delta-warn' : ''}">${fmtN(c.inc)}</td>
+      <td class="text-end">${fmtN(c.dress)}</td><td class="text-end">${fmtN(c.lti)}</td><td class="text-end">${fmtN(c.fatal)}</td><td class="text-end">${fmtN(c.mhit)}</td><td class="text-end">${fmtN(c.months)}</td>
+      <td class="text-end">${sfPct(c.mhit, c.months, 0)}</td><td class="text-end">${fmtR(c.lost)}</td><td class="text-end">${fmtR(c.ded)}</td><td>${c.last ? lbl(c.last) : '—'}</td></tr>`).join('')
+    : '<tr><td colspan="14" class="empty-state">No crews match — try “All crews”.</td></tr>';
+  const T = k => sfSum(list, k);
+  document.getElementById('tbl-sf-crews-foot').innerHTML = list.length ? `<tr class="tr-grand-total"><td></td><td>Total (${list.length} crews)</td><td></td><td></td><td class="text-end">${fmtN(T('inc'))}</td>
+    <td class="text-end">${fmtN(T('dress'))}</td><td class="text-end">${fmtN(T('lti'))}</td><td class="text-end">${fmtN(T('fatal'))}</td><td class="text-end">${fmtN(T('mhit'))}</td><td class="text-end">${fmtN(T('months'))}</td>
+    <td class="text-end">${sfPct(T('mhit'), T('months'), 0)}</td><td class="text-end">${fmtR(T('lost'))}</td><td class="text-end">${fmtR(T('ded'))}</td><td></td></tr>` : '';
+  document.querySelectorAll('#tbl-sf-crews-body tr[data-key]').forEach(tr => tr.addEventListener('dblclick', () => {
+    _sfCrew = tr.dataset.key; renderSfCrews(); document.getElementById('card-sf-dd').scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+  renderSfDrill();
+  _sfInfoInit();
+}
+
+function renderSfDrill() {
+  const card = document.getElementById('card-sf-dd');
+  card.classList.toggle('d-none', !_sfCrew);
+  if (!_sfCrew) return;
+  const [sec, crew] = _sfCrew.split('|'), lbl = p => _sf.period_labels[p] || p;
+  const cms = _sf.crew_months.filter(r => r.section === sec && r.crew === crew).sort((a, b) => a.period.localeCompare(b.period));
+  const wage = _sf.wage.filter(r => r.section === sec && r.crew === crew), wps = _sf.workplaces.filter(r => r.section === sec && r.crew === crew);
+  const m = cms.length || 1, hit = cms.filter(r => r.inc > 0);
+  document.getElementById('sf-dd-title').textContent = `Crew Drill Down — ${crew} (${sec})`;
+  document.getElementById('sf-dd-kpis').innerHTML = sfKpi('Incidents', fmtN(sfSum(cms, 'inc')), 'sf-k-inc', hit.length ? 'delta-warn' : '') +
+    sfKpi('Months with Incident', `${hit.length} of ${cms.length}`, 'sf-k-hit') + sfKpi('Safety Bonus Paid', fmtR(sfSum(cms, 'paid')), 'sf-k-paid') +
+    sfKpi('Deducted by Incidents', fmtR(sfSum(cms, 'ded')), 'sf-k-ded') + sfKpi('Bonus Lost', fmtR(sfSum(cms, 'lost')), 'sf-k-lost', sfSum(cms, 'lost') ? 'delta-warn' : '');
+
+  const byWc = {};
+  wage.forEach(r => { const w = byWc[r.wc] || (byWc[r.wc] = { wc: r.wc, descr: r.descr, n: 0, paid: 0, ded: 0, lost: 0, reps: 0 });
+    w.n += r.n; w.paid += r.paid; w.ded += r.ded; w.lost += r.lost; w.reps += r.reps; });
+  const wl = Object.values(byWc).sort((a, b) => b.paid - a.paid);
+  document.getElementById('tbl-sf-dd-wage').innerHTML = wl.map(w => `<tr><td class="fw-semibold">${esc(w.wc)}</td><td>${esc(w.descr)}</td><td class="text-end">${fmtN(w.n / m, 1)}</td>
+    <td class="text-end">${fmtR(w.paid)}</td><td class="text-end">${fmtR(w.ded)}</td><td class="text-end">${fmtR(w.lost)}</td><td class="text-end">${fmtN(w.reps)}</td></tr>`).join('')
+    || '<tr><td colspan="7" class="empty-state">No wage codes.</td></tr>';
+  document.getElementById('tbl-sf-dd-wage-foot').innerHTML = wl.length ? `<tr class="tr-grand-total"><td>Total</td><td></td><td class="text-end">${fmtN(sfSum(wl, 'n') / m, 1)}</td>
+    <td class="text-end">${fmtR(sfSum(wl, 'paid'))}</td><td class="text-end">${fmtR(sfSum(wl, 'ded'))}</td><td class="text-end">${fmtR(sfSum(wl, 'lost'))}</td><td class="text-end">${fmtN(sfSum(wl, 'reps'))}</td></tr>` : '';
+
+  const byT = {};
+  wps.forEach(r => { const t = byT[r.wtype] || (byT[r.wtype] = { t: r.wtype, wp: new Set(), mo: new Set(), m2: 0, hit: new Set() });
+    t.wp.add(r.workplace); t.mo.add(r.period); t.m2 += r.m2; if (r.hit) t.hit.add(r.period); });
+  document.getElementById('tbl-sf-dd-wtype').innerHTML = Object.values(byT).sort((a, b) => b.m2 - a.m2).map(t => `<tr><td class="fw-semibold">${esc(t.t)}</td><td class="text-end">${t.wp.size}</td>
+    <td class="text-end">${t.mo.size}</td><td class="text-end">${fmtN(t.m2)}</td><td class="text-end ${t.hit.size ? 'delta-warn' : ''}">${t.hit.size}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty-state">No workplaces.</td></tr>';
+
+  document.getElementById('tbl-sf-dd-time').innerHTML = cms.map(r => {
+    const names = wps.filter(w => w.period === r.period).map(w => w.name ? `${w.workplace} (${w.name})` : w.workplace);
+    return `<tr class="${r.inc ? 'table-warning' : ''}"><td class="fw-semibold">${lbl(r.period)}</td><td>${sfWhat(r)}</td><td class="text-end">${fmtN(r.dress)}</td><td class="text-end">${fmtN(r.lti)}</td><td class="text-end">${fmtN(r.fatal)}</td>
+      <td class="text-end">${r.pct == null ? '<span class="text-muted" title="No break bonus this month">n/a</span>' : fmtPct(r.pct, 0)}</td><td class="text-end">${fmtR(r.paid)}</td><td class="text-end">${fmtR(r.ded)}</td>
+      <td class="text-end">${fmtR(r.lost)}</td><td>${esc(r.wtype)}</td><td class="small">${esc(names.join(', '))}</td></tr>`; }).join('');
+}
+
+function renderSfPatterns() {
+  const d = _sf, cm = d.crew_months, lbl = p => d.period_labels[p] || p, mo = d.monthly;
+  makeChart('chart-sf-kinds', { type: 'bar', data: { labels: mo.map(m => lbl(m.period)), datasets: [
+      { label: 'Dressings', data: mo.map(m => m.dress), backgroundColor: '#F9A825' },
+      { label: 'LTIs', data: mo.map(m => m.lti), backgroundColor: '#E53935' },
+      { label: 'Loss of life', data: mo.map(m => m.fatal), backgroundColor: '#4E342E' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eee' } } } } });
+
+  const grp = (rows, keyFn) => { const g = {}; rows.forEach(r => (g[keyFn(r)] = g[keyFn(r)] || []).push(r)); return g; };
+  const rateRow = (name, rs) => { const h = rs.filter(r => r.inc > 0).length, l = sfSum(rs, 'lost');
+    return { name, n: rs.length, h, l, rate: rs.length ? h / rs.length : 0 }; };
+  const wt = Object.entries(grp(cm, r => r.wtype)).map(([k, rs]) => rateRow(k, rs)).sort((a, b) => b.rate - a.rate || b.l - a.l);
+  document.getElementById('tbl-sf-wtype').innerHTML = wt.map(r => `<tr><td class="fw-semibold">${esc(r.name)}</td><td class="text-end">${fmtN(r.n)}</td><td class="text-end">${fmtN(r.h)}</td>
+    <td class="text-end ${r.rate > 0.1 ? 'delta-warn' : ''}">${fmtPct(r.rate, 1)}</td><td class="text-end">${fmtR(r.l)}</td><td class="text-end">${fmtR(r.n ? r.l / r.n : 0)}</td></tr>`).join('');
+  const rp = [['With a safety representative', cm.filter(r => r.rep)], ['Without a safety representative', cm.filter(r => !r.rep)]].map(([n, rs]) => rateRow(n, rs));
+  document.getElementById('tbl-sf-rep').innerHTML = rp.map(r => `<tr><td class="fw-semibold">${r.name}</td><td class="text-end">${fmtN(r.n)}</td><td class="text-end">${fmtN(r.h)}</td>
+    <td class="text-end">${fmtPct(r.rate, 1)}</td><td class="text-end">${fmtR(r.l)}</td></tr>`).join('');
+
+  const byWc = {};
+  d.wage.forEach(r => { const w = byWc[r.wc] || (byWc[r.wc] = { wc: r.wc, descr: r.descr, n: 0, paid: 0, ded: 0, lost: 0 }); w.n += r.n; w.paid += r.paid; w.ded += r.ded; w.lost += r.lost; });
+  const wl = Object.values(byWc).sort((a, b) => b.paid - a.paid), potWc = w => w.paid + w.lost;
+  document.getElementById('tbl-sf-wage').innerHTML = wl.map(w => `<tr><td class="fw-semibold">${esc(w.wc)}</td><td>${esc(w.descr)}</td><td class="text-end">${fmtN(w.n)}</td><td class="text-end">${fmtR(w.paid)}</td>
+    <td class="text-end">${fmtR(w.ded)}</td><td class="text-end">${fmtR(w.lost)}</td><td class="text-end">${sfPct(w.lost, potWc(w))}</td></tr>`).join('');
+  document.getElementById('tbl-sf-wage-foot').innerHTML = `<tr class="tr-grand-total"><td>Total</td><td></td><td class="text-end">${fmtN(sfSum(wl, 'n'))}</td><td class="text-end">${fmtR(sfSum(wl, 'paid'))}</td>
+    <td class="text-end">${fmtR(sfSum(wl, 'ded'))}</td><td class="text-end">${fmtR(sfSum(wl, 'lost'))}</td><td class="text-end">${sfPct(sfSum(wl, 'lost'), sfSum(wl, 'paid') + sfSum(wl, 'lost'))}</td></tr>`;
+
+  // other effects
+  const hits = cm.filter(r => r.inc > 0), clean = cm.filter(r => r.inc === 0);
+  const nobonus = hits.filter(r => r.brk_zero), atRisk = hits.filter(r => !r.brk_zero);
+  const avg = (rs, k) => rs.length ? sfSum(rs, k) / rs.length : null;
+  const worstMo = mo.slice().sort((a, b) => b.lost - a.lost)[0];
+  const secWorst = Object.entries(grp(cm, r => r.section)).map(([k, rs]) => rateRow(k, rs)).sort((a, b) => b.rate - a.rate)[0];
+  const li = (t, v) => `<li class="list-group-item d-flex justify-content-between align-items-start gap-3 small"><span>${t}</span><span class="fw-semibold text-nowrap">${v}</span></li>`;
+  document.getElementById('sf-other').innerHTML = hits.length ? `<ul class="list-group list-group-flush border rounded">
+    ${li('Crew-months with an incident but no break bonus (nothing at risk)', `${fmtN(nobonus.length)} of ${fmtN(hits.length)}`)}
+    ${li('Average bonus lost per crew-month with an incident that had a break bonus', fmtR(avg(atRisk, 'lost')))}
+    ${li('Average m² — crews with an incident', fmtN(avg(hits, 'm2'), 0) + ' m²')}
+    ${li('Average m² — crews with a clean record', fmtN(avg(clean, 'm2'), 0) + ' m²')}
+    ${li('Crew-months where the incident turned the safety bonus negative (a deduction)', fmtN(hits.filter(r => r.ded > 0).length))}
+    ${li('Most expensive month', worstMo && worstMo.lost ? `${lbl(worstMo.period)} · ${fmtR(worstMo.lost)}` : '—')}
+    ${li('Section with the highest incident rate', secWorst ? `${esc(secWorst.name)} · ${fmtPct(secWorst.rate, 1)}` : '—')}
+    </ul>` : '<div class="empty-state">No incidents in this selection.</div>';
+  _sfInfoInit();
+}
+
+const SF_INFO = {
+  'sf-chart': ['Paid and lost by month', 'Navy = safety bonus paid out to the crews\' people (EMPLOYEESAFETYBONUS, officials excluded). Red = the safety bonus lost against a clean record. The gold line is the number of incidents in the month (right axis).'],
+  'sf-type': ['Bonus lost by incident type', 'Each crew-month is counted under its worst incident: loss of life, then LTI, then dressing station failure. Bonus lost is added up for those crew-months.'],
+  'sf-sec': ['By section', 'The same figures for each mining section in the selected months. Incident Rate = crew-months with at least one incident ÷ crew-months.'],
+  'sf-month': ['By month', 'One row per month in the selection. Dressings, LTIs and loss of life are the counts on the crews\' breaking gangs (GANGDRESSINGIND, GANGLTIIND, GANGFATALIND).'],
+  'sf-k-paid': ['Safety Bonus Paid', 'EMPLOYEESAFETYBONUS paid to the people of the Stope Breaking crews and their Stope Cleaning gangs (officials excluded), counting only positive amounts. It is part of the Stope Team Bonus, not on top of it.'],
+  'sf-k-ded': ['Deducted by Incidents', 'After an LTI or a loss of life the safety figure is negative: it is taken off the production bonus. This is the total of those negative amounts.'],
+  'sf-k-lost': ['Bonus Lost', 'What the crew would have earned with a clean record (25% of its break bonus, policy §6.1.3) minus the safety bonus the bonus system gave it, × the crew\'s labour (GANGLABOUR). It includes the deduction taken off, so it is the full gap to a clean record.'],
+  'sf-k-lostpct': ['Lost % of Potential', 'Bonus Lost ÷ the safety bonus the same crews would have earned with clean records (25% of break bonus × labour).'],
+  'sf-k-inc': ['Incidents', 'Dressing station failures + LTIs + loss of life on the crews\' breaking gangs in the selected months.'],
+  'sf-k-hit': ['Crew-months with Incident', 'A crew-month is one crew in one month. Shown against all crew-months in the selection.'],
+  'sf-k-rate': ['Incident Rate', 'Crew-months with at least one incident ÷ all crew-months.'],
+  'sf-wage': ['Wage codes in the crew', 'The wage codes of the people paid in this crew (breaking and cleaning gangs) with their safety bonus. Bonus Lost is the crew\'s loss spread over the wage codes by their share of the crew\'s bonus before safety.'],
+  'sf-wtype': ['Workplace types', 'The type of workplace the crew\'s breaking gang worked each month (WORKPLACERATETYPE: B Reef, Basal Undercut, Wide Raise, Ledging, Haulage Pillar IBG …), with the m² and the months an incident happened.'],
+  'sf-timeline': ['Incidents month by month', 'One row per month the crew worked. Safety % of Break Bonus is the rate the bonus system applied (+25% clean, 0% dressing, −25% per LTI, −100% loss of life). n/a = the crew had no break bonus that month.'],
+  'sf-kinds': ['Incidents by month and kind', 'Stacked counts of dressing station failures, LTIs and loss of life per month.'],
+  'sf-wtype-rate': ['Incident rate by workplace type', 'Crew-months grouped by the main workplace type of the crew that month. A higher rate shows the workplace types where incidents happen most often.'],
+  'sf-rep': ['Safety representative', 'A crew-month counts as "with" when at least one person in the crew was a safety representative that month (SAFETYREPIND in payroll).'],
+  'sf-wage-all': ['Safety bonus by wage code', 'Safety bonus paid, deducted and lost for each wage code across all crews. Lost % of Potential = lost ÷ (paid + lost).'],
+  'sf-other': ['Other effects', 'Other things the incidents change. “No break bonus” crews had nothing to lose: their break bonus was R0 so the safety ladder had nothing to scale. Compare the m² of incident and clean crews.'],
+  'sf-h-ind': ['Indicator', 'The crew-month\'s incident code from the breaking gang\'s indicators: D = dressing station failure, L = lost-time injury (L2 = two LTIs), LOL = loss of life. Policy §6.1.4–6.1.6: dressing 0%, each LTI −25%, fatal −100%.'],
+  'sf-k-affected': ['Crews Affected', 'Different crews with at least one incident in the selected months, against all crews in the selection.'],
+  'sf-k-fatal': ['Loss of Life', 'Crew-months with a loss of life (GANGFATALIND). Policy §6.1.6: −100% of the Total Bonus, so the crew\'s bonus is cancelled.'],
+  'sf-h-crew-months': ['Crew-months', 'One crew in one month.'],
+  'sf-h-lost': ['Bonus Lost', 'Safety bonus a clean crew would have earned minus what the bonus system gave, × labour.'],
+  'sf-h-lostwc': ['Bonus Lost', 'The crew\'s bonus loss spread over wage codes by their share of the crew\'s bonus before safety.'],
+  'sf-h-lostpct': ['Lost % of Potential', 'Bonus Lost ÷ the safety bonus clean crews would have earned.'],
+  'sf-h-lostcm': ['Lost / Crew-month', 'Bonus Lost ÷ crew-months.'],
+  'sf-h-share': ['Share', 'Share of all bonus lost.'],
+  'sf-h-section': ['Section', 'The mining section.'],
+  'sf-h-month': ['Month', 'The bonus month.'],
+  'sf-h-paid': ['Safety Paid', 'Positive EMPLOYEESAFETYBONUS paid in payroll.'],
+  'sf-h-ded': ['Deducted', 'Negative safety figure taken off the production bonus after an LTI or a loss of life.'],
+  'sf-h-incidents': ['Incidents', 'Dressings + LTIs + loss of life.'],
+  'sf-h-cmhit': ['With Incident', 'Crew-months with at least one incident.'],
+  'sf-h-rate': ['Incident Rate', 'Crew-months with an incident ÷ crew-months.'],
+  'sf-h-dress': ['Dressings', 'Dressing station failures (GANGDRESSINGIND). The safety bonus drops to 0%.'],
+  'sf-h-lti': ['LTIs', 'Lost-time injuries (GANGLTIIND). Each takes the safety bonus down by 25% of the break bonus, so it goes negative.'],
+  'sf-h-fatal': ['Loss of Life', 'Loss of life (GANGFATALIND). Policy §6.1.6: any fatal injury = −100% of the Total Bonus. In the bonus system the safety figure becomes −100% of the break bonus, which cancels the crew\'s bonus (its Stope Team Bonus is R0).'],
+  'sf-h-crews': ['Crews', 'Breaking crews in the month.'],
+  'sf-h-crew': ['Crew', 'A crew is a Stope Breaking gang and the Stope Cleaning gang that works with it. It carries the breaking gang\'s code.'],
+  'sf-h-wtype': ['Workplace Type', 'The type of workplace (WORKPLACERATETYPE). In the crew list: the type the crew worked most months.'],
+  'sf-h-mhit': ['Months with Incident', 'Months in which the crew had at least one incident.'],
+  'sf-h-months': ['Months', 'Months the crew worked in the selection.'],
+  'sf-h-last': ['Last Incident', 'The latest month with an incident.'],
+  'sf-h-wc': ['Wage Code', 'WAGECODE in payroll, e.g. Stoper, Scraper Winch Operator, Stope Team Leader.'],
+  'sf-h-wcd': ['Description', 'WAGE_DESCRIPTION for the wage code.'],
+  'sf-h-people': ['People (avg / month)', 'Different people with this wage code, averaged over the months in the selection.'],
+  'sf-h-reps': ['Safety Reps', 'People who were safety representatives (SAFETYREPIND).'],
+  'sf-h-workplaces': ['Workplaces', 'Workplaces the crew worked.'],
+  'sf-h-m2': ['m²', 'Square metres of the workplaces worked.'],
+  'sf-h-what': ['What happened', 'The incidents behind the crew\'s safety indicators that month.'],
+  'sf-h-pct': ['Safety % of Break Bonus', 'The rate applied: +25% clean, 0% dressing, −25% per LTI, −100% loss of life.'],
+  'sf-h-rep': ['Safety Representative', 'Whether the crew had a safety representative that month.'],
+  'sf-h-pm': ['Person-months', 'Number of people paid, month by month.'],
+};
+function _sfInfoInit() {
+  const root = document.getElementById('tab-safety');
+  if (!root) return;
+  root.querySelectorAll('.ib[data-k]').forEach(el => {
+    if (el.dataset.done) return;
+    const e = SF_INFO[el.dataset.k];
+    if (e) { el.innerHTML = _infoBtn(e[0], e[1]); el.dataset.done = '1'; }
+  });
+  _initPopovers(root);
+}
+
 const LAB_INFO = {
   'cl-crew': ['Crew', 'A crew is a Stope Breaking gang and the Stope Cleaning gang that works with it. The crew carries the breaking gang\'s code (GANGPRODUCTIONDETAIL CREWNO). Centre Gully and Surface Assistant gangs are shared between crews and are not part of crew labour.'],
   'cl-avgb': ['Avg Labour Breaking', 'The breaking gang\'s own shifts (GANGSHIFTS, its efficiency shifts) ÷ the shifts in the month (MONTHSHIFTS), per month, to one decimal. With several months chosen: the average per month.'],
@@ -2539,12 +2978,12 @@ function renderCrewPerformance() {
 // ════════════════════════════════════════════════════════════════════════════
 //  Refresh all panels
 // ════════════════════════════════════════════════════════════════════════════
-let _lazyLoaded = { range: false, detail: false, crews: false, labour: false, forecast: false, fct: false, bonusRule: false };
+let _lazyLoaded = { range: false, detail: false, crews: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
 let _bonusRaw   = { gt: null, sec: null };
 
 async function refreshAll() {
   const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
-  _lazyLoaded = { range: false, detail: false, crews: false, labour: false, forecast: false, fct: false, bonusRule: false };
+  _lazyLoaded = { range: false, detail: false, crews: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
   _bonusRaw   = { gt: null, sec: null };
   _fcData     = null;
   _fctData    = null;
@@ -2579,6 +3018,7 @@ async function refreshAll() {
   renderRPerSqm(rSqm);
   renderBonusComposition(bonusComp);
   renderBonusOutcomes(bonusOutc);
+  setTimeout(() => sfFetch().catch(() => {}), 300);   // warm the Safety tab in the background
 
   document.getElementById('tbl-range-combined-body').innerHTML =
     '<tr><td colspan="17" class="empty-state">Open the m² Range tab to load.</td></tr>';
@@ -2600,6 +3040,7 @@ async function refreshAll() {
     else loadLazyFct();
   }
   else if (_activeHref === '#tab-labour')     loadLazyLabour();
+  else if (_activeHref === '#tab-safety')     loadLazySafety();
   else if (_activeHref === '#tab-bonus-rule') loadLazyBonusRuleSim();
 }
 
@@ -6202,6 +6643,7 @@ document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
     if (target === '#tab-gang-analysis') loadLazyRange();
     if (target === '#tab-forecast')   loadLazyFct();
     if (target === '#tab-labour')     loadLazyLabour();
+    if (target === '#tab-safety')     loadLazySafety();
     if (target === '#tab-bonus-rule') loadLazyBonusRuleSim();
   });
 });
@@ -6231,7 +6673,7 @@ document.querySelectorAll('#gangAnalysisSubtabs button[data-bs-toggle="pill"]').
 // Bonus Analysis sub-tab pills: all content (Section/Gang Type/R per m²) is already
 // fetched eagerly in refreshAll() — no per-pill lazy load needed, just resize charts
 // that were hidden in an inactive pane when their pill is shown.
-document.querySelectorAll('#bonusSubtabs button[data-bs-toggle="pill"], #brsTabs button[data-bs-toggle="pill"], #labourTabs button[data-bs-toggle="pill"]').forEach(pill => {
+document.querySelectorAll('#bonusSubtabs button[data-bs-toggle="pill"], #brsTabs button[data-bs-toggle="pill"], #labourTabs button[data-bs-toggle="pill"], #sfTabs button[data-bs-toggle="pill"]').forEach(pill => {
   pill.addEventListener('shown.bs.tab', () => {
     Object.values(charts).forEach(c => c.resize());
   });

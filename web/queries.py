@@ -381,7 +381,7 @@ def get_scope_note(period_from: int, period_to: int) -> dict:
 
     miner_total = 0.0
     periods_found = 0
-    exists_df = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'MINERSEARN2%'")
+    exists_df = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME LIKE 'MINERSEARN2%'")
     existing_tables = set(exists_df["TABLE_NAME"].str.upper()) if not exists_df.empty else set()
     for p in periods:
         tbl = f"MINERSEARN{p}"
@@ -2435,7 +2435,7 @@ def get_crew_labour(period_from: int, period_to: int, section: str = "ALL") -> d
                  UPPER(LTRIM(RTRIM(GANGTYPE))), LTRIM(RTRIM(CREWNO))
     """)
     periods = sorted({p["value"] for p in get_available_periods() if period_from <= p["value"] <= period_to})
-    exists = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'PARTICIPANTSEARN2%'")
+    exists = read_sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME LIKE 'PARTICIPANTSEARN2%'")
     have = set(exists["TABLE_NAME"].str.upper()) if not exists.empty else set()
     periods = [p for p in periods if f"PARTICIPANTSEARN{p}".upper() in have]
     if gpd.empty or not periods:
@@ -2493,3 +2493,168 @@ def get_crew_labour(period_from: int, period_to: int, section: str = "ALL") -> d
             c["people"] = len(c.pop("_emps"))
             crews.append(c)
     return {"people": people, "crews": crews, "period_labels": {str(p): _period_label(int(p)) for p in periods}}
+
+
+# ── Safety tab: bonus paid / lost, crew incidents, patterns ────────────────────
+# Reads the monthly BASE tables only (GANGLINKEARN<p>, PARTICIPANTSEARN<p>) -- no views.
+#
+# Policy REV04 s6.1.3-6.1.6: the safety bonus is a share of the crew's efficiency (break) bonus:
+# clean record +25%, dressing station failure 0%, each LTI -25%, fatal -100%. The calculation
+# engine already applies that ladder in GANGFINALSAFETYBONUS (a per-person rate on the breaking
+# gang), so the bonus LOST to an incident is what a clean crew would have earned (25% of the
+# break bonus) minus what the engine gave the crew, x the crew's labour (GANGLABOUR).
+SAFETY_CLEAN_PCT = 0.25
+
+
+def _wp_type_label(t: str) -> str:
+    t = (t or "").strip().upper()
+    if t.endswith(" BONUS"):
+        t = t[:-6]
+    return t.title().replace("Ibg", "IBG") if t and not t.isdigit() else "Unknown"
+
+
+def _safety_period(p: int) -> dict:
+    """Raw ingredients for one month from the two base tables."""
+    gl = read_sql(f"""
+        SELECT RTRIM(SECTION) AS section, RTRIM(GANG) AS gang, UPPER(RTRIM(GANGTYPE)) AS gang_type,
+               RTRIM(CREWNO) AS crew, RTRIM(WORKPLACE) AS workplace, MAX(RTRIM(WORKPLACE_NAME)) AS wp_name,
+               MAX(RTRIM(WORKPLACERATETYPE)) AS wtype,
+               MAX(TRY_CAST(WORKPLACETOTALSQM AS FLOAT)) AS wp_m2,
+               MAX(TRY_CAST(GANGTOTALSQMADJUSTED AS FLOAT)) AS m2,
+               MAX(TRY_CAST(GANGLABOUR AS FLOAT)) AS labour,
+               MAX(TRY_CAST(GANGFINALEFFICIENCYBONUS AS FLOAT)) AS brk,
+               MAX(TRY_CAST(GANGFINALSAFETYBONUS AS FLOAT)) AS saf,
+               MAX(TRY_CAST(GANGLTIIND AS FLOAT)) AS lti,
+               MAX(TRY_CAST(GANGDRESSINGIND AS FLOAT)) AS dress,
+               MAX(TRY_CAST(GANGFATALIND AS FLOAT)) AS fatal
+        FROM [GANGLINKEARN{p}]
+        WHERE UPPER(RTRIM(GANGTYPE)) IN ('STOPE BREAKING', 'STOPE CLEANING') AND RTRIM(GANG) <> 'XXX'
+          AND LEN(RTRIM(CREWNO)) >= 8
+        GROUP BY RTRIM(SECTION), RTRIM(GANG), UPPER(RTRIM(GANGTYPE)), RTRIM(CREWNO), RTRIM(WORKPLACE)
+    """)
+    pe = read_sql(f"""
+        SELECT RTRIM(SECTION) AS section, RTRIM(GANG) AS gang, RTRIM(WAGECODE) AS wagecode,
+               MAX(RTRIM(WAGE_DESCRIPTION)) AS descr, COUNT(DISTINCT EMPLOYEE_NO) AS emps,
+               SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS stm,
+               SUM(CASE WHEN TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT) > 0 THEN TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT) ELSE 0 END) AS saf_pos,
+               SUM(CASE WHEN TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT) < 0 THEN TRY_CAST(EMPLOYEESAFETYBONUS AS FLOAT) ELSE 0 END) AS saf_neg,
+               COUNT(DISTINCT CASE WHEN TRY_CAST(SAFETYREPIND AS FLOAT) > 0 THEN EMPLOYEE_NO END) AS reps
+        FROM [PARTICIPANTSEARN{p}]
+        WHERE RTRIM(EMPLOYEETYPE) <> '1 - OFFICIALS'
+          AND UPPER(RTRIM(GANGTYPE)) IN ('STOPE BREAKING', 'STOPE CLEANING')
+        GROUP BY RTRIM(SECTION), RTRIM(GANG), RTRIM(WAGECODE)
+    """)
+    return {"gl": gl, "pe": pe}
+
+
+def get_safety_analysis(period_from: int, period_to: int, section: str = "ALL") -> dict:
+    """Safety tab data: one record per crew-month (incidents, safety bonus paid / lost), per crew x
+    month x wage code, and per crew x month x workplace. The page adds them up as filtered.
+
+    Crew = a Stope Breaking gang plus its Stope Cleaning gang (CREWNO). Incident indicators and the
+    bonus rates are the breaking gang's. Paid = EMPLOYEESAFETYBONUS in payroll (officials excluded);
+    a negative safety figure is a deduction the incident took off the production bonus, shown
+    separately (ded). Lost = (25% of the break bonus - the safety bonus the engine gave) x labour,
+    spread over the wage codes by their share of the crew's bonus before safety.
+    """
+    sec = (section or "ALL").upper()
+    from concurrent.futures import ThreadPoolExecutor
+    avail = read_sql("""SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'
+                        AND (TABLE_NAME LIKE 'GANGLINKEARN2%' OR TABLE_NAME LIKE 'PARTICIPANTSEARN2%')""")
+    have = set(avail["TABLE_NAME"].str.upper()) if not avail.empty else set()
+    periods = sorted({p["value"] for p in get_available_periods() if period_from <= p["value"] <= period_to})
+    periods = [p for p in periods if f"GANGLINKEARN{p}" in have and f"PARTICIPANTSEARN{p}" in have]
+    out = {"crew_months": [], "wage": [], "workplaces": [], "monthly": [],
+           "period_labels": {str(p): _period_label(int(p)) for p in periods}}
+    if not periods:
+        return out
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        raw = dict(zip(periods, ex.map(_safety_period, periods)))
+
+    def nz(x):
+        return 0.0 if x is None or x != x else float(x)
+
+    for p in periods:
+        gl_df, pe_df = raw[p]["gl"], raw[p]["pe"]
+        if gl_df.empty:
+            continue
+        if sec != "ALL":
+            gl_df = gl_df[gl_df["section"].str.upper() == sec]
+            pe_df = pe_df[pe_df["section"].str.upper() == sec]
+        gl = gl_df.to_dict("records")
+        gang_crew = {(r["section"], r["gang"]): r["crew"] for r in gl}
+        # breaking-gang rows grouped by crew: {(section, crew): {gang: [workplace rows]}}
+        crews = {}
+        for r in gl:
+            if r["gang_type"] == "STOPE BREAKING":
+                crews.setdefault((r["section"], r["crew"]), {}).setdefault(r["gang"], []).append(r)
+
+        # payroll per crew and wage code, in one pass
+        wc_rows = {}
+        for r in pe_df.to_dict("records"):
+            crew = gang_crew.get((r["section"], r["gang"]))
+            if crew is None:
+                continue
+            stm, pos, neg = nz(r["stm"]), nz(r["saf_pos"]), nz(r["saf_neg"])
+            w = wc_rows.setdefault((r["section"], crew, r["wagecode"]),
+                                   {"descr": "", "emps": 0, "pos": 0.0, "neg": 0.0, "base": 0.0, "reps": 0})
+            w["descr"] = max(w["descr"], r["descr"] or "")
+            w["emps"] += int(r["emps"] or 0)
+            w["pos"] += pos
+            w["neg"] += neg
+            w["base"] += max(0.0, stm - pos - neg)       # bonus before the safety part
+            w["reps"] += int(r["reps"] or 0)
+        crew_wcs, crew_pay = {}, {}
+        for (s, crew, wc), w in wc_rows.items():
+            crew_wcs.setdefault((s, crew), []).append((wc, w))
+            c = crew_pay.setdefault((s, crew), {"pos": 0.0, "neg": 0.0, "emps": 0, "reps": 0})
+            c["pos"] += w["pos"]; c["neg"] += w["neg"]; c["emps"] += w["emps"]; c["reps"] += w["reps"]
+
+        mon = {"period": str(p), "paid": 0.0, "ded": 0.0, "potential": 0.0, "lost": 0.0, "crews": 0,
+               "crews_hit": 0, "dress": 0, "lti": 0, "fatal": 0}
+        for (s, crew), gangs in crews.items():
+            gang = crew if crew in gangs else next(iter(gangs))
+            gw = gangs[gang]
+            col = lambda k: max((nz(r[k]) for r in gw), default=0.0)
+            labour, brk_rate, saf_rate, m2 = col("labour"), col("brk"), col("saf"), col("m2")
+            lti, dress, fatal = int(col("lti")), int(col("dress")), int(col("fatal"))
+            potential = SAFETY_CLEAN_PCT * brk_rate * labour
+            lost = max(0.0, SAFETY_CLEAN_PCT * brk_rate - saf_rate) * labour
+            if lost < 1.0:      # rate rounding on clean crews (cents), not a real loss
+                lost = 0.0
+            inc = lti + dress + fatal
+            rung = "fatal" if fatal else "lti" if lti else "dressing" if dress else "clean"
+            pay = crew_pay.get((s, crew), {"pos": 0.0, "neg": 0.0, "emps": 0, "reps": 0})
+
+            # workplaces the breaking gang worked: dominant type by m2
+            by_type = {}
+            for w in gw:
+                t = _wp_type_label(w["wtype"])
+                wp_m2 = nz(w["wp_m2"])
+                by_type[t] = by_type.get(t, 0.0) + wp_m2
+                out["workplaces"].append({"period": str(p), "section": s, "crew": crew, "wtype": t, "workplace": w["workplace"],
+                                          "name": w["wp_name"] or "", "m2": round(wp_m2, 1), "hit": bool(inc)})
+            wtype = max(by_type, key=by_type.get) if by_type else "Unknown"
+
+            out["crew_months"].append({
+                "period": str(p), "section": s, "crew": crew, "wtype": wtype, "rep": pay["reps"] > 0, "reps": int(pay["reps"]),
+                "lti": lti, "dress": dress, "fatal": fatal, "inc": inc, "rung": rung,
+                "pct": (saf_rate / brk_rate) if brk_rate > 0 else None,
+                "brk_zero": brk_rate <= 0, "potential": round(potential, 2), "lost": round(lost, 2),
+                "paid": round(pay["pos"], 2), "ded": round(abs(pay["neg"]), 2),
+                "people": int(pay["emps"]), "m2": round(m2, 1), "labour": labour})
+            # wage codes of this crew, lost spread by share of the pre-safety bonus (or head count)
+            wcs = crew_wcs.get((s, crew), [])
+            tb, te = sum(w["base"] for _, w in wcs), sum(w["emps"] for _, w in wcs)
+            for wc, w in wcs:
+                share = (w["base"] / tb) if tb > 0 else ((w["emps"] / te) if te > 0 else 0.0)
+                out["wage"].append({"period": str(p), "section": s, "crew": crew, "wc": wc, "descr": w["descr"],
+                                    "n": w["emps"], "paid": round(w["pos"], 2), "ded": round(abs(w["neg"]), 2),
+                                    "lost": round(lost * share, 2), "reps": w["reps"]})
+            mon["crews"] += 1
+            mon["crews_hit"] += 1 if inc else 0
+            mon["paid"] += pay["pos"]; mon["ded"] += abs(pay["neg"])
+            mon["potential"] += potential; mon["lost"] += lost
+            mon["dress"] += dress; mon["lti"] += lti; mon["fatal"] += fatal
+        out["monthly"].append({k: (round(v, 2) if isinstance(v, float) else v) for k, v in mon.items()})
+    return out

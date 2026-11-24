@@ -635,7 +635,7 @@ def build_audit_pack(period_from: int, period_to: int,
     with get_connection() as conn:
         cursor = conn.cursor()
         lab_periods = _df(cursor, f"""SELECT SUBSTRING(TABLE_NAME, 17, 6) AS P FROM INFORMATION_SCHEMA.TABLES
-                                      WHERE TABLE_NAME LIKE 'PARTICIPANTSEARN2%' AND LEN(TABLE_NAME) = 22
+                                      WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME LIKE 'PARTICIPANTSEARN2%' AND LEN(TABLE_NAME) = 22
                                         AND TRY_CAST(SUBSTRING(TABLE_NAME, 17, 6) AS BIGINT) BETWEEN {period_from} AND {period_to}
                                       ORDER BY 1""")["P"].tolist()
         setup_sql = _sql_setup_script(period_from, period_to, lab_periods)
