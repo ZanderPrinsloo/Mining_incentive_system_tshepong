@@ -128,8 +128,20 @@ def get_connection() -> Generator[pyodbc.Connection, None, None]:
     raise ConnectionError(f"Could not connect after {db.retry_attempts} attempts.")
 
 
+def read_sql_plain(query: str) -> pd.DataFrame:
+    """Execute a SELECT exactly as written (no view expansion). Used for catalogue look-ups."""
+    with _get_engine().connect() as conn:
+        return pd.read_sql(text(query), conn)
+
+
 def read_sql(query: str, params: Optional[tuple] = None) -> pd.DataFrame:
-    """Execute a SELECT and return a DataFrame via SQLAlchemy."""
+    """Execute a SELECT and return a DataFrame via SQLAlchemy.
+
+    The server database has no views, so GANGPRODUCTIONDETAIL / PARTICIPANTSDETAIL / PRODUCTIONWPDETAIL
+    are expanded into the monthly base tables they were built from (see base_tables.py).
+    """
+    from src.database.base_tables import expand_views
+    query = expand_views(query)
     engine = _get_engine()
     log.debug("Executing query (first 300 chars):\n%s", query[:300])
     with engine.connect() as conn:
@@ -145,6 +157,8 @@ def read_sql_chunked(
     chunk_size: Optional[int] = None,
     params: Optional[tuple] = None,
 ) -> Iterator[pd.DataFrame]:
+    from src.database.base_tables import expand_views
+    query = expand_views(query)
     chunk_size = chunk_size or settings.data_processing.chunk_size
     engine = _get_engine()
     with engine.connect() as conn:

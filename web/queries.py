@@ -213,23 +213,9 @@ def _get_participants_bonus(period_from: int, period_to: int,
 # ── Public query functions ─────────────────────────────────────────────────────
 
 def get_available_periods() -> list[dict]:
-    """All distinct periods in GANGPRODUCTIONDETAIL, newest first."""
-    df = read_sql("""
-        SELECT DISTINCT LTRIM(RTRIM(PERIOD)) AS period
-        FROM [GANGPRODUCTIONDETAIL]
-        WHERE PERIOD IS NOT NULL
-          AND LTRIM(RTRIM(PERIOD)) != ''
-          AND TRY_CAST(PERIOD AS BIGINT) BETWEEN 200001 AND 209912
-        ORDER BY period DESC
-    """)
-    out = []
-    for p_str in df["period"].tolist():
-        try:
-            p = int(str(p_str).strip())
-            out.append({"value": p, "label": _period_label(p)})
-        except ValueError:
-            pass
-    return out
+    """All months that have their monthly tables (GANGLINKEARN / PRODUCTIONEARN / PARTICIPANTSEARN), newest first."""
+    from src.database.base_tables import existing_months
+    return [{"value": p, "label": _period_label(p)} for p in sorted(existing_months(), reverse=True)]
 
 
 def get_sections(period_from: int, period_to: int) -> list[str]:
