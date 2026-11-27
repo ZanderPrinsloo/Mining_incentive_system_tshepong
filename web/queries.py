@@ -2626,7 +2626,8 @@ def get_safety_analysis(period_from: int, period_to: int, section: str = "ALL") 
                 "period": str(p), "section": s, "crew": crew, "wtype": wtype, "rep": pay["reps"] > 0, "reps": int(pay["reps"]),
                 "lti": lti, "dress": dress, "fatal": fatal, "inc": inc, "rung": rung,
                 "pct": (saf_rate / brk_rate) if brk_rate > 0 else None,
-                "brk_zero": brk_rate <= 0, "potential": round(potential, 2), "lost": round(lost, 2),
+                "brk_zero": brk_rate <= 0, "brk": round(brk_rate * labour, 2), "saf_sys": round(saf_rate * labour, 2),
+                "potential": round(potential, 2), "lost": round(lost, 2),
                 "paid": round(pay["pos"], 2), "ded": round(abs(pay["neg"]), 2),
                 "people": int(pay["emps"]), "m2": round(m2, 1), "labour": labour})
             # wage codes of this crew, lost spread by share of the pre-safety bonus (or head count)
@@ -2643,4 +2644,131 @@ def get_safety_analysis(period_from: int, period_to: int, section: str = "ALL") 
             mon["potential"] += potential; mon["lost"] += lost
             mon["dress"] += dress; mon["lti"] += lti; mon["fatal"] += fatal
         out["monthly"].append({k: (round(v, 2) if isinstance(v, float) else v) for k, v in mon.items()})
+    return out
+
+
+# ── Gang Analysis -> Compare Gangs ─────────────────────────────────────────────
+# Reads the monthly BASE tables only (GANGLINKEARN<p>, PRODUCTIONEARN<p>, PARTICIPANTSEARN<p>).
+
+def _compare_period(p: int) -> dict:
+    """Raw ingredients of one month for the gang comparison."""
+    gl = read_sql(f"""
+        SELECT RTRIM(g.SECTION) AS section, RTRIM(g.GANG) AS gang, UPPER(RTRIM(g.GANGTYPE)) AS gang_type,
+               RTRIM(g.CREWNO) AS crew, RTRIM(g.WORKPLACE) AS workplace, MAX(RTRIM(g.WORKPLACE_NAME)) AS wp_name,
+               MAX(RTRIM(g.WORKPLACERATETYPE)) AS wtype,
+               MAX(TRY_CAST(g.WORKPLACETOTALSQM AS FLOAT)) AS wp_pre,
+               MAX(TRY_CAST(w.WORKPLACETOTALSQMADJUSTED AS FLOAT)) AS wp_adj,
+               MAX(TRY_CAST(g.GANGTOTALSQMADJUSTED AS FLOAT)) AS m2,
+               MAX(TRY_CAST(g.GANGLABOUR AS FLOAT)) AS labour,
+               MAX(TRY_CAST(g.GANGFINALEFFICIENCYBONUS AS FLOAT)) AS brk,
+               MAX(TRY_CAST(g.GANGFINALSWEEPINGSBONUS AS FLOAT)) AS sweep,
+               MAX(TRY_CAST(g.GANGFINALSAFETYBONUS AS FLOAT)) AS saf,
+               MAX(TRY_CAST(g.GANGLTIIND AS FLOAT)) AS lti,
+               MAX(TRY_CAST(g.GANGDRESSINGIND AS FLOAT)) AS dress,
+               MAX(TRY_CAST(g.GANGFATALIND AS FLOAT)) AS fatal
+        FROM [GANGLINKEARN{p}] g
+        LEFT JOIN [PRODUCTIONEARN{p}] w ON w.WORKPLACE = g.WORKPLACE AND w.SECTION = g.SECTION AND w.PERIOD = g.PERIOD
+        WHERE UPPER(RTRIM(g.GANGTYPE)) IN ('STOPE BREAKING', 'STOPE CLEANING') AND RTRIM(g.GANG) <> 'XXX'
+          AND LEN(RTRIM(g.CREWNO)) >= 8
+        GROUP BY RTRIM(g.SECTION), RTRIM(g.GANG), UPPER(RTRIM(g.GANGTYPE)), RTRIM(g.CREWNO), RTRIM(g.WORKPLACE)
+    """)
+    pe = read_sql(f"""
+        SELECT RTRIM(SECTION) AS section, RTRIM(GANG) AS gang, UPPER(RTRIM(GANGTYPE)) AS gang_type,
+               RTRIM(WAGECODE) AS wagecode, MAX(RTRIM(WAGE_DESCRIPTION)) AS descr,
+               COUNT(DISTINCT EMPLOYEE_NO) AS emps,
+               SUM(ISNULL(TRY_CAST(SHIFTS_WORKED AS FLOAT), 0)) AS shifts,
+               SUM(ISNULL(TRY_CAST(MONTHSHIFTS AS FLOAT), 0)) AS poss,
+               SUM(ISNULL(TRY_CAST(AWOP_SHIFTS AS FLOAT), 0)) AS awop,
+               SUM(ISNULL(TRY_CAST(EMPLOYEESTOPETEAMBONUS AS FLOAT), 0)) AS stm,
+               SUM(ISNULL(TRY_CAST(EMPLOYEEDRILLERBONUS AS FLOAT), 0)) AS drill
+        FROM [PARTICIPANTSEARN{p}]
+        WHERE RTRIM(EMPLOYEETYPE) <> '1 - OFFICIALS'
+          AND UPPER(RTRIM(GANGTYPE)) IN ('STOPE BREAKING', 'STOPE CLEANING')
+        GROUP BY RTRIM(SECTION), RTRIM(GANG), UPPER(RTRIM(GANGTYPE)), RTRIM(WAGECODE)
+    """)
+    return {"gl": gl, "pe": pe}
+
+
+def get_gang_compare(period_from: int, period_to: int) -> dict:
+    """Compare Gangs: per crew-month production, bonus, labour and indicators ("crews"), per crew x
+    month x gang x wage code ("labour") and per crew x month x workplace ("workplaces"). The page
+    picks the crews and adds them up. Gang Analysis -> Crew Ranking scores the same crew-months.
+
+    Crew = a Stope Breaking gang plus its Stope Cleaning gang (CREWNO = the breaking gang code).
+    m2, labour (GANGLABOUR) and the bonus rates are the breaking gang's. Bonus in the system = the
+    per-person rate x labour: Efficiency (GANGFINALEFFICIENCYBONUS), Sweeping penalty
+    (GANGFINALSWEEPINGSBONUS) and Safety (GANGFINALSAFETYBONUS), which add up to the production
+    bonus. Paid = payroll: EMPLOYEESTOPETEAMBONUS (STM) and the driller bonus (REV07, a separate
+    scheme, not part of STM), officials excluded. Attendance: shifts worked (SHIFTS_WORKED) against
+    the month's shifts (MONTHSHIFTS) per person, and AWOP shifts (AWOP_SHIFTS), from payroll.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    avail = read_sql("""SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'
+                        AND (TABLE_NAME LIKE 'GANGLINKEARN2%' OR TABLE_NAME LIKE 'PRODUCTIONEARN2%'
+                             OR TABLE_NAME LIKE 'PARTICIPANTSEARN2%')""")
+    have = set(avail["TABLE_NAME"].str.upper()) if not avail.empty else set()
+    periods = sorted({p["value"] for p in get_available_periods() if period_from <= p["value"] <= period_to})
+    periods = [p for p in periods if all(f"{b}{p}" in have for b in ("GANGLINKEARN", "PRODUCTIONEARN", "PARTICIPANTSEARN"))]
+    out = {"crews": [], "labour": [], "workplaces": [], "period_labels": {str(p): _period_label(int(p)) for p in periods}}
+    if not periods:
+        return out
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        raw = dict(zip(periods, ex.map(_compare_period, periods)))
+
+    def nz(x):
+        return 0.0 if x is None or x != x else float(x)
+
+    for p in periods:
+        gl = raw[p]["gl"].to_dict("records")
+        if not gl:
+            continue
+        gang_crew = {(r["section"], r["gang"]): r["crew"] for r in gl}
+        crews = {}
+        for r in gl:
+            crews.setdefault((r["section"], r["crew"]), {}).setdefault(r["gang_type"], {}).setdefault(r["gang"], []).append(r)
+
+        pay = {}
+        for r in raw[p]["pe"].to_dict("records"):
+            crew = gang_crew.get((r["section"], r["gang"]))
+            if crew is None:
+                continue
+            stm, drill = nz(r["stm"]), nz(r["drill"])
+            out["labour"].append({"period": str(p), "section": r["section"], "crew": crew, "gang": r["gang"],
+                                  "gtype": "Breaking" if r["gang_type"] == "STOPE BREAKING" else "Cleaning",
+                                  "wc": r["wagecode"], "descr": r["descr"] or "", "n": int(r["emps"] or 0),
+                                  "shifts": round(nz(r["shifts"]), 1), "stm": round(stm, 2), "drill": round(drill, 2)})
+            c = pay.setdefault((r["section"], crew), {"stm": 0.0, "drill": 0.0, "n": 0, "nb": 0, "nc": 0, "shifts": 0.0,
+                                                     "poss": 0.0, "awop": 0.0})
+            c["stm"] += stm; c["drill"] += drill; c["n"] += int(r["emps"] or 0); c["shifts"] += nz(r["shifts"])
+            c["poss"] += nz(r["poss"]); c["awop"] += nz(r["awop"])
+            c["nb" if r["gang_type"] == "STOPE BREAKING" else "nc"] += int(r["emps"] or 0)
+
+        for (s, crew), types in crews.items():
+            brk_gangs = types.get("STOPE BREAKING")
+            if not brk_gangs:
+                continue
+            gang = crew if crew in brk_gangs else next(iter(brk_gangs))
+            gw = brk_gangs[gang]
+            col = lambda k: max((nz(r[k]) for r in gw), default=0.0)
+            labour = col("labour")
+            brk, sweep, saf = col("brk") * labour, col("sweep") * labour, col("saf") * labour
+            m2 = col("m2")
+            pre = 0.0
+            for w in gw:
+                t = _wp_type_label(w["wtype"])
+                pre += nz(w["wp_pre"])
+                out["workplaces"].append({"period": str(p), "section": s, "crew": crew, "workplace": w["workplace"],
+                                          "name": w["wp_name"] or "", "wtype": t,
+                                          "pre": round(nz(w["wp_pre"]), 1), "adj": round(nz(w["wp_adj"]), 1)})
+            cp = pay.get((s, crew), {"stm": 0.0, "drill": 0.0, "n": 0, "nb": 0, "nc": 0, "shifts": 0.0, "poss": 0.0, "awop": 0.0})
+            out["crews"].append({
+                "period": str(p), "section": s, "crew": crew,
+                "clean_gang": ", ".join(sorted(types.get("STOPE CLEANING", {}))),
+                "m2": round(m2, 1), "pre": round(pre, 1), "labour": labour,
+                "brk": round(brk, 2), "sweep": round(sweep, 2), "saf": round(saf, 2), "total": round(brk + sweep + saf, 2),
+                "stm": round(cp["stm"], 2), "drill": round(cp["drill"], 2),
+                "people": cp["n"], "people_b": cp["nb"], "people_c": cp["nc"], "shifts": round(cp["shifts"], 1),
+                "poss": round(cp["poss"], 1), "awop": round(cp["awop"], 1),
+                "lti": int(col("lti")), "dress": int(col("dress")), "fatal": int(col("fatal")),
+                "wps": len(gw)})
     return out

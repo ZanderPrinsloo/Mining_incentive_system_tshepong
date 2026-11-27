@@ -131,6 +131,12 @@ def create_app() -> Flask:
         section = request.args.get("section", "ALL")
         return jsonify(q.get_safety_analysis(p_from, p_to, section))
 
+    @app.route("/api/gang_compare")
+    def api_gang_compare():
+        p_from = int(request.args.get("from", 202507))
+        p_to   = int(request.args.get("to",   202606))
+        return jsonify(q.get_gang_compare(p_from, p_to))
+
     @app.route("/api/crew_performance")
     def api_crew_performance():
         p_from  = int(request.args.get("from",   202507))

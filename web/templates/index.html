@@ -633,6 +633,8 @@
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-detail">2. Gang Detail</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-workplace">3. Workplace Detail</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-crew">4. Crew Performance</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-compare">5. Compare Gangs</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#gsub-rank">6. Crew Ranking</button></li>
       </ul>
 
       <div class="tab-content">
@@ -839,6 +841,128 @@
         </div>
       </div>
         </div><!-- /#gsub-crew -->
+        <div class="tab-pane fade" id="gsub-compare">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <label class="small fw-semibold mb-0" for="cg-section">Section:</label>
+            <select id="cg-section" class="form-select form-select-sm" style="width:auto"><option value="ALL">Whole mine</option></select>
+            <span class="ib" data-k="cg-section"></span>
+            <label class="small fw-semibold mb-0 ms-2" for="cg-crew">Add crew:</label>
+            <input id="cg-crew" class="form-control form-control-sm" style="width:190px" list="dl-cg-crew" placeholder="Type a crew number…" autocomplete="off">
+            <datalist id="dl-cg-crew"></datalist>
+            <button class="btn btn-sm btn-primary" id="cg-add"><i class="bi bi-plus-lg me-1"></i>Add</button>
+            <button class="btn btn-sm btn-outline-secondary" id="cg-top"><i class="bi bi-trophy me-1"></i>Top 5 by m²</button>
+            <span class="ib" data-k="cg-top"></span>
+            <button class="btn btn-sm btn-outline-secondary" id="cg-clear"><i class="bi bi-x-lg me-1"></i>Clear</button>
+            <span class="ib" data-k="cg-pick"></span>
+            <span class="small text-muted ms-auto" id="cg-note"></span>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-2" id="cg-chips"></div>
+        </div>
+      </div>
+      <div id="cg-empty" class="empty-state mb-3 d-none">Pick two or more crews above to compare them.</div>
+      <div id="cg-body">
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="section-header mb-2">Side by Side <span class="ib" data-k="cg-side"></span></div>
+          <p class="small text-muted mb-2">Totals over the selected months. The best value in each row is green.</p>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead id="cg-side-head"></thead><tbody id="cg-side"></tbody></table></div>
+        </div></div>
+
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+            <div class="section-header mb-0">Month by Month <span class="ib" data-k="cg-chart"></span></div>
+            <select id="cg-metric" class="form-select form-select-sm ms-auto" style="width:auto">
+              <option value="m2">m² (adjusted)</option><option value="total">Production bonus (system)</option>
+              <option value="stm">STM bonus paid</option><option value="m2man">m² / man</option>
+              <option value="labour">Labour</option><option value="people">People</option>
+            </select>
+            <span class="ib" data-k="cg-metric"></span>
+          </div>
+          <div class="chart-wrap" style="height:320px"><canvas id="chart-cg"></canvas></div>
+        </div></div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-xl-7"><div class="card shadow-sm h-100"><div class="card-body">
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+              <div class="section-header mb-0">Type of Labour <span class="ib" data-k="cg-lab"></span></div>
+              <select id="cg-lab-show" class="form-select form-select-sm ms-auto" style="width:auto">
+                <option value="n">People per month</option><option value="shifts">Shifts worked</option><option value="stm">STM bonus paid</option>
+              </select>
+              <span class="ib" data-k="cg-lab-show"></span>
+            </div>
+            <div class="table-wrap" style="max-height:520px"><table class="table table-sm table-bordered table-hover mb-0">
+              <thead id="cg-lab-head"></thead><tbody id="cg-lab"></tbody><tfoot id="cg-lab-foot"></tfoot></table></div>
+          </div></div></div>
+          <div class="col-xl-5"><div class="card shadow-sm h-100"><div class="card-body">
+            <div class="section-header mb-2">m² by Workplace Type <span class="ib" data-k="cg-wtype"></span></div>
+            <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+              <thead id="cg-wt-head"></thead><tbody id="cg-wt"></tbody><tfoot id="cg-wt-foot"></tfoot></table></div>
+          </div></div></div>
+        </div>
+
+        <div class="card shadow-sm mb-3"><div class="card-body">
+          <div class="section-header mb-2">Workplaces <span class="ib" data-k="cg-wps"></span></div>
+          <div class="table-wrap" style="max-height:520px"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th>Crew<span class="ib" data-k="cg-h-crew"></span></th><th>Workplace<span class="ib" data-k="cg-h-wp"></span></th>
+              <th>Name<span class="ib" data-k="cg-h-name"></span></th><th>Type<span class="ib" data-k="cg-h-type"></span></th>
+              <th class="text-end">Months<span class="ib" data-k="cg-h-months"></span></th><th>Months Worked<span class="ib" data-k="cg-h-mlist"></span></th>
+              <th class="text-end">Pre Adj m²<span class="ib" data-k="cg-h-pre"></span></th><th class="text-end">Adj m²<span class="ib" data-k="cg-h-adj"></span></th></tr></thead>
+            <tbody id="cg-wps"></tbody></table></div>
+        </div></div>
+      </div>
+        </div><!-- /#gsub-compare -->
+        <div class="tab-pane fade" id="gsub-rank">
+      <div class="card shadow-sm mb-3"><div class="card-body">
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+          <div class="section-header mb-0">Points per Parameter <span class="ib" data-k="rk-points"></span></div>
+          <div class="ms-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" id="rk-reset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset to defaults</button>
+            <button class="btn btn-sm btn-outline-secondary" id="rk-zero"><i class="bi bi-eraser me-1"></i>Set all to 0</button>
+            <span class="ib" data-k="rk-buttons"></span>
+          </div>
+        </div>
+        <p class="small text-muted mb-2">Give each parameter points. A crew earns <b>its percentage × the points</b>: 100% production × 5 = 5 points, 50% safety × 4 = 2 points.
+          Use negative points for things that should count against a crew (sweeping penalty, AWOP, LTIs). Set 0 to leave a parameter out.</p>
+        <div class="row g-3" id="rk-weights"></div>
+        <div class="d-flex align-items-center flex-wrap gap-2 mt-3 pt-2 border-top small">
+          <label class="fw-semibold" for="rk-section">Section:</label>
+          <select id="rk-section" class="form-select form-select-sm" style="width:auto"><option value="ALL">Whole mine</option></select>
+          <span class="ib" data-k="rk-section"></span>
+          <label class="fw-semibold ms-2" for="rk-min">Worked at least</label>
+          <input id="rk-min" type="number" min="1" step="1" class="form-control form-control-sm" style="width:70px">
+          <span>month(s)</span>
+          <span class="ib" data-k="rk-min"></span>
+          <label class="fw-semibold ms-2" for="rk-scale">Percentages:</label>
+          <select id="rk-scale" class="form-select form-select-sm" style="width:auto">
+            <option value="best">Against the best crew (value ÷ best)</option>
+            <option value="range">Worst crew = 0%, best crew = 100%</option>
+          </select>
+          <span class="ib" data-k="rk-scale"></span>
+          <label class="fw-semibold ms-2" for="rk-show">Show:</label>
+          <select id="rk-show" class="form-select form-select-sm" style="width:auto">
+            <option value="15">Top 15</option><option value="30">Top 30</option><option value="0">All crews</option>
+          </select>
+          <span class="ib" data-k="rk-show"></span>
+          <span class="text-muted ms-auto" id="rk-note"></span>
+        </div>
+      </div></div>
+
+      <div class="card shadow-sm mb-3"><div class="card-body">
+        <div class="section-header mb-2">Points Make-up <span class="ib" data-k="rk-chart"></span></div>
+        <div class="chart-wrap" id="rk-chart-wrap" style="height:420px"><canvas id="chart-rk"></canvas></div>
+      </div></div>
+
+      <div class="card shadow-sm mb-3"><div class="card-body">
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+          <div class="section-header mb-0">Crew Ranking <span class="ib" data-k="rk-table"></span></div>
+          <span class="small text-muted"><i class="bi bi-hand-index-thumb me-1"></i>Double-click a crew to open it in Compare Gangs</span>
+        </div>
+        <div class="table-wrap" style="max-height:640px"><table class="table table-sm table-bordered table-hover mb-0">
+          <thead id="rk-head"></thead><tbody id="rk-body"></tbody></table></div>
+      </div></div>
+        </div><!-- /#gsub-rank -->
       </div><!-- /tab-content (gang analysis sub-tabs) -->
 
     </div><!-- /tab-gang-analysis -->
@@ -1037,7 +1161,8 @@
               <div class="chart-wrap" style="height:260px"><canvas id="chart-sf-kinds"></canvas></div>
             </div>
             <div class="col-xl-6">
-              <div class="fw-semibold small mb-1">Incident rate by workplace type <span class="ib" data-k="sf-wtype-rate"></span></div>
+              <div class="fw-semibold small mb-1">Incident rate by workplace type <span class="ib" data-k="sf-wtype-rate"></span>
+                <span class="fw-normal text-muted ms-2"><i class="bi bi-hand-index-thumb me-1"></i>Double-click a workplace type to see its crews</span></div>
               <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
                 <thead><tr><th>Workplace Type<span class="ib" data-k="sf-h-wtype"></span></th><th class="text-end">Crew-months<span class="ib" data-k="sf-h-crew-months"></span></th><th class="text-end">With Incident<span class="ib" data-k="sf-h-cmhit"></span></th><th class="text-end">Incident Rate<span class="ib" data-k="sf-h-rate"></span></th><th class="text-end">Bonus Lost<span class="ib" data-k="sf-h-lost"></span></th><th class="text-end">Lost / Crew-month<span class="ib" data-k="sf-h-lostcm"></span></th></tr></thead>
                 <tbody id="tbl-sf-wtype"></tbody></table></div>
@@ -1059,6 +1184,24 @@
               <div id="sf-other"></div>
             </div>
           </div>
+        </div></div>
+        <div class="card shadow-sm mb-3 d-none" id="card-sf-wt-dd"><div class="card-body">
+          <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
+            <div class="section-header mb-0" id="sf-wt-dd-title">Workplace Type Drill Down</div>
+            <div class="ms-auto d-flex align-items-center gap-2 small">
+              <label class="fw-semibold" for="sf-wt-show">Show</label>
+              <select class="form-select form-select-sm" id="sf-wt-show" style="width:auto"><option value="inc">Crews with incidents</option><option value="all">All crew-months</option></select>
+              <button class="btn btn-sm btn-outline-secondary" id="sf-wt-close"><i class="bi bi-x-lg me-1"></i>Close</button>
+            </div>
+          </div>
+          <p class="small text-muted mb-2">One row per crew and month whose main workplace type is this one. Break Bonus and Safety Bonus are the crew's totals in the
+            bonus system (rate per person × labour); Safety Paid and Deducted come from payroll.</p>
+          <div class="table-wrap"><table class="table table-sm table-bordered table-hover mb-0">
+            <thead><tr><th>Month<span class="ib" data-k="sf-h-month"></span></th><th>Crew<span class="ib" data-k="sf-h-crew"></span></th><th>Section<span class="ib" data-k="sf-h-section"></span></th><th>Indicator<span class="ib" data-k="sf-h-ind"></span></th>
+              <th class="text-end">m²<span class="ib" data-k="sf-h-m2c"></span></th><th class="text-end">Labour<span class="ib" data-k="sf-h-lab"></span></th><th class="text-end">m² / Man<span class="ib" data-k="sf-h-m2man"></span></th>
+              <th class="text-end">Break Bonus<span class="ib" data-k="sf-h-brk"></span></th><th class="text-end">Safety % of Break Bonus<span class="ib" data-k="sf-h-pct"></span></th><th class="text-end">Safety Bonus<span class="ib" data-k="sf-h-safsys"></span></th>
+              <th class="text-end">Safety Paid<span class="ib" data-k="sf-h-paid"></span></th><th class="text-end">Deducted<span class="ib" data-k="sf-h-ded"></span></th><th class="text-end">Safety Lost<span class="ib" data-k="sf-h-lost"></span></th></tr></thead>
+            <tbody id="tbl-sf-wt-dd"></tbody><tfoot id="tbl-sf-wt-dd-foot"></tfoot></table></div>
         </div></div>
       </div><!-- /#sf-patterns -->
       </div><!-- /safety tab-content -->
@@ -2743,6 +2886,34 @@ function renderSfDrill() {
       <td class="text-end">${fmtR(r.lost)}</td><td>${esc(r.wtype)}</td><td class="small">${esc(names.join(', '))}</td></tr>`; }).join('');
 }
 
+let _sfWt = null;   // workplace type picked in Incident Patterns (double-click)
+function renderSfWtDrill() {
+  const card = document.getElementById('card-sf-wt-dd');
+  card.classList.toggle('d-none', !_sfWt);
+  if (!_sfWt) return;
+  const lbl = p => _sf.period_labels[p] || p, all = document.getElementById('sf-wt-show').value === 'all';
+  const rs = _sf.crew_months.filter(r => r.wtype === _sfWt && (all || r.inc > 0))
+    .sort((a, b) => b.period.localeCompare(a.period) || b.lost - a.lost || a.crew.localeCompare(b.crew));
+  const nInc = _sf.crew_months.filter(r => r.wtype === _sfWt && r.inc > 0).length;
+  document.getElementById('sf-wt-dd-title').textContent = `Workplace Type Drill Down — ${_sfWt} (${nInc} crew-month${nInc === 1 ? '' : 's'} with an incident)`;
+  const m2man = r => r.labour ? r.m2 / r.labour : null;
+  const low = r => m2man(r) != null && m2man(r) < 14;
+  document.getElementById('tbl-sf-wt-dd').innerHTML = rs.length ? rs.map(r => `<tr class="${r.inc ? '' : 'text-muted'}">
+      <td class="fw-semibold">${lbl(r.period)}</td><td class="fw-semibold">${esc(r.crew)}</td><td>${esc(r.section)}</td><td>${sfBadge(r)}</td>
+      <td class="text-end">${fmtN(r.m2)}</td><td class="text-end">${fmtN(r.labour)}</td>
+      <td class="text-end ${low(r) ? 'delta-warn' : ''}" title="${low(r) ? 'Below the 14 m² per employee entry level (policy §5.4): no break bonus' : ''}">${fmtN(m2man(r), 1)}</td>
+      <td class="text-end">${fmtR0(r.brk)}${r.brk_zero ? ' <span class="badge bg-secondary">no bonus</span>' : ''}</td>
+      <td class="text-end">${r.pct == null ? '<span class="text-muted">n/a</span>' : fmtPct(r.pct, 0)}</td>
+      <td class="text-end ${r.saf_sys < 0 ? 'delta-warn' : ''}">${fmtR0(r.saf_sys)}</td><td class="text-end">${fmtR0(r.paid)}</td><td class="text-end">${fmtR0(r.ded)}</td>
+      <td class="text-end ${r.lost ? 'delta-warn fw-semibold' : ''}">${fmtR0(r.lost)}</td></tr>`).join('')
+    : '<tr><td colspan="13" class="empty-state">No crew-months with an incident for this workplace type — choose “All crew-months”.</td></tr>';
+  const T = k => sfSum(rs, k);
+  document.getElementById('tbl-sf-wt-dd-foot').innerHTML = rs.length ? `<tr class="tr-grand-total"><td>Total</td><td>${fmtN(rs.length)} crew-month${rs.length === 1 ? '' : 's'}</td><td></td><td></td>
+    <td class="text-end">${fmtN(T('m2'))}</td><td></td><td></td><td class="text-end">${fmtR0(T('brk'))}</td><td></td><td class="text-end">${fmtR0(T('saf_sys'))}</td>
+    <td class="text-end">${fmtR0(T('paid'))}</td><td class="text-end">${fmtR0(T('ded'))}</td><td class="text-end">${fmtR0(T('lost'))}</td></tr>` : '';
+  _sfInfoInit();
+}
+
 function renderSfPatterns() {
   const d = _sf, cm = d.crew_months, lbl = p => d.period_labels[p] || p, mo = d.monthly;
   makeChart('chart-sf-kinds', { type: 'bar', data: { labels: mo.map(m => lbl(m.period)), datasets: [
@@ -2758,6 +2929,15 @@ function renderSfPatterns() {
   const wt = Object.entries(grp(cm, r => r.wtype)).map(([k, rs]) => rateRow(k, rs)).sort((a, b) => b.rate - a.rate || b.l - a.l);
   document.getElementById('tbl-sf-wtype').innerHTML = wt.map(r => `<tr><td class="fw-semibold">${esc(r.name)}</td><td class="text-end">${fmtN(r.n)}</td><td class="text-end">${fmtN(r.h)}</td>
     <td class="text-end ${r.rate > 0.1 ? 'delta-warn' : ''}">${fmtPct(r.rate, 1)}</td><td class="text-end">${fmtR(r.l)}</td><td class="text-end">${fmtR(r.n ? r.l / r.n : 0)}</td></tr>`).join('');
+  if (_sfWt && !wt.some(r => r.name === _sfWt)) _sfWt = null;
+  [...document.querySelectorAll('#tbl-sf-wtype tr')].forEach((tr, i) => {
+    tr.style.cursor = 'pointer'; tr.title = 'Double-click to see the crews of this workplace type';
+    tr.classList.toggle('table-warning', wt[i].name === _sfWt);
+    tr.addEventListener('dblclick', () => { _sfWt = wt[i].name; renderSfPatterns(); document.getElementById('card-sf-wt-dd').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
+  document.getElementById('sf-wt-close').onclick = () => { _sfWt = null; renderSfPatterns(); };
+  document.getElementById('sf-wt-show').onchange = renderSfWtDrill;
+  renderSfWtDrill();
   const rp = [['With a safety representative', cm.filter(r => r.rep)], ['Without a safety representative', cm.filter(r => !r.rep)]].map(([n, rs]) => rateRow(n, rs));
   document.getElementById('tbl-sf-rep').innerHTML = rp.map(r => `<tr><td class="fw-semibold">${r.name}</td><td class="text-end">${fmtN(r.n)}</td><td class="text-end">${fmtN(r.h)}</td>
     <td class="text-end">${fmtPct(r.rate, 1)}</td><td class="text-end">${fmtR(r.l)}</td></tr>`).join('');
@@ -2843,6 +3023,11 @@ const SF_INFO = {
   'sf-h-what': ['What happened', 'The incidents behind the crew\'s safety indicators that month.'],
   'sf-h-pct': ['Safety % of Break Bonus', 'The rate applied: +25% clean, 0% dressing, −25% per LTI, −100% loss of life.'],
   'sf-h-rep': ['Safety Representative', 'Whether the crew had a safety representative that month.'],
+  'sf-h-m2c': ['m²', 'The crew\'s m² that month (GANGTOTALSQMADJUSTED of its breaking gang).'],
+  'sf-h-lab': ['Labour', 'The crew\'s labour as the bonus system counts it (GANGLABOUR): breaking + cleaning shifts ÷ measuring shifts, rounded up.'],
+  'sf-h-m2man': ['m² / Man', 'm² ÷ labour. Below 14 (red) the crew does not reach the entry level for a bonus (policy §5.4), so it has no break bonus and an incident costs it nothing.'],
+  'sf-h-brk': ['Break Bonus', 'The crew\'s efficiency (break) bonus in the bonus system: GANGFINALEFFICIENCYBONUS (per person) × labour. The safety bonus is a percentage of this.'],
+  'sf-h-safsys': ['Safety Bonus', 'The safety bonus the bonus system gave the crew: GANGFINALSAFETYBONUS (per person) × labour. +25% of the break bonus when clean, negative after an LTI or a loss of life.'],
   'sf-h-pm': ['Person-months', 'Number of people paid, month by month.'],
 };
 function _sfInfoInit() {
@@ -2976,14 +3161,547 @@ function renderCrewPerformance() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  Gang Analysis — Compare Gangs (lazy, per pill)
+// ════════════════════════════════════════════════════════════════════════════
+let _cg = null, _cgPick = [];
+const CG_MAX = 8;
+const CG_COLORS = ['#1565C0', '#E65100', '#2E7D32', '#AD1457', '#4527A0', '#00838F', '#6D4C41', '#C62828'];
+
+const CG_INFO = {
+  'cg-pick': ['Picking crews', 'A crew is a Stope Breaking gang plus its Stope Cleaning gang (crew number = the breaking gang code). Type a crew number or pick it from the list, then Add. Up to 8 crews. The months are the ones chosen at the top of the page.'],
+  'cg-side': ['Side by Side', 'Every figure is added up over the selected months in which the crew worked. Production and bonus come from the bonus system (GANGLINKEARN); paid amounts and people come from payroll (PARTICIPANTSEARN, officials excluded).'],
+  'cg-chart': ['Month by Month', 'The chosen figure for each crew per month. A gap means the crew did not work in that month.'],
+  'cg-lab': ['Type of Labour', 'The wage codes in each crew\'s breaking and cleaning gangs from payroll. People per month = head count ÷ months worked; Shifts and STM are totals over the months.'],
+  'cg-wtype': ['m² by Workplace Type', 'Adjusted m² of the workplaces the breaking gang worked, by workplace rate type (B Reef, Basal, …), with its share of the crew\'s workplace m².'],
+  'cg-section': ['Section', 'Limits the crews you can pick from (the list and Top 5) to one section. Crews already picked stay.'],
+  'cg-top': ['Top 5 by m²', 'Replaces the picked crews with the 5 crews with the most adjusted m² in the selected months (in the chosen section).'],
+  'cg-metric': ['Figure to chart', 'm² = GANGTOTALSQMADJUSTED. Production bonus = efficiency + safety + sweeping penalty in the bonus system. STM paid = payroll EMPLOYEESTOPETEAMBONUS. m² / man = m² ÷ GANGLABOUR. Labour = GANGLABOUR. People = head count in payroll (breaking + cleaning gang).'],
+  'cg-lab-show': ['What the cells show', 'People per month = head count with that wage code ÷ the crew\'s months worked. Shifts worked = SHIFTS_WORKED added over the months. STM bonus paid = EMPLOYEESTOPETEAMBONUS added over the months.'],
+  'cg-h-gang': ['Gang', 'Breaking = the Stope Breaking gang; Cleaning = the crew\'s Stope Cleaning gang.'],
+  'cg-h-wc': ['Wage Code', 'The payroll wage code (WAGECODE) of the people.'],
+  'cg-h-descr': ['Description', 'The wage code\'s description in payroll (WAGE_DESCRIPTION).'],
+  'cg-h-wtype': ['Workplace Type', 'The workplace rate type (WORKPLACERATETYPE) of the workplaces the breaking gang worked.'],
+  'cg-h-wtcell': ['Crew columns', 'Adjusted m² of that workplace type, with its share of the crew\'s workplace m² in brackets.'],
+  'cg-h-labcell': ['Crew columns', 'The figure chosen in the dropdown for each crew. — means the crew had nobody with that wage code.'],
+  'cg-h-crew': ['Crew', 'The crew number (the breaking gang code).'],
+  'cg-h-wp': ['Workplace', 'The workplace code (WORKPLACE).'],
+  'cg-h-name': ['Name', 'The workplace name (WORKPLACE_NAME).'],
+  'cg-h-type': ['Type', 'The workplace rate type (B Reef, Basal, Basal Undercut, …).'],
+  'cg-h-months': ['Months', 'How many of the selected months the crew worked this workplace.'],
+  'cg-h-mlist': ['Months Worked', 'The months the crew worked this workplace.'],
+  'cg-h-pre': ['Pre Adj m²', 'WORKPLACETOTALSQM added over those months, before adjustment factors.'],
+  'cg-h-adj': ['Adj m²', 'The workplace\'s adjusted m² (WORKPLACETOTALSQMADJUSTED, factors applied) added over those months.'],
+  'cg-wps': ['Workplaces', 'Every workplace the crew\'s breaking gang worked in the selected months. Pre Adj m² = WORKPLACETOTALSQM; Adj m² = the workplace\'s adjusted m² (factors applied).'],
+};
+
+const CG_METRICS = [
+  { g: 'Production' },
+  { k: 'months', l: 'Months worked', f: v => fmtN(v), best: 'max', i: 'Months in the selection in which the crew had a breaking gang with production.' },
+  { k: 'm2', l: 'Total m² (adjusted)', f: v => fmtN(v), best: 'max', i: 'GANGTOTALSQMADJUSTED of the breaking gang, added over the months.' },
+  { k: 'pre', l: 'Pre Adj m²', f: v => fmtN(v), best: 'max', i: 'WORKPLACETOTALSQM of the breaking gang\'s workplaces, before adjustment factors.' },
+  { k: 'm2m', l: 'Avg m² per month', f: v => fmtN(v, 1), best: 'max', i: 'Total m² ÷ months worked.' },
+  { k: 'm2man', l: 'm² / Man', f: v => fmtN(v, 1), best: 'max', i: 'Total m² ÷ total labour (GANGLABOUR). Below 14 a month earns no break bonus (policy §5.4).' },
+  { k: 'm2shift', l: 'm² per shift worked', f: v => fmtN(v, 2), best: 'max', i: 'Total m² ÷ shifts worked by the crew\'s people (payroll SHIFTS_WORKED).' },
+  { k: 'wpn', l: 'Workplaces', f: v => fmtN(v), best: null, i: 'Number of different workplaces the breaking gang worked.' },
+  { k: 'mtype', l: 'Main workplace type', f: v => esc(v || '—'), best: null, i: 'The workplace type with the most m².' },
+  { g: 'Bonus (bonus system)' },
+  { k: 'brk', l: 'Efficiency (break) bonus', f: fmtR0, best: 'max', i: 'GANGFINALEFFICIENCYBONUS (per person) × labour.' },
+  { k: 'saf', l: 'Safety bonus', f: fmtR0, best: 'max', i: 'GANGFINALSAFETYBONUS × labour: +25% of the break bonus when clean, negative after an LTI or loss of life.' },
+  { k: 'sweep', l: 'Sweeping penalty', f: fmtR0, best: 'max', i: 'GANGFINALSWEEPINGSBONUS × labour (zero or negative).' },
+  { k: 'total', l: 'Production bonus', f: fmtR0, best: 'max', i: 'Efficiency + Safety + Sweeping penalty.', b: true },
+  { k: 'rsqm', l: 'Bonus R / m²', f: v => fmtR(v), best: 'min', i: 'Production bonus ÷ m². Lower = cheaper m².' },
+  { k: 'rman', l: 'Bonus per man per month', f: fmtR0, best: 'max', i: 'Production bonus ÷ total labour: what one labour unit earned per month on average.' },
+  { g: 'Paid (payroll)' },
+  { k: 'stm', l: 'STM bonus paid', f: fmtR0, best: null, i: 'EMPLOYEESTOPETEAMBONUS paid to the crew\'s people (breaking + cleaning gang, officials excluded). It includes the safety part.', b: true },
+  { k: 'drill', l: 'Driller bonus paid', f: fmtR0, best: null, i: 'EMPLOYEEDRILLERBONUS (Quality Drilling, REV07). A separate scheme, not part of STM.' },
+  { k: 'stmp', l: 'STM paid per person per month', f: fmtR0, best: 'max', i: 'STM paid ÷ (people × months).' },
+  { g: 'Labour' },
+  { k: 'labour', l: 'Avg labour (GANGLABOUR)', f: v => fmtN(v, 1), best: null, i: 'The crew\'s labour as the bonus system counts it, averaged over the months.' },
+  { k: 'people', l: 'Avg people', f: v => fmtN(v, 1), best: null, i: 'People in payroll in the breaking + cleaning gang, averaged over the months.' },
+  { k: 'pb', l: '…in the breaking gang', f: v => fmtN(v, 1), best: null, i: 'Average people in the breaking gang.' },
+  { k: 'pc', l: '…in the cleaning gang', f: v => fmtN(v, 1), best: null, i: 'Average people in the cleaning gang.' },
+  { k: 'shifts', l: 'Shifts worked', f: v => fmtN(v), best: null, i: 'SHIFTS_WORKED of all the crew\'s people, added over the months.' },
+  { g: 'Safety' },
+  { k: 'lti', l: 'LTIs', f: v => fmtN(v), best: 'min', i: 'Months with GANGLTIIND on the breaking gang.' },
+  { k: 'dress', l: 'Dressing station failures', f: v => fmtN(v), best: 'min', i: 'Months with GANGDRESSINGIND on the breaking gang.' },
+  { k: 'fatal', l: 'Loss of life', f: v => fmtN(v), best: 'min', i: 'Months with GANGFATALIND on the breaking gang.' },
+];
+
+let _cgP = { key: null, p: null };
+function cgFetch() {      // one request per month range, shared by Compare Gangs and Crew Ranking
+  const key = state.from + '-' + state.to;
+  if (_cgP.key !== key) {
+    const p = api('/api/gang_compare', { from: state.from, to: state.to });
+    _cgP = { key, p };
+    p.catch(() => { if (_cgP.p === p) _cgP = { key: null, p: null }; });
+  }
+  return _cgP.p;
+}
+
+async function loadLazyCompare() {
+  if (_lazyLoaded.compare) return;
+  _lazyLoaded.compare = true;
+  showLoading();
+  try {
+    _cg = await cgFetch();
+    cgBuildFilters();
+    const have = new Set(_cg.crews.map(r => r.crew));
+    _cgPick = _cgPick.filter(c => have.has(c));
+    if (!_cgPick.length) cgTop(3);
+    renderCompare();
+  } catch (e) {
+    _lazyLoaded.compare = false;
+    const el = document.getElementById('cg-empty');
+    el.classList.remove('d-none');
+    el.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${esc(e.message.slice(0, 300))}</span>`;
+    document.getElementById('cg-body').classList.add('d-none');
+  } finally { hideLoading(); }
+}
+
+function cgCrewList() {
+  const sec = document.getElementById('cg-section').value, by = {};
+  _cg.crews.forEach(r => {
+    if (sec !== 'ALL' && r.section !== sec) return;
+    const c = by[r.crew] || (by[r.crew] = { crew: r.crew, section: r.section, m2: 0, months: 0 });
+    c.m2 += r.m2; c.months += 1;
+  });
+  return Object.values(by).sort((a, b) => b.m2 - a.m2);
+}
+
+function cgTop(n) {
+  const add = cgCrewList().map(c => c.crew).filter(c => !_cgPick.includes(c));
+  _cgPick = _cgPick.concat(add).slice(0, n);
+}
+
+function cgBuildFilters() {
+  const sel = document.getElementById('cg-section'), cur = sel.value;
+  sel.querySelectorAll('option:not([value="ALL"])').forEach(o => o.remove());
+  [...new Set(_cg.crews.map(r => r.section))].sort().forEach(s => sel.appendChild(new Option(s, s)));
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  else if (state.section && state.section !== 'ALL' && [...sel.options].some(o => o.value === state.section)) sel.value = state.section;
+  cgFillDatalist();
+  if (sel.dataset.wired) return;
+  sel.dataset.wired = '1';
+  sel.addEventListener('change', cgFillDatalist);
+  const inp = document.getElementById('cg-crew');
+  const add = () => {
+    const v = inp.value.trim().toUpperCase();
+    if (!v) return;
+    if (!_cg.crews.some(r => r.crew === v)) { inp.classList.add('is-invalid'); return; }
+    inp.classList.remove('is-invalid'); inp.value = '';
+    if (!_cgPick.includes(v)) {
+      if (_cgPick.length >= CG_MAX) { alert(`You can compare up to ${CG_MAX} crews.`); return; }
+      _cgPick.push(v);
+    }
+    renderCompare();
+  };
+  document.getElementById('cg-add').onclick = add;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  inp.addEventListener('input', () => {
+    inp.classList.remove('is-invalid');
+    if ([...document.getElementById('dl-cg-crew').options].some(o => o.value === inp.value)) add();
+  });
+  document.getElementById('cg-top').onclick = () => { _cgPick = []; cgTop(5); renderCompare(); };
+  document.getElementById('cg-clear').onclick = () => { _cgPick = []; renderCompare(); };
+  document.getElementById('cg-metric').onchange = cgChart;
+  document.getElementById('cg-lab-show').onchange = cgLabour;
+}
+
+function cgFillDatalist() {
+  document.getElementById('dl-cg-crew').innerHTML = cgCrewList()
+    .map(c => `<option value="${esc(c.crew)}">${esc(c.section)} · ${fmtN(c.m2)} m² · ${c.months} month${c.months === 1 ? '' : 's'}</option>`).join('');
+}
+
+function cgAgg(crew) {
+  const cm = _cg.crews.filter(r => r.crew === crew), n = cm.length;
+  const S = k => sfSum(cm, k), lab = S('labour'), m2 = S('m2'), total = S('total'), shifts = S('shifts'), people = S('people');
+  const wps = _cg.workplaces.filter(w => w.crew === crew), types = {};
+  wps.forEach(w => types[w.wtype] = (types[w.wtype] || 0) + w.adj);
+  const mtype = Object.keys(types).sort((a, b) => types[b] - types[a])[0];
+  return {
+    crew, section: cm[0] ? cm[0].section : '', clean: [...new Set(cm.map(r => r.clean_gang).filter(Boolean))].join(', '),
+    months: n, m2, pre: S('pre'), m2m: n ? m2 / n : null, m2man: lab ? m2 / lab : null, m2shift: shifts ? m2 / shifts : null,
+    wpn: new Set(wps.map(w => w.workplace)).size, mtype,
+    brk: S('brk'), saf: S('saf'), sweep: S('sweep'), total, rsqm: m2 ? total / m2 : null, rman: lab ? total / lab : null,
+    stm: S('stm'), drill: S('drill'), stmp: people ? S('stm') / people : null,
+    labour: n ? lab / n : null, people: n ? people / n : null, pb: n ? S('people_b') / n : null, pc: n ? S('people_c') / n : null,
+    shifts, lti: S('lti'), dress: S('dress'), fatal: S('fatal'),
+  };
+}
+
+const cgDot = i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${CG_COLORS[i % CG_COLORS.length]};margin-right:5px"></span>`;
+const cgIb = k => `<span class="ib" data-k="${k}"></span>`;
+const cgHead = (first) => `<tr>${first}${_cgPick.map((c, i) => `<th class="text-end text-nowrap">${cgDot(i)}${esc(c)}</th>`).join('')}</tr>`;
+
+function renderCompare() {
+  if (!_cg) return;
+  document.getElementById('cg-chips').innerHTML = _cgPick.map((c, i) =>
+    `<span class="badge rounded-pill text-bg-light border d-inline-flex align-items-center" style="font-size:.8rem">${cgDot(i)}${esc(c)}
+       <button type="button" class="btn-close ms-2" style="font-size:.55rem" data-crew="${esc(c)}" aria-label="Remove"></button></span>`).join('');
+  document.querySelectorAll('#cg-chips .btn-close').forEach(b => b.onclick = () => { _cgPick = _cgPick.filter(c => c !== b.dataset.crew); renderCompare(); });
+  const lbls = Object.values(_cg.period_labels);
+  document.getElementById('cg-note').textContent = lbls.length ? `${lbls[0]} – ${lbls[lbls.length - 1]} · ${_cgPick.length} of ${CG_MAX} crews` : '';
+  const none = _cgPick.length === 0;
+  document.getElementById('cg-empty').classList.toggle('d-none', !none);
+  if (none) document.getElementById('cg-empty').textContent = 'Pick crews above to compare them.';
+  document.getElementById('cg-body').classList.toggle('d-none', none);
+  if (!none) { cgSide(); cgChart(); cgLabour(); cgWtype(); cgWps(); }
+  cgInfoInit();
+}
+
+function cgSide() {
+  const A = _cgPick.map(cgAgg);
+  document.getElementById('cg-side-head').innerHTML = cgHead(`<th>Crew${cgIb('cg-h-crew')}</th>`)
+    + `<tr class="small text-muted"><th class="fw-normal">Section · cleaning gang</th>${A.map(a => `<th class="fw-normal text-end">${esc(a.section)}${a.clean ? ' · ' + esc(a.clean) : ''}</th>`).join('')}</tr>`;
+  document.getElementById('cg-side').innerHTML = CG_METRICS.map(m => {
+    if (m.g) return `<tr class="table-light"><td colspan="${A.length + 1}" class="fw-semibold small text-uppercase text-muted">${m.g}</td></tr>`;
+    const vals = A.map(a => a[m.k]);
+    const nums = vals.filter(v => typeof v === 'number' && isFinite(v));
+    const best = (m.best && A.length > 1 && nums.length > 1 && new Set(nums).size > 1)
+      ? (m.best === 'max' ? Math.max(...nums) : Math.min(...nums)) : null;
+    return `<tr class="${m.b ? 'fw-semibold' : ''}"><td class="text-nowrap">${m.l}${_infoBtn(m.l, m.i)}</td>${vals.map(v =>
+      `<td class="text-end ${best != null && v === best ? 'table-success fw-semibold' : ''}">${v == null ? '—' : m.f(v)}</td>`).join('')}</tr>`;
+  }).join('');
+}
+
+function cgChart() {
+  const metric = document.getElementById('cg-metric').value;
+  const periods = Object.keys(_cg.period_labels).sort();
+  const val = r => {
+    if (!r) return null;
+    if (metric === 'm2man') return r.labour ? r.m2 / r.labour : null;
+    return r[metric];
+  };
+  const rand = ['total', 'stm'].includes(metric);
+  makeChart('chart-cg', {
+    type: 'line',
+    data: {
+      labels: periods.map(p => _cg.period_labels[p]),
+      datasets: _cgPick.map((c, i) => {
+        const by = {}; _cg.crews.filter(r => r.crew === c).forEach(r => by[r.period] = r);
+        return { label: c, data: periods.map(p => val(by[p])), borderColor: CG_COLORS[i % CG_COLORS.length],
+                 backgroundColor: CG_COLORS[i % CG_COLORS.length], tension: .25, pointRadius: 3, spanGaps: false };
+      }),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y == null ? '—' : rand ? fmtR0(ctx.parsed.y) : fmtN(ctx.parsed.y, metric === 'm2man' ? 1 : 0)}` } } },
+      scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { callback: v => rand ? fmtRm(v) : fmtN(v) } }, x: { grid: { display: false } } },
+    },
+  });
+}
+
+function cgLabour() {
+  const show = document.getElementById('cg-lab-show').value;
+  const months = {}; _cgPick.forEach(c => months[c] = _cg.crews.filter(r => r.crew === c).length || 1);
+  const rows = {};
+  _cg.labour.forEach(r => {
+    if (!_cgPick.includes(r.crew)) return;
+    const k = r.gtype + '|' + r.wc;
+    const x = rows[k] || (rows[k] = { gtype: r.gtype, wc: r.wc, descr: r.descr, v: {} });
+    x.v[r.crew] = (x.v[r.crew] || 0) + r[show];
+    if (r.descr && !x.descr) x.descr = r.descr;
+  });
+  const per = (x, c) => x.v[c] == null ? null : show === 'n' ? x.v[c] / months[c] : x.v[c];
+  const list = Object.values(rows).sort((a, b) => a.gtype.localeCompare(b.gtype)
+    || _cgPick.reduce((t, c) => t + (per(b, c) || 0), 0) - _cgPick.reduce((t, c) => t + (per(a, c) || 0), 0));
+  const f = v => v == null ? '<span class="text-muted">—</span>' : show === 'stm' ? fmtR0(v) : fmtN(v, show === 'n' ? 1 : 0);
+  document.getElementById('cg-lab-head').innerHTML = cgHead(`<th>Gang${cgIb('cg-h-gang')}</th><th>Wage Code${cgIb('cg-h-wc')}</th><th>Description${cgIb('cg-h-descr')} ${cgIb('cg-h-labcell')}</th>`);
+  cgInfoInit();
+  document.getElementById('cg-lab').innerHTML = list.length ? list.map(x =>
+    `<tr><td>${x.gtype}</td><td>${esc(x.wc)}</td><td>${esc(x.descr)}</td>${_cgPick.map(c => `<td class="text-end">${f(per(x, c))}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${_cgPick.length + 3}" class="empty-state">No payroll rows for these crews.</td></tr>`;
+  document.getElementById('cg-lab-foot').innerHTML = `<tr class="tr-grand-total"><td colspan="3">Total</td>${_cgPick.map(c =>
+    `<td class="text-end">${f(list.reduce((t, x) => t + (per(x, c) || 0), 0))}</td>`).join('')}</tr>`;
+}
+
+function cgWtype() {
+  const m = {}, tot = {};
+  _cg.workplaces.forEach(w => {
+    if (!_cgPick.includes(w.crew)) return;
+    (m[w.wtype] || (m[w.wtype] = {}))[w.crew] = (m[w.wtype][w.crew] || 0) + w.adj;
+    tot[w.crew] = (tot[w.crew] || 0) + w.adj;
+  });
+  const types = Object.keys(m).sort((a, b) => _cgPick.reduce((t, c) => t + (m[b][c] || 0), 0) - _cgPick.reduce((t, c) => t + (m[a][c] || 0), 0));
+  document.getElementById('cg-wt-head').innerHTML = cgHead(`<th>Workplace Type${cgIb('cg-h-wtype')} ${cgIb('cg-h-wtcell')}</th>`);
+  cgInfoInit();
+  document.getElementById('cg-wt').innerHTML = types.length ? types.map(t => `<tr><td>${esc(t)}</td>${_cgPick.map(c => {
+    const v = m[t][c];
+    return `<td class="text-end">${v ? `${fmtN(v)} <span class="text-muted small">(${sfPct(v, tot[c], 0)})</span>` : '<span class="text-muted">—</span>'}</td>`;
+  }).join('')}</tr>`).join('') : `<tr><td colspan="${_cgPick.length + 1}" class="empty-state">No workplaces.</td></tr>`;
+  document.getElementById('cg-wt-foot').innerHTML = `<tr class="tr-grand-total"><td>Total m²</td>${_cgPick.map(c => `<td class="text-end">${fmtN(tot[c] || 0)}</td>`).join('')}</tr>`;
+}
+
+function cgWps() {
+  const by = {};
+  _cg.workplaces.forEach(w => {
+    if (!_cgPick.includes(w.crew)) return;
+    const k = w.crew + '|' + w.workplace;
+    const x = by[k] || (by[k] = { crew: w.crew, workplace: w.workplace, name: w.name, wtype: w.wtype, months: [], pre: 0, adj: 0 });
+    x.months.push(w.period); x.pre += w.pre; x.adj += w.adj;
+    if (w.name && !x.name) x.name = w.name;
+  });
+  const list = Object.values(by).sort((a, b) => _cgPick.indexOf(a.crew) - _cgPick.indexOf(b.crew) || b.adj - a.adj);
+  document.getElementById('cg-wps').innerHTML = list.length ? list.map(x => {
+    const i = _cgPick.indexOf(x.crew);
+    return `<tr><td class="fw-semibold text-nowrap">${cgDot(i)}${esc(x.crew)}</td><td>${esc(x.workplace)}</td><td>${esc(x.name)}</td><td>${esc(x.wtype)}</td>
+      <td class="text-end">${x.months.length}</td><td class="small">${x.months.sort().map(p => _cg.period_labels[p] || p).join(', ')}</td>
+      <td class="text-end">${fmtN(x.pre)}</td><td class="text-end">${fmtN(x.adj)}</td></tr>`;
+  }).join('') : '<tr><td colspan="8" class="empty-state">No workplaces.</td></tr>';
+}
+
+function cgInfoInit() {
+  const root = document.getElementById('gsub-compare');
+  root.querySelectorAll('.ib[data-k]').forEach(el => {
+    if (el.dataset.done) return;
+    const e = CG_INFO[el.dataset.k];
+    if (e) { el.innerHTML = _infoBtn(e[0], e[1]); el.dataset.done = '1'; }
+  });
+  _initPopovers(root);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Gang Analysis — Crew Ranking (weighted points, lazy, per pill)
+// ════════════════════════════════════════════════════════════════════════════
+// kind: nat = already a percentage; hi = more is better (vs the best crew); lo = less is better
+// (best crew = 100%); bad = an amount of something bad (worst crew = 100%; give it negative points).
+const RK_PARAMS = [
+  { g: 'Production', k: 'm2man', l: 'm² per man', kind: 'hi', w: 5, f: v => fmtN(v, 1),
+    i: 'Total m² ÷ total labour (GANGLABOUR) over the months. 100% = the best crew.' },
+  { g: 'Production', k: 'm2', l: 'Total m²', kind: 'hi', w: 2, f: v => fmtN(v),
+    i: 'Adjusted m² (GANGTOTALSQMADJUSTED) added over the months. 100% = the best crew.' },
+  { g: 'Production', k: 'm2m', l: 'Avg m² per month', kind: 'hi', w: 0, f: v => fmtN(v, 1),
+    i: 'Total m² ÷ months worked, so crews that worked fewer months are not punished. 100% = the best crew.' },
+  { g: 'Production', k: 'entry', l: 'Months above entry level', kind: 'nat', w: 2, f: v => fmtPct(v, 0),
+    i: 'Share of the crew\'s months at 14 m² per man or more (policy §5.4), the months that earn a break bonus. Already a percentage.' },
+  { g: 'Production', k: 'm2shift', l: 'm² per shift worked', kind: 'hi', w: 0, f: v => fmtN(v, 2),
+    i: 'Total m² ÷ shifts worked by the crew\'s people (payroll). 100% = the best crew.' },
+  { g: 'Safety', k: 'clean', l: 'Incident-free months', kind: 'nat', w: 4, f: v => fmtPct(v, 0),
+    i: 'Share of the crew\'s months with no LTI, dressing station failure or loss of life on the breaking gang. Already a percentage.' },
+  { g: 'Safety', k: 'safach', l: 'Safety bonus achieved', kind: 'nat', w: 0, f: v => fmtPct(v, 0),
+    i: 'Safety bonus the system gave ÷ the 25% of break bonus a clean record earns (policy §6.1.3), 0% to 100%. n/a when the crew earned no break bonus.' },
+  { g: 'Safety', k: 'lti', l: 'LTIs', kind: 'bad', w: 0, f: v => fmtN(v),
+    i: 'Number of months with an LTI. The crew with the most = 100%. Give it negative points.' },
+  { g: 'Safety', k: 'lol', l: 'Loss of life', kind: 'bad', w: 0, f: v => fmtN(v),
+    i: 'Number of months with a loss of life. The crew with the most = 100%. Give it negative points.' },
+  { g: 'Bonus', k: 'sweep', l: 'Sweeping penalty', kind: 'bad', w: -3, f: fmtR0,
+    i: 'Sweeping penalty in Rand (GANGFINALSWEEPINGSBONUS × labour, as a positive amount). The crew with the biggest penalty = 100%; crews without one = 0%. Give it negative points.' },
+  { g: 'Bonus', k: 'rman', l: 'Bonus per man', kind: 'hi', w: 0, f: fmtR0,
+    i: 'Production bonus (efficiency + safety + sweeping) ÷ total labour: bonus per labour unit per month. 100% = the best crew.' },
+  { g: 'Bonus', k: 'rsqm', l: 'Bonus cost per m²', kind: 'lo', w: 0, f: v => fmtR(v),
+    i: 'Production bonus ÷ m². Cheaper is better: the cheapest crew = 100%.' },
+  { g: 'Labour', k: 'att', l: 'Attendance', kind: 'nat', w: 2, f: v => fmtPct(v, 1),
+    i: 'Shifts worked ÷ the month\'s shifts (MONTHSHIFTS) for every person in the breaking and cleaning gang (payroll, officials excluded). Already a percentage.' },
+  { g: 'Labour', k: 'awop', l: 'AWOP shifts', kind: 'bad', w: -1, f: v => fmtPct(v, 1),
+    i: 'AWOP shifts ÷ the month\'s shifts of the crew\'s people. The crew with the highest AWOP rate = 100%. Give it negative points.' },
+  { g: 'Labour', k: 'm2person', l: 'm² per person', kind: 'hi', w: 0, f: v => fmtN(v, 1),
+    i: 'Total m² ÷ people in payroll (breaking + cleaning gang, added over the months). Counts every person, not the bonus labour. 100% = the best crew.' },
+];
+const RK_GROUP_COLORS = { Production: ['#1565C0', '#42A5F5', '#0D47A1', '#64B5F6', '#1E88E5'], Safety: ['#2E7D32', '#66BB6A', '#C62828', '#8E0000'],
+                          Bonus: ['#E65100', '#FFB300', '#6D4C41'], Labour: ['#6A1B9A', '#AD1457', '#00838F'] };
+const RK_INFO = {
+  'rk-points': ['Points per Parameter', 'Each parameter turns a crew\'s real result into a percentage, then multiplies it by the points you give it. A crew\'s score is the sum. Your points are remembered in this browser.'],
+  'rk-scale': ['Percentages', '"Against the best crew": a crew\'s value ÷ the best crew\'s value (half the best m² per man = 50%). "Worst = 0%, best = 100%": spreads the crews out between the worst and the best. Parameters that already are percentages (attendance, incident-free months, months above entry level, safety achieved) are used as they are.'],
+  'rk-section': ['Section', 'Ranks only the crews of one section against each other. The best and worst crews used for the percentages are then the best and worst in that section.'],
+  'rk-min': ['Worked at least', 'Crews that worked fewer months than this are left out, so a crew with one good month does not top the list. The crews left out also do not count as best or worst crew.'],
+  'rk-show': ['Show', 'How many crews the table and chart show. The ranking itself always includes every crew that qualifies (the chart shows at most 30).'],
+  'rk-buttons': ['Reset / Set all to 0', 'Reset to defaults puts back the starting points (m² per man 5, total m² 2, months above entry level 2, incident-free months 4, sweeping penalty -3, attendance 2, AWOP -1). Set all to 0 clears every parameter so you can build your own.'],
+  'rk-h-rank': ['#', 'The crew\'s place by total points. Crews with exactly the same points share a place.'],
+  'rk-h-crew': ['Crew', 'The crew number (the breaking gang code). A crew is the Stope Breaking gang plus its Stope Cleaning gang.'],
+  'rk-h-section': ['Section', 'The crew\'s mining section.'],
+  'rk-h-months': ['Months', 'Months in the selection in which the crew worked.'],
+  'rk-h-total': ['Total Points', 'The sum of the points of every parameter: percentage × points, negative points taken off.'],
+  'rk-h-score': ['Score %', 'Total points ÷ the most points a crew can get (every positive parameter at 100%). It can be below 0% when negative points outweigh the rest.'],
+  'rk-chart': ['Points Make-up', 'The points each parameter added to (or took from) the crews shown, in ranking order. Negative points go to the left.'],
+  'rk-table': ['Crew Ranking', 'Score % = points ÷ the most points a crew can get (all positive points at 100%). Hover a points cell to see the crew\'s real value and its percentage. Only crews in the chosen section that worked at least the chosen number of months are ranked against each other.'],
+};
+let _rkW = null;
+
+function rkLoadWeights() {
+  const d = {}; RK_PARAMS.forEach(p => d[p.k] = p.w);
+  try { const s = JSON.parse(localStorage.getItem('rk-weights') || 'null'); if (s) Object.keys(d).forEach(k => { if (typeof s[k] === 'number') d[k] = s[k]; }); } catch (e) {}
+  _rkW = d;
+}
+function rkSaveWeights() { try { localStorage.setItem('rk-weights', JSON.stringify(_rkW)); } catch (e) {} }
+
+async function loadLazyRank() {
+  if (_lazyLoaded.rank) return;
+  _lazyLoaded.rank = true;
+  showLoading();
+  try {
+    _cg = await cgFetch();
+    rkBuild();
+    renderRank();
+  } catch (e) {
+    _lazyLoaded.rank = false;
+    document.getElementById('rk-body').innerHTML = `<tr><td class="empty-state text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load — ${esc(e.message.slice(0, 300))}</td></tr>`;
+  } finally { hideLoading(); }
+}
+
+function rkBuild() {
+  if (!_rkW) rkLoadWeights();
+  const sel = document.getElementById('rk-section'), cur = sel.value;
+  sel.querySelectorAll('option:not([value="ALL"])').forEach(o => o.remove());
+  [...new Set(_cg.crews.map(r => r.section))].sort().forEach(x => sel.appendChild(new Option(x, x)));
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  else if (state.section && state.section !== 'ALL' && [...sel.options].some(o => o.value === state.section)) sel.value = state.section;
+  const nP = Object.keys(_cg.period_labels).length, mn = document.getElementById('rk-min');
+  mn.max = Math.max(nP, 1);
+  if (!mn.dataset.touched) mn.value = Math.min(3, Math.max(nP, 1));
+  if (sel.dataset.wired) return;
+  sel.dataset.wired = '1';
+  const groups = [...new Set(RK_PARAMS.map(p => p.g))];
+  document.getElementById('rk-weights').innerHTML = groups.map(g => `<div class="col-md-6 col-xl-3"><div class="border rounded p-2 h-100">
+      <div class="fw-semibold small text-uppercase text-muted mb-1">${g}</div>
+      ${RK_PARAMS.filter(p => p.g === g).map(p => `<div class="d-flex align-items-center gap-2 py-1">
+        <span class="small flex-grow-1">${p.l}${_infoBtn(p.l, p.i)}</span>
+        <input type="number" step="0.5" class="form-control form-control-sm text-end rk-w" data-k="${p.k}" style="width:72px">
+      </div>`).join('')}
+    </div></div>`).join('');
+  rkFillWeights();
+  document.querySelectorAll('.rk-w').forEach(el => el.addEventListener('input', () => {
+    const v = parseFloat(String(el.value).replace(',', '.'));
+    _rkW[el.dataset.k] = isNaN(v) ? 0 : v;
+    el.classList.toggle('text-danger', _rkW[el.dataset.k] < 0);
+    rkSaveWeights(); renderRank();
+  }));
+  document.getElementById('rk-reset').onclick = () => { _rkW = null; try { localStorage.removeItem('rk-weights'); } catch (e) {} rkLoadWeights(); rkFillWeights(); renderRank(); };
+  document.getElementById('rk-zero').onclick = () => { Object.keys(_rkW).forEach(k => _rkW[k] = 0); rkSaveWeights(); rkFillWeights(); renderRank(); };
+  mn.addEventListener('input', () => { mn.dataset.touched = '1'; renderRank(); });
+  ['rk-section', 'rk-scale', 'rk-show'].forEach(id => document.getElementById(id).addEventListener('change', renderRank));
+}
+
+function rkFillWeights() {
+  document.querySelectorAll('.rk-w').forEach(el => { el.value = _rkW[el.dataset.k]; el.classList.toggle('text-danger', _rkW[el.dataset.k] < 0); });
+}
+
+function rkCrews() {
+  const sec = document.getElementById('rk-section').value, by = {};
+  _cg.crews.forEach(r => {
+    if (sec !== 'ALL' && r.section !== sec) return;
+    const c = by[r.crew] || (by[r.crew] = { crew: r.crew, section: r.section, n: 0, m2: 0, lab: 0, shifts: 0, people: 0, poss: 0, awop: 0,
+      brk: 0, saf: 0, sweep: 0, total: 0, entry: 0, clean: 0, lti: 0, lol: 0 });
+    c.n++; c.m2 += r.m2; c.lab += r.labour; c.shifts += r.shifts; c.people += r.people; c.poss += r.poss; c.awop += r.awop;
+    c.brk += r.brk; c.saf += r.saf; c.sweep += r.sweep; c.total += r.total;
+    if (r.labour && r.m2 / r.labour >= 14) c.entry++;
+    if (!(r.lti || r.dress || r.fatal)) c.clean++;
+    if (r.lti) c.lti++;
+    if (r.fatal) c.lol++;
+  });
+  const clamp = v => Math.max(0, Math.min(1, v));
+  return Object.values(by).map(c => ({
+    crew: c.crew, section: c.section, months: c.n,
+    v: {
+      m2man: c.lab ? c.m2 / c.lab : null, m2: c.m2, m2m: c.m2 / c.n, entry: c.entry / c.n, m2shift: c.shifts ? c.m2 / c.shifts : null,
+      clean: c.clean / c.n, safach: c.brk > 0 ? clamp(c.saf / (0.25 * c.brk)) : null, lti: c.lti, lol: c.lol,
+      sweep: Math.abs(c.sweep), rman: c.lab ? c.total / c.lab : null, rsqm: c.m2 > 0 ? c.total / c.m2 : null,
+      att: c.poss ? clamp(c.shifts / c.poss) : null, awop: c.poss ? c.awop / c.poss : null, m2person: c.people ? c.m2 / c.people : null,
+    },
+  }));
+}
+
+function renderRank() {
+  if (!_cg) return;
+  const minM = Math.max(1, parseInt(document.getElementById('rk-min').value, 10) || 1);
+  const scale = document.getElementById('rk-scale').value;
+  const crews = rkCrews().filter(c => c.months >= minM);
+  const active = RK_PARAMS.filter(p => _rkW[p.k]);
+  // percentage of each crew per parameter, against the crews being ranked
+  active.forEach(p => {
+    const vals = crews.map(c => c.v[p.k]).filter(v => v != null && isFinite(v));
+    const mx = vals.length ? Math.max(...vals) : 0, mn = vals.length ? Math.min(...vals) : 0;
+    crews.forEach(c => {
+      const v = c.v[p.k];
+      let pct = null;
+      if (v != null && isFinite(v)) {
+        if (p.kind === 'nat') pct = v;
+        else if (scale === 'range') pct = mx === mn ? (p.kind === 'bad' ? (mx > 0 ? 1 : 0) : 1)
+                                         : (p.kind === 'lo' ? (mx - v) / (mx - mn) : (v - mn) / (mx - mn));
+        else if (p.kind === 'lo') pct = v > 0 ? mn / v : (v === mn ? 1 : 0);
+        else pct = mx > 0 ? Math.max(0, v) / mx : 0;
+        pct = Math.max(0, Math.min(1, pct));
+      }
+      (c.pct || (c.pct = {}))[p.k] = pct;
+      (c.pts || (c.pts = {}))[p.k] = (pct || 0) * _rkW[p.k];
+    });
+  });
+  const maxPos = active.reduce((t, p) => t + Math.max(0, _rkW[p.k]), 0);
+  crews.forEach(c => { c.score = active.reduce((t, p) => t + c.pts[p.k], 0); c.scorePct = maxPos ? c.score / maxPos : null; });
+  crews.sort((a, b) => b.score - a.score || b.v.m2 - a.v.m2);
+  crews.forEach((c, i) => c.rank = (i && Math.abs(c.score - crews[i - 1].score) < 1e-9) ? crews[i - 1].rank : i + 1);
+  const showN = parseInt(document.getElementById('rk-show').value, 10);
+  const shown = showN ? crews.slice(0, showN) : crews;
+  document.getElementById('rk-note').textContent = `${crews.length} crews ranked · most points possible ${fmtN(maxPos, 1)}`;
+
+  const medal = r => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : '';
+  const ib = k => `<span class="ib" data-k="${k}"></span>`;
+  document.getElementById('rk-head').innerHTML = `<tr><th>#${ib('rk-h-rank')}</th><th>Crew${ib('rk-h-crew')}</th><th>Section${ib('rk-h-section')}</th><th class="text-end">Months${ib('rk-h-months')}</th>
+    ${active.map(p => `<th class="text-end">${p.l}${_infoBtn(p.l, p.i + ' Points = percentage × ' + fmtN(_rkW[p.k], 1) + '. The small number under the points is the crew\'s real value.')}<br><span class="badge ${_rkW[p.k] < 0 ? 'bg-danger' : 'bg-secondary'}">${_rkW[p.k] > 0 ? '+' : ''}${fmtN(_rkW[p.k], 1)} pts</span></th>`).join('')}
+    <th class="text-end">Total Points${ib('rk-h-total')}</th><th class="text-end" style="min-width:140px">Score %${ib('rk-h-score')}</th></tr>`;
+  document.getElementById('rk-body').innerHTML = !active.length
+    ? '<tr><td colspan="6" class="empty-state">Give at least one parameter some points.</td></tr>'
+    : !shown.length ? `<tr><td colspan="${active.length + 6}" class="empty-state">No crews worked ${minM} month(s) or more in this selection.</td></tr>`
+    : shown.map(c => {
+      const sp = c.scorePct, w = sp == null ? 0 : Math.max(0, Math.min(1, sp)) * 100;
+      return `<tr data-crew="${esc(c.crew)}" style="cursor:pointer">
+        <td class="fw-semibold">${c.rank} ${medal(c.rank)}</td><td class="fw-semibold">${esc(c.crew)}</td><td>${esc(c.section)}</td><td class="text-end">${c.months}</td>
+        ${active.map(p => {
+          const v = c.v[p.k], pc = c.pct[p.k];
+          const tip = `${p.l}: ${v == null ? 'n/a' : p.f(v)} → ${pc == null ? 'n/a (0 points)' : fmtPct(pc, 0)} × ${fmtN(_rkW[p.k], 1)}`;
+          return `<td class="text-end ${c.pts[p.k] < 0 ? 'delta-warn' : ''}" title="${esc(tip)}">${fmtN(c.pts[p.k], 2)}<div class="small text-muted">${v == null ? 'n/a' : p.f(v)}</div></td>`;
+        }).join('')}
+        <td class="text-end fw-bold">${fmtN(c.score, 2)}</td>
+        <td class="text-end"><div class="d-flex align-items-center gap-2"><div class="flex-grow-1 bg-light rounded" style="height:8px">
+          <div class="rounded" style="height:8px;width:${w}%;background:${sp != null && sp < 0 ? '#dc3545' : '#1565C0'}"></div></div>
+          <span class="fw-semibold">${sp == null ? '—' : fmtPct(sp, 0)}</span></div></td></tr>`;
+    }).join('');
+  document.querySelectorAll('#rk-body tr[data-crew]').forEach(tr => tr.addEventListener('dblclick', () => {
+    const c = tr.dataset.crew;
+    if (!_cgPick.includes(c)) { _cgPick = [c].concat(_cgPick).slice(0, CG_MAX); }
+    document.querySelector('#gangAnalysisSubtabs button[data-bs-target="#gsub-compare"]').click();
+    if (_lazyLoaded.compare) renderCompare();
+  }));
+
+  // stacked points chart
+  const top = shown.slice(0, 30);
+  document.getElementById('rk-chart-wrap').style.height = Math.max(220, top.length * 26 + 80) + 'px';
+  const gi = {};
+  makeChart('chart-rk', {
+    type: 'bar',
+    data: {
+      labels: top.map(c => `${c.rank}. ${c.crew}`),
+      datasets: active.map(p => {
+        const cols = RK_GROUP_COLORS[p.g]; gi[p.g] = (gi[p.g] || 0);
+        const col = cols[gi[p.g]++ % cols.length];
+        return { label: `${p.l} (${_rkW[p.k] > 0 ? '+' : ''}${fmtN(_rkW[p.k], 1)})`, data: top.map(c => +c.pts[p.k].toFixed(3)), backgroundColor: col, stack: 's' };
+      }),
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtN(ctx.parsed.x, 2)} pts`,
+                                footer: items => `Total: ${fmtN(top[items[0].dataIndex].score, 2)} pts` } } },
+      scales: { x: { stacked: true, grid: { color: '#eee' }, title: { display: true, text: 'Points' } }, y: { stacked: true, grid: { display: false } } },
+    },
+  });
+  const root = document.getElementById('gsub-rank');
+  root.querySelectorAll('.ib[data-k]').forEach(el => {
+    if (el.dataset.done) return;
+    const e = RK_INFO[el.dataset.k];
+    if (e) { el.innerHTML = _infoBtn(e[0], e[1]); el.dataset.done = '1'; }
+  });
+  _initPopovers(root);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  Refresh all panels
 // ════════════════════════════════════════════════════════════════════════════
-let _lazyLoaded = { range: false, detail: false, crews: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
+let _lazyLoaded = { range: false, detail: false, crews: false, compare: false, rank: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
 let _bonusRaw   = { gt: null, sec: null };
 
 async function refreshAll() {
   const p = { from: state.from, to: state.to, section: state.section, gangtype: state.gangtype };
-  _lazyLoaded = { range: false, detail: false, crews: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
+  _lazyLoaded = { range: false, detail: false, crews: false, compare: false, rank: false, labour: false, safety: false, forecast: false, fct: false, bonusRule: false };
   _bonusRaw   = { gt: null, sec: null };
   _fcData     = null;
   _fctData    = null;
@@ -3033,6 +3751,8 @@ async function refreshAll() {
     if      (_activeSubHref === '#gsub-range')  loadLazyRange();
     else if (_activeSubHref === '#gsub-detail') loadLazyDetail();
     else if (_activeSubHref === '#gsub-crew')   loadLazyCrews();
+    else if (_activeSubHref === '#gsub-compare') loadLazyCompare();
+    else if (_activeSubHref === '#gsub-rank')    loadLazyRank();
   }
   else if (_activeHref === '#tab-forecast') {
     const _activeSubHref = document.querySelector('#forecastSubtabs .nav-link.active')?.getAttribute('data-bs-target');
@@ -6667,6 +7387,8 @@ document.querySelectorAll('#gangAnalysisSubtabs button[data-bs-toggle="pill"]').
     const target = e.target.getAttribute('data-bs-target');
     if (target === '#gsub-detail') loadLazyDetail();
     if (target === '#gsub-crew')   loadLazyCrews();
+    if (target === '#gsub-compare') loadLazyCompare();
+    if (target === '#gsub-rank')    loadLazyRank();
   });
 });
 
